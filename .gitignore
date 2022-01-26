@@ -46,9 +46,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-/target/
-/bin/
-*/target/**
+**/target
+**/bin
 **/META-INF/
 !.mvn/wrapper/maven-wrapper.jar
 
@@ -61,5 +60,5 @@ yarn-error.log*
 .springBeans
 .sts4-cache
 
-/config/
-/mock/
+config/
+mock/
