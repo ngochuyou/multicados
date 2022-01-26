@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.hibernate.SharedSessionContract;
 import org.slf4j.Logger;
@@ -50,6 +51,8 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 		final Logger logger = LoggerFactory.getLogger(DomainResourceBuilderFactoryImpl.class);
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResourceBuilder.class));
+
+		Stream.of(EntityBuilder.class).forEach(clazz -> scanner.addExcludeFilter(new AssignableTypeFilter(clazz)));
 
 		logger.trace("Scanning for {}", DomainResourceBuilder.class.getSimpleName());
 
@@ -94,6 +97,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 	}
 
 	@SuppressWarnings("rawtypes")
+	@For(Entity.class)
 	private static class EntityBuilder extends AbstractDomainResourceBuilder<Entity> {
 
 		private EntityBuilder() {}
