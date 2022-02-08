@@ -46,11 +46,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-/server/target
-bin/
-**/target
-**/bin
-**/META-INF/
+target/*
+bin/*
+META-INF/*
 !.mvn/wrapper/maven-wrapper.jar
 
 ### STS ###
