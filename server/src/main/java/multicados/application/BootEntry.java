@@ -10,6 +10,8 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 import multicados.internal.config.Constants;
 
 /**
+ * Application entry point
+ * 
  * @author Ngoc Huy
  *
  */
