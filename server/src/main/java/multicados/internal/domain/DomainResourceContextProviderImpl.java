@@ -27,6 +27,7 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 import multicados.internal.config.Constants;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl;
+import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
@@ -43,6 +44,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 	private final DomainResourceTree<Model> modelTree;
 
 	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
+	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
 	public DomainResourceContextProviderImpl() throws Exception {
 		// @formatter:off
@@ -81,6 +83,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 				})
 				.then(this::buildMetadatas)
 				.get();
+		tuplizersMap = Collections.emptyMap();
 		// @formatter:on
 	}
 
@@ -221,6 +224,12 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 	@Override
 	public <T extends DomainResource> DomainResourceMetadata<T> getMetadata(Class<T> resourceType) {
 		return (DomainResourceMetadata<T>) metadatasMap.get(resourceType);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends DomainResource> DomainResourceTuplizer<T> getTuplizer(Class<T> resourceType) {
+		return (DomainResourceTuplizer<T>) tuplizersMap.get(resourceType);
 	}
 
 }

@@ -3,7 +3,6 @@
  */
 package multicados.internal.domain.repository;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -24,7 +23,7 @@ import multicados.internal.helper.Utils;
  */
 public class DatabaseInitializerImpl implements DatabaseInitializer {
 
-	private static final String FLAG_KEY = "multicados.database-initializer";
+	private static final String FLAG_KEY = "multicados.dummy-database-initializer";
 	private static final String FLAG_OFF = "off";
 
 	public DatabaseInitializerImpl() throws Exception {
@@ -49,8 +48,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void invoke(Set<BeanDefinition> beanDefs) throws ClassNotFoundException, InstantiationException,
-			IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+	private void invoke(Set<BeanDefinition> beanDefs) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DatabaseInitializerImpl.class);
 
 		logger.trace("Invoking {} contributor(s)", beanDefs.size());

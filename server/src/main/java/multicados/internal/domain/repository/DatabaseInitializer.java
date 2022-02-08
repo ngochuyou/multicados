@@ -13,7 +13,7 @@ public interface DatabaseInitializer extends ContextBuilder {
 
 	public interface DatabaseInitializerContributor {
 
-		void contribute();
+		void contribute() throws Exception;
 
 	}
 

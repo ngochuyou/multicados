@@ -16,7 +16,7 @@ public final class AccessorFactory {
 	private AccessorFactory() {}
 
 	public static Accessor noAccess() {
-		return new NoOpAccessor();
+		return NoOpAccessor.INSTANCE;
 	}
 
 	public static Accessor locateDirectAccessor(Class<?> ownerType, String attributeName)
@@ -29,34 +29,7 @@ public final class AccessorFactory {
 							ownerType.getName()));
 		}
 
-		return new DirectAccessor(new Getter() {
-
-			@Override
-			public Member getMember() {
-				return attribute;
-			}
-
-			@Override
-			public Class<?> getReturnedType() {
-				return attribute.getType();
-			}
-
-			@Override
-			public Object get(Object source) throws Exception {
-				return attribute.get(source);
-			}
-		}, new Setter() {
-
-			@Override
-			public Member getMember() {
-				return attribute;
-			}
-
-			@Override
-			public void set(Object source, Object val) throws Exception {
-				attribute.set(source, val);
-			}
-		});
+		return new DirectAccessor(attribute);
 	}
 
 	public interface Accessor {
@@ -96,6 +69,51 @@ public final class AccessorFactory {
 
 	private static class DirectAccessor extends AbstractAccessor {
 
+		private static final String SETTER_NAME = "DIRECT_SETTER";
+		private static final String GETTER_NAME = "DIRECT_GETTER";
+
+		private DirectAccessor(Field attribute) {
+			this(new Getter() {
+
+				@Override
+				public Member getMember() {
+					return attribute;
+				}
+
+				@Override
+				public Class<?> getReturnedType() {
+					return attribute.getType();
+				}
+
+				@Override
+				public Object get(Object source) throws Exception {
+					return attribute.get(source);
+				}
+
+				@Override
+				public String toString() {
+					return GETTER_NAME;
+				}
+
+			}, new Setter() {
+
+				@Override
+				public Member getMember() {
+					return attribute;
+				}
+
+				@Override
+				public void set(Object source, Object val) throws Exception {
+					attribute.set(source, val);
+				}
+
+				@Override
+				public String toString() {
+					return SETTER_NAME;
+				}
+			});
+		}
+
 		private DirectAccessor(Getter getter, Setter setter) {
 			super(getter, setter);
 		}
@@ -104,7 +122,9 @@ public final class AccessorFactory {
 
 	private static class NoOpAccessor extends AbstractAccessor {
 
-		NoOpAccessor() {
+		private static final NoOpAccessor INSTANCE = new NoOpAccessor();
+
+		private NoOpAccessor() {
 			super(NO_OP_GETTER, OP_OP_SETTER);
 		}
 
