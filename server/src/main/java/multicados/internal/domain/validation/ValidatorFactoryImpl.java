@@ -123,7 +123,6 @@ public class ValidatorFactoryImpl implements ValidatorFactory {
 					}
 
 					validators.put(resourceType, locateParentValidator(validators, node, resourceType));
-					
 					return;
 				}
 				

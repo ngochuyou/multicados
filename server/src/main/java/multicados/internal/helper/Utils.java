@@ -195,6 +195,10 @@ public class Utils {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg)[i]);
 		}
 
+		public BiDeclaration<SECOND, FIRST> inverse() throws Exception {
+			return new BiDeclaration<>(secondArg, firstArg);
+		}
+
 	}
 
 	public static class TriDeclaration<FIRST, SECOND, THIRD> extends BiDeclaration<FIRST, SECOND>

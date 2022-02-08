@@ -65,17 +65,17 @@ public class GenericRepositoryImpl implements GenericRepository {
 			Class<? extends Entity<?>> entityType = (Class<? extends Entity<?>>) node.getResourceType();
 
 			if (Modifier.isAbstract(entityType.getModifiers())) {
-				logger.trace("Skiping abstract {} type [{}]", Entity.class.getSimpleName(), entityType.getName());
+				logger.trace("Skipping abstract {} type [{}]", Entity.class.getSimpleName(), entityType.getName());
 				return;
 			}
 			// @formatter:off
-			fixedSpecifications.put(
-					entityType,
-					Utils.declare(getAllInterfaces(entityType))
-						.then(this::filterOutNonTargetedTypes)
-						.then(ArrayList::new)
-						.then(this::chainFixedSpecifications)
-						.get());
+			Utils.declare(getAllInterfaces(entityType))
+				.then(this::filterOutNonTargetedTypes)
+				.then(ArrayList::new)
+				.then(this::chainFixedSpecifications)
+				.second(entityType)
+				.inverse()
+				.identical(fixedSpecifications::put);
 			// @formatter:on
 		});
 

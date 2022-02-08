@@ -23,11 +23,13 @@ public abstract class PermanentEntity<T extends Serializable> extends Entity<T> 
 	@Column(nullable = false)
 	private Boolean active;
 
+	@Override
 	@JsonProperty(PermanentEntity.active_)
 	public Boolean isActive() {
 		return active;
 	}
 
+	@Override
 	public void setActive(Boolean active) {
 		this.active = active;
 	}
