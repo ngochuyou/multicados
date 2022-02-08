@@ -49,6 +49,7 @@ yarn-error.log*
 target
 bin
 META-INF
+application.properties
 !.mvn/wrapper/maven-wrapper.jar
 
 ### STS ###
