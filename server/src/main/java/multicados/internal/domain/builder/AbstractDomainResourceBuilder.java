@@ -61,6 +61,11 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 			parentBuilder.doAfterContextBuild();
 			childBuilder.doAfterContextBuild();
 		}
+		
+		@Override
+		public <E extends T> boolean contains(DomainResourceBuilder<E> candidate) {
+			return parentBuilder.contains(candidate) || childBuilder.contains(candidate);
+		}
 
 	}
 
@@ -69,6 +74,11 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace(Access.getClosingMessage(this));
+	}
+	
+	@Override
+	public <E extends D> boolean contains(DomainResourceBuilder<E> candidate) {
+		return this == candidate;
 	}
 
 }

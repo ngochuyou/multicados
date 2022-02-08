@@ -27,7 +27,7 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 	 * 
 	 * @param model
 	 * @return entity {@link DomainResource}
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	default <E extends T> E buildInsertion(Serializable id, E resource) throws Exception {
 		return buildInsertion(id, resource, HibernateHelper.getCurrentSession());
@@ -49,4 +49,6 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 
 	<E extends T> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next);
 
+	<E extends T> boolean contains(DomainResourceBuilder<E> candidate);
+	
 }

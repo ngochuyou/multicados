@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,25 +48,21 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 		// @formatter:off
 		this.buildersMap = Utils.declare(scan())
 				.then(this::constructBuilders)
-				.then(this::chain)
 				.then(this::addFixedBuilders)
+				.then(this::chain)
 				.then(Collections::unmodifiableMap)
 				.get();
 		// @formatter:on
 	}
 
 	private Set<BeanDefinition> scan() {
-		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
 		final Logger logger = LoggerFactory.getLogger(DomainResourceBuilderFactoryImpl.class);
 
-		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResourceBuilder.class));
-		// @formatter:off
-		Stream.of(this.getClass().getDeclaredClasses())
-			.filter(DomainResourceBuilder.class::isAssignableFrom)
-			.map(AssignableTypeFilter::new)
-			.forEach(scanner::addExcludeFilter);
-		// @formatter:on
 		logger.trace("Scanning for {}", DomainResourceBuilder.class.getSimpleName());
+
+		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+
+		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResourceBuilder.class));
 
 		return scanner.findCandidateComponents(Constants.BASE_PACKAGE);
 	}
@@ -97,46 +92,15 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 		return buildersMap;
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes" })
 	private Map<Class, DomainResourceBuilder> addFixedBuilders(Map<Class, DomainResourceBuilder> buildersMap)
 			throws Exception {
 		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
 		logger.trace("Adding fixed builders");
 		// @formatter:off
-		return Utils.declare(buildersMap)
-				.then(this::addFromInheritance)
-				.then(this::addFromImplements)
-				.get();
-		// @formatter:on
-	}
-
-	@SuppressWarnings("rawtypes")
-	private Map<Class, DomainResourceBuilder> addFromImplements(Map<Class, DomainResourceBuilder> buildersMap) {
-		final Map<Class, DomainResourceBuilder> fixedBuilders = Map.of(PermanentResource.class,
-				PERMANENT_RESOURCE_BUILDER);
-
-		for (Class type : buildersMap.keySet()) {
-			for (Class interfaceType : ClassUtils.getAllInterfacesForClassAsSet(type).stream()
-					.filter(fixedBuilders::containsKey).collect(Collectors.toSet())) {
-				mergeBuilders(buildersMap, Map.entry(type, fixedBuilders.get(interfaceType)));
-			}
-		}
-
-		return buildersMap;
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private Map<Class, DomainResourceBuilder> addFromInheritance(Map<Class, DomainResourceBuilder> buildersMap) {
-		final Map<Class, DomainResourceBuilder> fixedBuilders = Map.of(Entity.class, ENTITY_BUILDER);
-		// @formatter:off
-		for (Class type : buildersMap.keySet()) {
-			Stack<Class> inheritance = TypeHelper.getClassStack(type);
-			
-			for (Class parentType: inheritance.stream().filter(fixedBuilders::containsKey).collect(Collectors.toSet())) {
-				mergeBuilders(buildersMap, Map.entry(type, fixedBuilders.get(parentType)));
-			}
-		}
+		Stream.of(Map.entry(Entity.class, ENTITY_BUILDER))
+			.forEach(entry -> buildersMap.put(entry.getKey(), entry.getValue()));
 		// @formatter:on
 		return buildersMap;
 	}
@@ -153,15 +117,15 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 			return;
 		}
 
-		if (requestedBuilder == exsitingBuilder) {
+		if (exsitingBuilder.contains(requestedBuilder)) {
 			return;
 		}
 
 		buildersMap.put(key,
-				exsitingBuilder == NO_OP_BUILDER ? requestedBuilder : requestedBuilder.and(exsitingBuilder));
+				exsitingBuilder == NO_OP_BUILDER ? requestedBuilder : exsitingBuilder.and(requestedBuilder));
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	private Map<Class, DomainResourceBuilder> chain(Map<Class, DomainResourceBuilder> buildersMap) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
@@ -171,31 +135,54 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 				.getBean(DomainResourceContextProvider.class);
 
 		resourceContext.getResourceTree().forEach(node -> {
-			Class<DomainResource> resourceType = (Class<DomainResource>) node.getResourceType();
-			DomainResourceBuilder builder = buildersMap.get(resourceType);
-
-			if (builder == null) {
-				if (node.getParent() == null) {
-					buildersMap.put(resourceType, NO_OP_BUILDER);
-					return;
-				}
-
-				buildersMap.put(resourceType, locateParentBuilder(buildersMap, node, resourceType));
-				return;
-			}
-
-			if (node.getParent() == null) {
-				return;
-			}
-
-			DomainResourceBuilder parentBuilder = locateParentBuilder(buildersMap, node, resourceType);
-
-			if (parentBuilder == builder) {
-				return;
-			}
-
-			buildersMap.put(resourceType, parentBuilder == NO_OP_BUILDER ? builder : parentBuilder.and(builder));
+			chainParentLogic(buildersMap, node);
+			chainImplementedLogics(buildersMap, node.getResourceType());
 		});
+
+		return buildersMap;
+	}
+
+	@SuppressWarnings("rawtypes")
+	private Map<Class, DomainResourceBuilder> chainImplementedLogics(Map<Class, DomainResourceBuilder> buildersMap,
+			Class resourceType) {
+		final Map<Class, DomainResourceBuilder> implementedBuilders = Map.of(PermanentResource.class,
+				DomainResourceBuilderFactoryImpl.PERMANENT_RESOURCE_BUILDER);
+
+		for (Class interfaceType : ClassUtils.getAllInterfacesForClassAsSet(resourceType).stream()
+				.filter(implementedBuilders::containsKey).collect(Collectors.toSet())) {
+			mergeBuilders(buildersMap, Map.entry(resourceType, implementedBuilders.get(interfaceType)));
+		}
+
+		return buildersMap;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private Map<Class, DomainResourceBuilder> chainParentLogic(Map<Class, DomainResourceBuilder> buildersMap,
+			DomainResourceTree<? extends DomainResource> node) {
+		Class<DomainResource> resourceType = (Class<DomainResource>) node.getResourceType();
+		DomainResourceBuilder builder = buildersMap.get(resourceType);
+
+		if (builder == null) {
+			if (node.getParent() == null) {
+				buildersMap.put(resourceType, NO_OP_BUILDER);
+				return buildersMap;
+			}
+
+			buildersMap.put(resourceType, locateParentBuilder(buildersMap, node, resourceType));
+			return buildersMap;
+		}
+
+		if (node.getParent() == null) {
+			return buildersMap;
+		}
+
+		DomainResourceBuilder parentBuilder = locateParentBuilder(buildersMap, node, resourceType);
+
+		if (parentBuilder == builder) {
+			return buildersMap;
+		}
+
+		buildersMap.put(resourceType, parentBuilder == NO_OP_BUILDER ? builder : parentBuilder.and(builder));
 
 		return buildersMap;
 	}
@@ -245,6 +232,11 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 			return "PermanentResourceBuilder";
 		}
 
+		@Override
+		public String toString() {
+			return getLoggableName();
+		}
+
 	};
 
 	@SuppressWarnings("rawtypes")
@@ -289,6 +281,11 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 			return "EntityBuilder";
 		}
 
+		@Override
+		public String toString() {
+			return getLoggableName();
+		}
+
 	};
 
 	private static final AbstractDomainResourceBuilder<DomainResource> NO_OP_BUILDER = new AbstractDomainResourceBuilder<DomainResource>() {
@@ -308,6 +305,11 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 		@Override
 		public String getLoggableName() {
 			return "<<NO_OP>>";
+		}
+
+		@Override
+		public String toString() {
+			return getLoggableName();
 		}
 
 	};
