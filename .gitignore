@@ -60,5 +60,5 @@ META-INF
 .springBeans
 .sts4-cache
 
-config/
-mock/
+/config
+/mock
