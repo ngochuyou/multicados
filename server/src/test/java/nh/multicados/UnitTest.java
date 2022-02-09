@@ -3,8 +3,9 @@
  */
 package nh.multicados;
 
-import java.util.HashMap;
-import java.util.Map;
+import multicados.internal.domain.metadata.AccessorFactory;
+import multicados.internal.domain.metadata.AccessorFactory.Accessor;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -12,37 +13,39 @@ import java.util.Map;
  */
 public class UnitTest {
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		A a = new A();
-		Map<String, String> b = new HashMap<>();
+	public static void main(String[] args) throws Exception {
+		Parent obj = new Parent();
+		Accessor accessor = AccessorFactory.standard(Parent.class, "size");
 		
-		b.put("b", "world");
-		a.and(b);
-		a.print();
-		b.put("b", "my friend");
+		Utils.declare(obj)
+			.then(accessor::get)
+			.identical(System.out::println);
+		
+		accessor.set(obj, Integer.valueOf(10));
+		
+		Utils.declare(obj)
+			.then(accessor::get)
+			.identical(System.out::println);
 	}
-	
-	private static class A {
-		
-		private Map<String, String> eles;
-		
-		public A() {
-			eles = new HashMap<>();
-			
-			eles.put("a", "hello");
+
+	public static class Child {
+
+		public String p = "hello";
+
+	}
+
+	public static class Parent {
+
+		private int size;
+
+		public int getSize() {
+			return size;
 		}
-		
-		void and(Map<String, String> other) {
-			eles.putAll(other);
+
+		public void setSize(int size) {
+			this.size = size;
 		}
-		
-		void print() {
-			eles.values().stream().forEach(System.out::println);
-		}
-		
+
 	}
 
 }

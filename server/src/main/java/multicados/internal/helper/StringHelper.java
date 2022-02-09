@@ -17,6 +17,7 @@ public class StringHelper extends StringUtils {
 
 	public static final String COMMON_JOINER = ", ";
 	public static final String EMPTY_STRING = "";
+	public static final String SPACE = " ";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
 	public static String join(CharSequence joinner, Object... elements) {
@@ -64,8 +65,8 @@ public class StringHelper extends StringUtils {
 		return hasLength(string) ? string.trim().replaceAll(WHITESPACE_CHAR_CLASS + "+", "\s") : string;
 	}
 
-	public static String toCamel(String s) {
-		return toCamel(s, null);
+	public static String combineIntoCamel(String first, String second) {
+		return toCamel(String.format("%s%s%s", first, SPACE, second), SPACE);
 	}
 	
 	public static String toCamel(String s, CharSequence seperator) {

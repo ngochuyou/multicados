@@ -8,8 +8,7 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import org.springframework.util.Assert;
-
+import multicados.internal.helper.FunctionHelper.HandledBiFunction;
 import multicados.internal.helper.StringHelper;
 
 /**
@@ -39,6 +38,10 @@ public final class AccessorFactory {
 
 		void set(Object source, Object val) throws Exception;
 
+		Getter getGetter();
+
+		Setter getSetter();
+
 	}
 
 	public static abstract class AbstractAccessor implements Accessor {
@@ -66,10 +69,12 @@ public final class AccessorFactory {
 			return String.format("%s(getter=%s, setter=%s)", this.getClass().getSimpleName(), getter, setter);
 		}
 
+		@Override
 		public Getter getGetter() {
 			return getter;
 		}
 
+		@Override
 		public Setter getSetter() {
 			return setter;
 		}
@@ -80,13 +85,12 @@ public final class AccessorFactory {
 
 		public static <T> Getter locateGetter(String propName, Class<T> owningType) {
 			try {
-				Assert.isTrue(owningType.getDeclaredField(propName) != null,
-						String.format("Unable to locate field member with name [%s]", propName));
+				owningType.getDeclaredField(propName);
 
 				return new Getter() {
 
 					private final Method getterMethod = owningType
-							.getDeclaredMethod(StringHelper.toCamel("get".concat(propName)));
+							.getDeclaredMethod(StringHelper.combineIntoCamel("get", propName));
 
 					@Override
 					public Member getMember() {
@@ -102,6 +106,12 @@ public final class AccessorFactory {
 					public Object get(Object source) throws Exception {
 						return getterMethod.invoke(source);
 					}
+
+					@Override
+					public String toString() {
+						return String.format("%s()", getterMethod.getName());
+					}
+
 				};
 			} catch (NoSuchFieldException | SecurityException | NoSuchMethodException e) {
 				e.printStackTrace();
@@ -116,42 +126,44 @@ public final class AccessorFactory {
 
 				try {
 					declaredField = owningType.getDeclaredField(propName);
-				} catch (Exception e) {
+
+					HandledBiFunction<String, Class<?>, Method, Exception> setterMethodProducer = (prop, owner) -> {
+						return owner.getDeclaredMethod(StringHelper.combineIntoCamel("set", prop),
+								declaredField.getType());
+					};
+
+					return new AbstractSetter(propName, owningType, setterMethodProducer) {
+
+						private final Method setterMethod = setterMethodProducer.apply(propName, owningType);
+
+						@Override
+						public Member getMember() {
+							return setterMethod;
+						}
+
+						@Override
+						public String toString() {
+							return String.format("%s(%s)", setterMethod.getName(),
+									setterMethod.getReturnType().getName());
+						}
+
+					};
+				} catch (NoSuchFieldException e) {
 					e.printStackTrace();
 					throw new IllegalArgumentException(
 							String.format("Unable to locate field member with name [%s]", propName));
 				}
-
-				return new Setter() {
-
-					private final Method setterMethod = owningType
-							.getDeclaredMethod(StringHelper.toCamel("set".concat(propName)), declaredField.getType());
-
-					@Override
-					public Member getMember() {
-						return setterMethod;
-					}
-
-					@Override
-					public void set(Object source, Object val) throws Exception {
-						setterMethod.invoke(source, val);
-					}
-
-				};
 			} catch (SecurityException | NoSuchMethodException e) {
 				e.printStackTrace();
 				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s]",
 						Setter.class.getSimpleName(), propName));
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
 			}
 		}
 
 		private <T> StandardAccessor(String propName, Class<T> owningType) {
 			super(locateGetter(propName, owningType), locateSetter(propName, owningType));
-		}
-
-		@Override
-		public String toString() {
-			return super.toString();
 		}
 
 	}
@@ -199,33 +211,35 @@ public final class AccessorFactory {
 
 				@Override
 				public String toString() {
-					return "DIRECT_GETTER";
+					return String.format("%s", field.getName());
 				}
 
 			};
 		}
 
 		public static <T> Setter locateSetter(String propName, Class<T> owningType) {
-			return new Setter() {
+			try {
+				return new AbstractSetter(propName, owningType) {
 
-				private final Field field = checkAccess(propName, owningType);
+					private final Field field = checkAccess(propName, owningType);
 
-				@Override
-				public Member getMember() {
-					return field;
-				}
+					@Override
+					public Member getMember() {
+						return field;
+					}
 
-				@Override
-				public void set(Object source, Object val) throws Exception {
-					field.set(source, val);
-				}
+					@Override
+					public String toString() {
+						return String.format("%s(%s)", field.getName(), field.getType().getName());
+					}
 
-				@Override
-				public String toString() {
-					return "DIRECT_SETTER";
-				}
-
-			};
+				};
+			} catch (NoSuchFieldException | SecurityException e) {
+				e.printStackTrace();
+				throw new SecurityException(String.format("Unable to locate field member with name [%s]", propName));
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			}
 		}
 
 		private DirectAccessor(String propName, Class<?> owningType) {

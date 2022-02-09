@@ -3,8 +3,6 @@
  */
 package multicados.internal.domain.tuplizer;
 
-import java.lang.reflect.InvocationTargetException;
-
 import multicados.internal.context.Loggable;
 import multicados.internal.domain.DomainResource;
 
@@ -14,13 +12,10 @@ import multicados.internal.domain.DomainResource;
  */
 public interface DomainResourceTuplizer<T extends DomainResource> extends Loggable {
 
-	T instantiate(Object... args)
-			throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException;
+	T instantiate(Object... args) throws TuplizerException;
 
-	void setProperty(String propName, Object value)
-			throws IllegalAccessException, IllegalArgumentException, InvocationTargetException;
+	void setProperty(Object source, String propName, Object value) throws TuplizerException;
 
-	Object getProperty(String propName)
-			throws IllegalAccessException, IllegalArgumentException, InvocationTargetException;
+	Object getProperty(Object source, String propName) throws TuplizerException;
 
 }
