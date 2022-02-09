@@ -18,7 +18,7 @@ public class StringHelper extends StringUtils {
 	public static final String COMMON_JOINER = ", ";
 	public static final String EMPTY_STRING = "";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
-	
+
 	public static String join(CharSequence joinner, Object... elements) {
 		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(COMMON_JOINER));
 	}
@@ -30,9 +30,8 @@ public class StringHelper extends StringUtils {
 	public static <T> String join(Function<T, String> stringGetter, T[] elements) {
 		return Stream.of(elements).map(stringGetter::apply).collect(Collectors.joining(COMMON_JOINER));
 	}
-	
-	public static final String WHITESPACE_CHARS = EMPTY_STRING
-			+ "\\u0009" // CHARACTER TABULATION
+
+	public static final String WHITESPACE_CHARS = EMPTY_STRING + "\\u0009" // CHARACTER TABULATION
 			+ "\\u000A" // LINE FEED (LF)
 			+ "\\u000B" // LINE TABULATION
 			+ "\\u000C" // FORM FEED (FF)
@@ -60,9 +59,35 @@ public class StringHelper extends StringUtils {
 			+ "\\u3000"; // IDEOGRAPHIC SPACE
 
 	public static final String WHITESPACE_CHAR_CLASS = "[" + WHITESPACE_CHARS + "]";
-	
+
 	public static String normalizeString(String string) {
 		return hasLength(string) ? string.trim().replaceAll(WHITESPACE_CHAR_CLASS + "+", "\s") : string;
 	}
+
+	public static String toCamel(String s) {
+		return toCamel(s, null);
+	}
 	
+	public static String toCamel(String s, CharSequence seperator) {
+		String input = s.trim();
+
+		if (seperator != null) {
+			String[] parts = input.split(seperator.toString());
+
+			if (parts.length > 1) {
+				StringBuilder builder = new StringBuilder(
+						(EMPTY_STRING + parts[0].charAt(0)).toLowerCase() + parts[0].substring(1, parts[0].length()));
+
+				for (int i = 1; i < parts.length; i++) {
+					builder.append((EMPTY_STRING + parts[i].charAt(0)).toUpperCase()
+							+ parts[i].substring(1, parts[i].length()));
+				}
+
+				return builder.toString();
+			}
+		}
+
+		return (EMPTY_STRING + input.charAt(0)).toLowerCase() + input.substring(1);
+	}
+
 }

@@ -5,7 +5,12 @@ package multicados.internal.domain.metadata;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+
+import org.springframework.util.Assert;
+
+import multicados.internal.helper.StringHelper;
 
 /**
  * @author Ngoc Huy
@@ -19,17 +24,13 @@ public final class AccessorFactory {
 		return NoOpAccessor.INSTANCE;
 	}
 
-	public static Accessor locateDirectAccessor(Class<?> ownerType, String attributeName)
+	public static Accessor direct(Class<?> ownerType, String propName) {
+		return new DirectAccessor(propName, ownerType);
+	}
+
+	public static Accessor standard(Class<?> ownerType, String propName)
 			throws NoSuchFieldException, SecurityException {
-		Field attribute = ownerType.getDeclaredField(attributeName);
-
-		if (!Modifier.isPublic(attribute.getModifiers())) {
-			throw new SecurityException(
-					String.format("Unable to directly access to non-public attribute [%s] in type [%s]", attributeName,
-							ownerType.getName()));
-		}
-
-		return new DirectAccessor(attribute);
+		return new StandardAccessor(propName, ownerType);
 	}
 
 	public interface Accessor {
@@ -40,7 +41,7 @@ public final class AccessorFactory {
 
 	}
 
-	private static abstract class AbstractAccessor implements Accessor {
+	public static abstract class AbstractAccessor implements Accessor {
 
 		private final Getter getter;
 		private final Setter setter;
@@ -65,57 +66,170 @@ public final class AccessorFactory {
 			return String.format("%s(getter=%s, setter=%s)", this.getClass().getSimpleName(), getter, setter);
 		}
 
+		public Getter getGetter() {
+			return getter;
+		}
+
+		public Setter getSetter() {
+			return setter;
+		}
+
 	}
 
-	private static class DirectAccessor extends AbstractAccessor {
+	public static class StandardAccessor extends AbstractAccessor {
 
-		private static final String SETTER_NAME = "DIRECT_SETTER";
-		private static final String GETTER_NAME = "DIRECT_GETTER";
+		public static <T> Getter locateGetter(String propName, Class<T> owningType) {
+			try {
+				Assert.isTrue(owningType.getDeclaredField(propName) != null,
+						String.format("Unable to locate field member with name [%s]", propName));
 
-		private DirectAccessor(Field attribute) {
-			this(new Getter() {
+				return new Getter() {
+
+					private final Method getterMethod = owningType
+							.getDeclaredMethod(StringHelper.toCamel("get".concat(propName)));
+
+					@Override
+					public Member getMember() {
+						return getterMethod;
+					}
+
+					@Override
+					public Class<?> getReturnedType() {
+						return getterMethod.getReturnType();
+					}
+
+					@Override
+					public Object get(Object source) throws Exception {
+						return getterMethod.invoke(source);
+					}
+				};
+			} catch (NoSuchFieldException | SecurityException | NoSuchMethodException e) {
+				e.printStackTrace();
+				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s]",
+						Getter.class.getSimpleName(), propName));
+			}
+		}
+
+		private static <T> Setter locateSetter(String propName, Class<T> owningType) {
+			try {
+				Field declaredField;
+
+				try {
+					declaredField = owningType.getDeclaredField(propName);
+				} catch (Exception e) {
+					e.printStackTrace();
+					throw new IllegalArgumentException(
+							String.format("Unable to locate field member with name [%s]", propName));
+				}
+
+				return new Setter() {
+
+					private final Method setterMethod = owningType
+							.getDeclaredMethod(StringHelper.toCamel("set".concat(propName)), declaredField.getType());
+
+					@Override
+					public Member getMember() {
+						return setterMethod;
+					}
+
+					@Override
+					public void set(Object source, Object val) throws Exception {
+						setterMethod.invoke(source, val);
+					}
+
+				};
+			} catch (SecurityException | NoSuchMethodException e) {
+				e.printStackTrace();
+				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s]",
+						Setter.class.getSimpleName(), propName));
+			}
+		}
+
+		private <T> StandardAccessor(String propName, Class<T> owningType) {
+			super(locateGetter(propName, owningType), locateSetter(propName, owningType));
+		}
+
+		@Override
+		public String toString() {
+			return super.toString();
+		}
+
+	}
+
+	public static class DirectAccessor extends AbstractAccessor {
+
+		private static Field checkAccess(String propName, Class<?> owningType) {
+			Field field;
+
+			try {
+				field = owningType.getDeclaredField(propName);
+			} catch (NoSuchFieldException | SecurityException e) {
+				e.printStackTrace();
+				throw new SecurityException(String.format("Unable to locate field member with name [%s]", propName));
+			}
+
+			if (!Modifier.isPublic(field.getModifiers())) {
+				throw new SecurityException(
+						String.format("Unable to directly access to non-public attribute [%s] in type [%s]", propName,
+								owningType.getName()));
+			}
+
+			return field;
+		}
+
+		public static <T> Getter locateGetter(String propName, Class<T> owningType) {
+			return new Getter() {
+
+				private final Field field = checkAccess(propName, owningType);
 
 				@Override
 				public Member getMember() {
-					return attribute;
+					return field;
 				}
 
 				@Override
 				public Class<?> getReturnedType() {
-					return attribute.getType();
+					return field.getType();
 				}
 
 				@Override
 				public Object get(Object source) throws Exception {
-					return attribute.get(source);
+					return field.get(source);
 				}
 
 				@Override
 				public String toString() {
-					return GETTER_NAME;
+					return "DIRECT_GETTER";
 				}
 
-			}, new Setter() {
+			};
+		}
+
+		public static <T> Setter locateSetter(String propName, Class<T> owningType) {
+			return new Setter() {
+
+				private final Field field = checkAccess(propName, owningType);
 
 				@Override
 				public Member getMember() {
-					return attribute;
+					return field;
 				}
 
 				@Override
 				public void set(Object source, Object val) throws Exception {
-					attribute.set(source, val);
+					field.set(source, val);
 				}
 
 				@Override
 				public String toString() {
-					return SETTER_NAME;
+					return "DIRECT_SETTER";
 				}
-			});
+
+			};
 		}
 
-		private DirectAccessor(Getter getter, Setter setter) {
-			super(getter, setter);
+		private DirectAccessor(String propName, Class<?> owningType) {
+			super(locateGetter(propName, owningType), locateSetter(propName, owningType));
 		}
 
 	}
@@ -128,7 +242,7 @@ public final class AccessorFactory {
 			super(NO_OP_GETTER, OP_OP_SETTER);
 		}
 
-		private static final Getter NO_OP_GETTER = new Getter() {
+		public static final Getter NO_OP_GETTER = new Getter() {
 
 			private static final String NAME = "NO_OP_GETTER";
 
@@ -154,7 +268,7 @@ public final class AccessorFactory {
 
 		};
 
-		private static final Setter OP_OP_SETTER = new Setter() {
+		public static final Setter OP_OP_SETTER = new Setter() {
 
 			private static final String NAME = "NO_OP_SETTER";
 
