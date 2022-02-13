@@ -70,7 +70,7 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 		Assert.notNull(resourceType, "Resource must not be null");
 
 		if (this.resourceType.equals(resourceType.getSuperclass())
-				|| TypeHelper.isImplementedFrom(resourceType, DomainResource.class)) {
+				|| TypeHelper.isImplementedFrom(resourceType, this.resourceType)) {
 			childrens.add(new DomainResourceTreeImpl<>(this, (Class<? extends T>) resourceType));
 			return;
 		}
@@ -99,6 +99,19 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 		}
 
 		return null;
+	}
+
+	@Override
+	public Set<Class<? extends T>> toSet() {
+		Set<Class<? extends T>> list = new HashSet<>();
+
+		list.add(resourceType);
+
+		for (DomainResourceTree<? extends T> child : childrens) {
+			list.addAll(child.toSet());
+		}
+
+		return list;
 	}
 
 	@Override

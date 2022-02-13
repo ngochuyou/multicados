@@ -9,7 +9,7 @@ import java.time.temporal.Temporal;
  * @author Ngoc Huy
  *
  */
-public interface SpannedResource<T extends Temporal> {
+public interface SpannedResource<T extends Temporal> extends DomainResource {
 
 	T getAppliedTimestamp();
 

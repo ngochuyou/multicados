@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.DomainResourceContextProvider;
+import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceTree;
 import multicados.internal.domain.Entity;
 import multicados.internal.helper.CollectionHelper;
@@ -39,7 +39,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	private final List<String> attributeNames;
 
-	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContextProvider resourceContextProvider)
+	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider)
 			throws Exception {
 		this.resourceType = resourceType;
 
@@ -169,10 +169,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		private final Class<D> resourceType;
 
-		private final DomainResourceContextProvider resourceContextProvider;
+		private final DomainResourceContext resourceContextProvider;
 
 		public NonHibernateResourceMetadataBuilder(Class<D> resourceType,
-				DomainResourceContextProvider resourceContextProvider) {
+				DomainResourceContext resourceContextProvider) {
 			logger.trace("Building {} for resource of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
 			this.resourceType = resourceType;

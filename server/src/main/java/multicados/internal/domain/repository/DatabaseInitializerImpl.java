@@ -27,7 +27,6 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 	private static final String FLAG_OFF = "off";
 
 	public DatabaseInitializerImpl() throws Exception {
-
 		final Environment env = ContextManager.getBean(Environment.class);
 
 		if (env.getProperty(FLAG_KEY).equals(FLAG_OFF)) {

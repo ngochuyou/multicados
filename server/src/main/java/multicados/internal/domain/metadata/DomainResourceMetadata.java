@@ -21,8 +21,6 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 
 	List<String> getNonLazyAttributeNames();
 
-//	Map<String, Getter> getGetters();
-
 	boolean isAssociation(String attributeName);
 
 //	AssociationType getAssociationType(String associationName);

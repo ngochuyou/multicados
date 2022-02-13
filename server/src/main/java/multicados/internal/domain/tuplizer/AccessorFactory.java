@@ -1,13 +1,20 @@
 /**
  * 
  */
-package multicados.internal.domain.metadata;
+package multicados.internal.domain.tuplizer;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.persister.entity.UniqueKeyLoadable;
+import org.hibernate.tuple.entity.EntityMetamodel;
+
+import multicados.internal.domain.Entity;
 import multicados.internal.helper.FunctionHelper.HandledBiFunction;
 import multicados.internal.helper.StringHelper;
 
@@ -19,7 +26,7 @@ public final class AccessorFactory {
 
 	private AccessorFactory() {}
 
-	public static Accessor noAccess() {
+	public static Accessor noop() {
 		return NoOpAccessor.INSTANCE;
 	}
 
@@ -30,6 +37,11 @@ public final class AccessorFactory {
 	public static Accessor standard(Class<?> ownerType, String propName)
 			throws NoSuchFieldException, SecurityException {
 		return new StandardAccessor(propName, ownerType);
+	}
+
+	public static <S extends Serializable, T extends Entity<S>> Accessor hbm(Class<T> ownerType, String propName,
+			SessionFactoryImplementor sfi) {
+		return new HBMDelegatedAccessor(sfi, ownerType, propName);
 	}
 
 	public interface Accessor {
@@ -300,6 +312,34 @@ public final class AccessorFactory {
 			}
 
 		};
+
+	}
+
+	private static class HBMDelegatedAccessor extends AbstractAccessor {
+
+		@SuppressWarnings("rawtypes")
+		private static <T extends Entity> Getter locateGetter(SessionFactoryImplementor sfi, Class<T> owningType,
+				String propName) {
+			EntityPersister persister = sfi.getMetamodel().entityPersister(owningType);
+			EntityMetamodel metamodel = persister.getEntityMetamodel();
+
+			if (propName.equals(metamodel.getIdentifierProperty().getName())) {
+				return new HBMDelegatedGetter(persister.getEntityTuplizer().getIdentifierGetter());
+			}
+
+			return new HBMDelegatedGetter(persister.getEntityTuplizer()
+					.getGetter(((UniqueKeyLoadable) persister).getPropertyIndex(propName)));
+		}
+
+		private static <S extends Serializable, T extends Entity<S>> Setter locateSetter(SessionFactoryImplementor sfi,
+				Class<T> owningType, String propName) {
+			return new HBMDelegatedSetter(owningType, propName, sfi);
+		}
+
+		private <S extends Serializable, T extends Entity<S>> HBMDelegatedAccessor(SessionFactoryImplementor sfi,
+				Class<T> owningType, String propName) {
+			super(locateGetter(sfi, owningType, propName), locateSetter(sfi, owningType, propName));
+		}
 
 	}
 

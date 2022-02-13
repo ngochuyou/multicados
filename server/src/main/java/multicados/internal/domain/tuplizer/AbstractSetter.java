@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.domain.metadata;
+package multicados.internal.domain.tuplizer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

@@ -7,6 +7,7 @@ import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -25,8 +27,10 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Constants;
+import multicados.internal.context.ContextManager;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl;
+import multicados.internal.domain.tuplizer.DomainEntityTuplizer;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
@@ -36,7 +40,7 @@ import multicados.internal.helper.TypeHelper;
  * @author Ngoc Huy
  *
  */
-public class DomainResourceContextProviderImpl implements DomainResourceContextProvider {
+public class DomainResourceContextProviderImpl implements DomainResourceContext {
 
 	private final DomainResourceTree<DomainResource> resourceTree;
 	@SuppressWarnings("rawtypes")
@@ -77,23 +81,56 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 				.then(tree -> {
 					List<Class<? extends DomainResource>> resourceTypes = new ArrayList<>();
 					
-					resourceTree.forEach(node -> resourceTypes.add(node.getResourceType()));
+					tree.forEach(node -> resourceTypes.add(node.getResourceType()));
 					
 					return resourceTypes;
 				})
 				.then(this::buildMetadatas)
+				.then(Collections::unmodifiableMap)
 				.get();
-		tuplizersMap = Collections.emptyMap();
+		tuplizersMap = declare(resourceTree)
+				.then(tree -> {
+					@SuppressWarnings("rawtypes")
+					List<Class> entityTypes = new ArrayList<>();
+					
+					tree.forEach(node -> entityTypes.add(node.getResourceType()));
+					
+					return entityTypes;
+				})
+				.then(this::buildTuplizers)
+				.then(Collections::unmodifiableMap)
+				.get();
 		// @formatter:on
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> buildTuplizers(
+			Collection<Class> entityTypes) throws Exception {
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+
+		logger.trace("Building {}(s)", DomainResourceTuplizer.class.getSimpleName());
+
+		Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizers = new HashMap<>();
+
+		for (Class type : entityTypes) {
+			if (Entity.class.isAssignableFrom(type) && !Modifier.isAbstract(type.getModifiers())) {
+				logger.trace("HBM {}(s)", type.getName());
+
+				tuplizers.put(type, new DomainEntityTuplizer<>(type, this,
+						ContextManager.getBean(SessionFactoryImplementor.class)));
+				continue;
+			}
+		}
+
+		return tuplizers;
 	}
 
 	private Set<BeanDefinition> scan() {
 		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
-		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResource.class));
-
 		logger.trace("Scanning for {}", DomainResource.class.getSimpleName());
+		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResource.class));
 
 		Set<BeanDefinition> candidates = scanner.findCandidateComponents(Constants.BASE_PACKAGE);
 
@@ -107,9 +144,12 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
 		logger.trace("Building {}", DomainResourceTree.class.getSimpleName());
-
-		DomainResourceTreeImpl<DomainResource> resourceTree = new DomainResourceTreeImpl<>(null, DomainResource.class);
-
+		// @formatter:off
+		DomainResourceTreeImpl<DomainResource> resourceTree = new DomainResourceTreeImpl<>(null, DomainResource.class, Set.of(
+				new DomainResourceTreeImpl<>(IdentifiableDomainResource.class),
+				new DomainResourceTreeImpl<>(NamedResource.class),
+				new DomainResourceTreeImpl<>(PermanentResource.class)));
+		// @formatter:on
 		for (BeanDefinition beanDef : beanDefs) {
 			Class<DomainResource> clazz = (Class<DomainResource>) Class.forName(beanDef.getBeanClassName());
 
@@ -150,7 +190,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContextP
 			metadatasMap.put(resourceType, new DomainResourceMetadataImpl<>(resourceType, this));
 		}
 
-		return Collections.unmodifiableMap(metadatasMap);
+		return metadatasMap;
 	}
 
 	@Override

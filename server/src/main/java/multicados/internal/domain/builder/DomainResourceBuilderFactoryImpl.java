@@ -24,12 +24,12 @@ import org.springframework.util.ClassUtils;
 import multicados.internal.config.Constants;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.DomainResourceContextProvider;
+import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceTree;
 import multicados.internal.domain.Entity;
 import multicados.internal.domain.For;
+import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
-import multicados.internal.domain.repository.GenericRepositoryImpl;
 import multicados.internal.helper.FunctionHelper.HandledFunction;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
@@ -71,7 +71,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 	private Map<Class, DomainResourceBuilder> constructBuilders(Set<BeanDefinition> beanDefs)
 			throws ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException,
 			InvocationTargetException, NoSuchMethodException, SecurityException {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
+		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace("Constructing builders");
 
@@ -95,7 +95,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 	@SuppressWarnings({ "rawtypes" })
 	private Map<Class, DomainResourceBuilder> addFixedBuilders(Map<Class, DomainResourceBuilder> buildersMap)
 			throws Exception {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
+		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace("Adding fixed builders");
 		// @formatter:off
@@ -127,12 +127,12 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 
 	@SuppressWarnings({ "rawtypes" })
 	private Map<Class, DomainResourceBuilder> chain(Map<Class, DomainResourceBuilder> buildersMap) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
+		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace("Chaining builders");
 
-		final DomainResourceContextProvider resourceContext = ContextManager
-				.getBean(DomainResourceContextProvider.class);
+		final DomainResourceContext resourceContext = ContextManager
+				.getBean(DomainResourceContext.class);
 
 		resourceContext.getResourceTree().forEach(node -> {
 			chainParentLogic(buildersMap, node);
@@ -145,9 +145,11 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 	@SuppressWarnings("rawtypes")
 	private Map<Class, DomainResourceBuilder> chainImplementedLogics(Map<Class, DomainResourceBuilder> buildersMap,
 			Class resourceType) {
-		final Map<Class, DomainResourceBuilder> implementedBuilders = Map.of(PermanentResource.class,
-				DomainResourceBuilderFactoryImpl.PERMANENT_RESOURCE_BUILDER);
-
+		// @formatter:off
+		final Map<Class, DomainResourceBuilder> implementedBuilders = Map.of(
+				PermanentResource.class, PERMANENT_RESOURCE_BUILDER,
+				NamedResource.class, NAMED_RESOURCE_BUILDER);
+		// @formatter:on
 		for (Class interfaceType : ClassUtils.getAllInterfacesForClassAsSet(resourceType).stream()
 				.filter(implementedBuilders::containsKey).collect(Collectors.toSet())) {
 			mergeBuilders(buildersMap, Map.entry(resourceType, implementedBuilders.get(interfaceType)));
@@ -212,6 +214,29 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 		buildersMap.entrySet().forEach(
 				entry -> logger.debug("[{}] -> [{}]", entry.getKey().getName(), entry.getValue().getLoggableName()));
 	}
+
+	private static final AbstractDomainResourceBuilder<NamedResource> NAMED_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
+
+		@Override
+		public <E extends NamedResource> E buildInsertion(Serializable id, E resource, SharedSessionContract session)
+				throws Exception {
+			resource.setName(StringHelper.normalizeString(resource.getName()));
+			return resource;
+		}
+
+		@Override
+		public <E extends NamedResource> E buildUpdate(Serializable id, E model, E resource,
+				SharedSessionContract session) {
+			resource.setName(StringHelper.normalizeString(model.getName()));
+			return resource;
+		}
+
+		@Override
+		public String getLoggableName() {
+			return "NamedResourceBuilder";
+		}
+
+	};
 
 	private static final AbstractDomainResourceBuilder<PermanentResource> PERMANENT_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
 		@Override

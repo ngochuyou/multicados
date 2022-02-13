@@ -26,4 +26,6 @@ public interface DomainResourceTree<T extends DomainResource> extends ContextBui
 
 	DomainResourceTree<? extends T> locate(Class<DomainResource> resourceType);
 
+	Set<Class<? extends T>> toSet();
+
 }

@@ -7,7 +7,7 @@ package multicados.internal.domain;
  * @author Ngoc Huy
  *
  */
-public interface NamedResource {
+public interface NamedResource extends DomainResource {
 
 	String getName();
 

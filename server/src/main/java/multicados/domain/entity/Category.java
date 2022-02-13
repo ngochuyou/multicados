@@ -16,8 +16,9 @@ import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 
 import multicados.application.Common;
-import multicados.internal.domain.EncryptedCodeResource;
+import multicados.internal.domain.EncryptedIdentifierResource;
 import multicados.internal.domain.NamedResource;
+import multicados.internal.helper.Base32;
 import multicados.internal.helper.StringHelper;
 
 /**
@@ -26,12 +27,12 @@ import multicados.internal.helper.StringHelper;
  */
 @Entity
 @Table(name = "categories")
-public class Category extends PermanentEntity<Long> implements NamedResource, EncryptedCodeResource {
+public class Category extends PermanentEntity<Long> implements NamedResource, EncryptedIdentifierResource<Long> {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.TABLE, generator = SHARED_TABLE_GENERATOR)
 	// we start from 1033 so that the generator takes 1034
-	@TableGenerator(name = SHARED_TABLE_GENERATOR, initialValue = Common.CROCKFORD_10A
+	@TableGenerator(name = SHARED_TABLE_GENERATOR, initialValue = Base32.CROCKFORD_10A
 			- 1, allocationSize = 1, table = Common.SHARED_TABLE_GENERATOR_TABLENAME)
 	@Column(updatable = false)
 	private Long id;

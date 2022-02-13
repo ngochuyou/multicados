@@ -9,9 +9,7 @@ import java.io.Serializable;
  * @author Ngoc Huy
  *
  */
-public interface EncryptedCodeResource {
-
-	Serializable getId();
+public interface EncryptedIdentifierResource<S extends Serializable> extends IdentifiableDomainResource<S> {
 
 	void setCode(String encrypted);
 

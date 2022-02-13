@@ -11,7 +11,7 @@ import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
  * @author Ngoc Huy
  *
  */
-public interface DomainResourceContextProvider extends ContextBuilder {
+public interface DomainResourceContext extends ContextBuilder {
 
 	DomainResourceTree<DomainResource> getResourceTree();
 

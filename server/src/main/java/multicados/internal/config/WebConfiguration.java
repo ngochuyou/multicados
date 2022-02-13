@@ -7,6 +7,7 @@ import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -39,11 +40,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import multicados.application.BootEntry;
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.context.ContextManager;
-import multicados.internal.domain.DomainResourceContextProvider;
+import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.repository.DatabaseInitializer;
 import multicados.internal.domain.repository.GenericRepository;
+import multicados.internal.domain.validation.ValidatorFactory;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.TypeHelper;
+import multicados.internal.helper.Utils;
+import multicados.internal.service.GenericCRUDService;
 
 /**
  * @author Ngoc Huy
@@ -106,18 +111,22 @@ public class WebConfiguration implements WebMvcConfigurer {
 		}
 	}
 
+	private List<BeanDefinition> sortContextBuilders(Set<BeanDefinition> beanDefs) throws Exception {
+		// @formatter:off
+		return Utils
+				.declare(resolveBuildersOrder(beanDefs))
+					.second(beanDefs)
+				.then(this::doSorting)
+				.get();
+		// @formatter:on
+	}
+	
 	@SuppressWarnings("unchecked")
-	private List<BeanDefinition> sortContextBuilders(Set<BeanDefinition> beanDefs) {
+	private List<BeanDefinition> doSorting(Map<Class<? extends ContextBuilder>, Integer> buildersOrder, Set<BeanDefinition> beanDefs) {
 		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
 
 		logger.trace("Sorting {}(s)", ContextBuilder.class.getSimpleName());
-		// @formatter:off
-		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = Map.of(
-				DomainResourceContextProvider.class, 0,
-				GenericRepository.class, 1,
-				DomainResourceBuilderFactory.class, 2,
-				DatabaseInitializer.class, 3);
-		// @formatter:on
+		
 		return beanDefs.stream().sorted((left, right) -> {
 			try {
 				Class<? extends ContextBuilder> leftType = (Class<? extends ContextBuilder>) Class
@@ -125,20 +134,58 @@ public class WebConfiguration implements WebMvcConfigurer {
 				Class<? extends ContextBuilder> rightType = (Class<? extends ContextBuilder>) Class
 						.forName(right.getBeanClassName());
 
+				if (buildersOrder.containsKey(rightType) && buildersOrder.containsKey(leftType)) {
+					return Integer.compare(buildersOrder.get(leftType), buildersOrder.get(rightType));
+				}
+
 				if (!buildersOrder.containsKey(rightType)) {
 					return -1;
 				}
 
-				if (!buildersOrder.containsKey(leftType)) {
-					return 1;
-				}
-
-				return Integer.compare(buildersOrder.get(leftType), buildersOrder.get(leftType));
+				return 1;
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 				return 1;
 			}
 		}).collect(Collectors.toList());
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<Class<? extends ContextBuilder>, Integer> resolveBuildersOrder(Set<BeanDefinition> beanDefs) {
+		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+
+		logger.trace("Resolving builders order", ContextBuilder.class.getSimpleName());
+		// @formatter:off
+		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = Map.of(
+				DomainResourceContext.class, 0,
+				ValidatorFactory.class, 1,
+				GenericRepository.class, 2,
+				DomainResourceBuilderFactory.class, 3,
+//				GenericCRUDService.class, 4,
+				DatabaseInitializer.class, 5);
+		final Map<Class<? extends ContextBuilder>, BeanDefinition> beansMap = beanDefs.stream()
+				.map(bean -> {
+					try {
+						return Map.entry((Class<? extends ContextBuilder>) Class.forName(bean.getBeanClassName()), bean);
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+						return null;
+					}
+				})
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		// @formatter:on
+		Map<Class<? extends ContextBuilder>, Integer> beansOrder = new HashMap<>();
+		
+		for (Map.Entry<Class<? extends ContextBuilder>, BeanDefinition> beanEntry: beansMap.entrySet()) {
+			for (Map.Entry<Class<? extends ContextBuilder>, Integer> orderEntry: buildersOrder.entrySet()) {
+				if (TypeHelper.isImplementedFrom(beanEntry.getKey(), orderEntry.getKey())) {
+					beansOrder.put((Class<? extends ContextBuilder>) beanEntry.getKey(), orderEntry.getValue());
+					break;
+				}
+			}
+		}
+		
+		return beansOrder;
 	}
 
 	private void logContextBuilders(List<BeanDefinition> beanDefs) {
@@ -181,6 +228,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 		List<Class<ContextBuilder>> buildersTypes = new ArrayList<>();
 
 		for (BeanDefinition beanDef : beanDefs) {
+			beanDef.setScope(BeanDefinition.SCOPE_SINGLETON);
 			beanDef.setLazyInit(false);
 			ContextManager.registerBean(beanDef.getBeanClassName(), new GenericBeanDefinition(beanDef));
 			buildersTypes.add((Class<ContextBuilder>) Class.forName(beanDef.getBeanClassName()));

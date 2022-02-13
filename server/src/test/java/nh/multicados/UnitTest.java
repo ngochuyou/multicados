@@ -3,8 +3,8 @@
  */
 package nh.multicados;
 
-import multicados.internal.domain.metadata.AccessorFactory;
-import multicados.internal.domain.metadata.AccessorFactory.Accessor;
+import multicados.internal.domain.tuplizer.AccessorFactory;
+import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.Utils;
 
 /**

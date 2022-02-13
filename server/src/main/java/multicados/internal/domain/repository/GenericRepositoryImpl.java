@@ -35,7 +35,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
-import multicados.internal.domain.DomainResourceContextProvider;
+import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.Entity;
 import multicados.internal.domain.PermanentResource;
 import multicados.internal.helper.SpecificationHelper;
@@ -55,7 +55,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	private final CriteriaBuilder criteriaBuilder;
 
 	@SuppressWarnings({ "unchecked" })
-	public GenericRepositoryImpl(DomainResourceContextProvider resourceContextProvider, SessionFactoryImplementor sfi)
+	public GenericRepositoryImpl(DomainResourceContext resourceContextProvider, SessionFactoryImplementor sfi)
 			throws Exception {
 		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
@@ -74,7 +74,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.then(ArrayList::new)
 				.then(this::chainFixedSpecifications)
 				.second(entityType)
-				.inverse()
+				.biInverse()
 				.identical(fixedSpecifications::put);
 			// @formatter:on
 		});

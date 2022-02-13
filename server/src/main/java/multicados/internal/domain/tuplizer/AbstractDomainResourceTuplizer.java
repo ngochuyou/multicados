@@ -6,8 +6,6 @@ package multicados.internal.domain.tuplizer;
 import java.lang.reflect.InvocationTargetException;
 
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.metadata.Getter;
-import multicados.internal.domain.metadata.Setter;
 import multicados.internal.helper.TypeHelper;
 
 /**
@@ -16,7 +14,7 @@ import multicados.internal.helper.TypeHelper;
  */
 public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> implements DomainResourceTuplizer<D> {
 
-	private final Class<D> resourceType;
+	protected final Class<D> resourceType;
 
 	public AbstractDomainResourceTuplizer(Class<D> resourceType) {
 		this.resourceType = resourceType;

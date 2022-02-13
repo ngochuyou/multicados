@@ -18,7 +18,7 @@ import multicados.internal.helper.Utils.Access;
  *
  */
 public abstract class AbstractDomainResourceBuilder<D extends DomainResource> implements DomainResourceBuilder<D> {
-
+	
 	private final Access access = new Access() {};
 
 	@Override

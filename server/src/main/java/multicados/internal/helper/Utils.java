@@ -195,7 +195,7 @@ public class Utils {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg)[i]);
 		}
 
-		public BiDeclaration<SECOND, FIRST> inverse() throws Exception {
+		public BiDeclaration<SECOND, FIRST> biInverse() throws Exception {
 			return new BiDeclaration<>(secondArg, firstArg);
 		}
 
@@ -248,6 +248,10 @@ public class Utils {
 		@Override
 		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg, thirdArg)[i]);
+		}
+
+		public TriDeclaration<THIRD, SECOND, FIRST> triInverse() throws Exception {
+			return new TriDeclaration<>(thirdArg, secondArg, firstArg);
 		}
 
 	}

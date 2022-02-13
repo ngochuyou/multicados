@@ -23,7 +23,7 @@ import org.springframework.util.ClassUtils;
 
 import multicados.internal.config.Constants;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.DomainResourceContextProvider;
+import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceTree;
 import multicados.internal.domain.For;
 
@@ -36,7 +36,7 @@ public class ValidatorFactoryImpl implements ValidatorFactory {
 	@SuppressWarnings("rawtypes")
 	private final Map<Class<DomainResource>, Validator> validatorMap;
 
-	public ValidatorFactoryImpl(DomainResourceContextProvider resourceContextProvider) throws Exception {
+	public ValidatorFactoryImpl(DomainResourceContext resourceContextProvider) throws Exception {
 		// @formatter:off
 		this.validatorMap = declare(scan())
 				.then(this::register)
@@ -106,7 +106,7 @@ public class ValidatorFactoryImpl implements ValidatorFactory {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<Class<DomainResource>, Validator> chain(Map<Class<DomainResource>, Validator> validators,
-			DomainResourceContextProvider resourceContextProvider) throws Exception {
+			DomainResourceContext resourceContextProvider) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace("Chaining {}(s)", Validator.class.getSimpleName());
@@ -140,7 +140,7 @@ public class ValidatorFactoryImpl implements ValidatorFactory {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<Class<DomainResource>, Validator> chainFixedValidators(Map<Class<DomainResource>, Validator> validators,
-			DomainResourceContextProvider resourceContextProvider) throws Exception {
+			DomainResourceContext resourceContextProvider) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 		final Map<Class<DomainResource>, Validator> fixedValidators = Map.of();
 

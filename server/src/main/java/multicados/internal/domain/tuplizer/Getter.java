@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.domain.metadata;
+package multicados.internal.domain.tuplizer;
 
 /**
  * @author Ngoc Huy
