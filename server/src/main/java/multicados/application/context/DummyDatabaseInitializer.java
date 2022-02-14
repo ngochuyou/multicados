@@ -24,7 +24,6 @@ import com.fasterxml.jackson.core.exc.StreamReadException;
 import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.domain.entity.Category;
 import multicados.domain.entity.Entity;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResourceContext;
@@ -36,7 +35,6 @@ import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.domain.tuplizer.TuplizerException;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils;
 import multicados.internal.service.GenericCRUDService;
 import multicados.internal.service.ServiceResult;
 
@@ -82,7 +80,7 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		return (List<Map<String, Object>>) ContextManager.getBean(ObjectMapper.class)
 				.readValue(new ClassPathResource(uri).getInputStream(), List.class);
 	}
-	
+
 	private <S extends Serializable, E extends Entity<S>> List<E> toInstances(List<Map<String, Object>> objMaps,
 			Class<E> entityType) {
 		DomainResourceTuplizer<E> tuplizer = ContextManager.getBean(DomainResourceContext.class)
@@ -116,8 +114,9 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		Session session = argEntry.getValue();
 		List<Tuple> tuples = repository.findAll(entityType,
 				(root, query, builder) -> List.of(root.get(Entity.id_), root.get(NamedResource.name_)),
-				(root, query, builder) -> builder.in(root.get(NamedResource.name_)).value(root), LockModeType.PESSIMISTIC_WRITE, session);
-		
+				(root, query, builder) -> builder.in(root.get(NamedResource.name_)).value(root),
+				LockModeType.PESSIMISTIC_WRITE, session);
+
 		return instances;
 	}
 
@@ -127,7 +126,7 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		GenericCRUDService crudService = ContextManager.getBean(GenericCRUDService.class);
 
 		for (E e : instances) {
-			ServiceResult result = crudService.create(entityManager, e, entityType, entityManager, true);
+			ServiceResult result = crudService.create(e.getId(), e, entityType, entityManager, true);
 
 			if (result.isOk()) {
 				continue;

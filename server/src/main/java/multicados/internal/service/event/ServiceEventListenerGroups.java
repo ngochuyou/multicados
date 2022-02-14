@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.DomainResourceTreeCollectors;
+import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 
@@ -31,8 +31,8 @@ public class ServiceEventListenerGroups {
 	public ServiceEventListenerGroups(DomainResourceContext resourceContext) throws Exception {
 		// @formatter:off
 		this.postInsertListenters =
-			Utils.declare(resourceContext.getResourceTree())
-				.then(resourceTree -> resourceTree.collect(DomainResourceTreeCollectors.toTypesSet()))
+			Utils.declare(resourceContext.getResourceGraph())
+				.then(resourceTree -> resourceTree.collect(DomainResourceGraphCollectors.toTypesSet()))
 				.then(EventListenerResolver::resolvePostPersistListeners)
 				.get();
 		// @formatter:on

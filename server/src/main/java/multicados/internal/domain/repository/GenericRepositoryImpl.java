@@ -61,7 +61,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 		Map<Class<? extends Entity<?>>, Specification<? extends Entity<?>>> fixedSpecifications = new HashMap<>(0);
 
-		resourceContextProvider.getEntityTree().forEach(node -> {
+		resourceContextProvider.getEntityGraph().forEach(node -> {
 			Class<? extends Entity<?>> entityType = (Class<? extends Entity<?>>) node.getResourceType();
 
 			if (Modifier.isAbstract(entityType.getModifiers())) {

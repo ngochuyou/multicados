@@ -42,48 +42,48 @@ import multicados.internal.helper.TypeHelper;
  */
 public class DomainResourceContextProviderImpl implements DomainResourceContext {
 
-	private final DomainResourceTree<DomainResource> resourceTree;
+	private final DomainResourceGraph<DomainResource> resourceGraph;
 	@SuppressWarnings("rawtypes")
-	private final DomainResourceTree<Entity> entityTree;
-	private final DomainResourceTree<Model> modelTree;
+	private final DomainResourceGraph<Entity> entityGraph;
+	private final DomainResourceGraph<Model> modelGraph;
 
 	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
 	public DomainResourceContextProviderImpl() throws Exception {
 		// @formatter:off
-		resourceTree = declare(scan())
-				.then(this::buildTree)
-				.identical(this::sealTree)
+		resourceGraph = declare(scan())
+				.then(this::buildGraph)
+				.identical(this::sealGraph)
 				.get();
-		entityTree = declare(resourceTree)
-				.then(root -> locateTree(root, Entity.class))
-				.then(tree -> Optional.ofNullable(tree).orElseGet(() -> {
+		entityGraph = declare(resourceGraph)
+				.then(root -> locateGraph(root, Entity.class))
+				.then(graph -> Optional.ofNullable(graph).orElseGet(() -> {
 					@SuppressWarnings("rawtypes")
-					DomainResourceTreeImpl<Entity> entityTree = new DomainResourceTreeImpl<>(resourceTree, Entity.class);
+					DomainResourceGraphImpl<Entity> entityGraph = new DomainResourceGraphImpl<>(resourceGraph, Entity.class);
 					
-					entityTree.doAfterContextBuild();
+					entityGraph.doAfterContextBuild();
 					
-					return entityTree;
+					return entityGraph;
 				}))
 				.get();
-		modelTree = declare(resourceTree)
-				.then(root -> locateTree(root, Model.class))
-				.then(tree -> Optional.ofNullable(tree).orElseGet(() -> {
-					DomainResourceTreeImpl<Model> modelTree = new DomainResourceTreeImpl<>(resourceTree, Model.class);
+		modelGraph = declare(resourceGraph)
+				.then(root -> locateGraph(root, Model.class))
+				.then(graph -> Optional.ofNullable(graph).orElseGet(() -> {
+					DomainResourceGraphImpl<Model> modelGraph = new DomainResourceGraphImpl<>(resourceGraph, Model.class);
 					
-					modelTree.doAfterContextBuild();
+					modelGraph.doAfterContextBuild();
 					
-					return tree;
+					return graph;
 				}))
 				.get();
-		metadatasMap = declare(resourceTree)
-				.then(resourceTree -> resourceTree.collect(DomainResourceTreeCollectors.toTypesSet()))
+		metadatasMap = declare(resourceGraph)
+				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))
 				.then(this::buildMetadatas)
 				.then(Collections::unmodifiableMap)
 				.get();
-		tuplizersMap = declare(resourceTree)
-				.then(resourceTree -> resourceTree.collect(DomainResourceTreeCollectors.toTypesSet()))
+		tuplizersMap = declare(resourceGraph)
+				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))
 				.then(this::buildTuplizers)
 				.then(Collections::unmodifiableMap)
 				.get();
@@ -131,15 +131,15 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	}
 
 	@SuppressWarnings("unchecked")
-	private DomainResourceTree<DomainResource> buildTree(Set<BeanDefinition> beanDefs) throws ClassNotFoundException {
+	private DomainResourceGraph<DomainResource> buildGraph(Set<BeanDefinition> beanDefs) throws ClassNotFoundException {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
-		logger.trace("Building {}", DomainResourceTree.class.getSimpleName());
+		logger.trace("Building {}", DomainResourceGraph.class.getSimpleName());
 		// @formatter:off
-		DomainResourceTreeImpl<DomainResource> resourceTree = new DomainResourceTreeImpl<>(null, DomainResource.class, Set.of(
-				new DomainResourceTreeImpl<>(IdentifiableDomainResource.class),
-				new DomainResourceTreeImpl<>(NamedResource.class),
-				new DomainResourceTreeImpl<>(PermanentResource.class)));
+		DomainResourceGraphImpl<DomainResource> resourceGraph = new DomainResourceGraphImpl<>(null, DomainResource.class, Set.of(
+				new DomainResourceGraphImpl<>(IdentifiableResource.class),
+				new DomainResourceGraphImpl<>(NamedResource.class),
+				new DomainResourceGraphImpl<>(PermanentResource.class)));
 		// @formatter:on
 		for (BeanDefinition beanDef : beanDefs) {
 			Class<DomainResource> clazz = (Class<DomainResource>) Class.forName(beanDef.getBeanClassName());
@@ -149,19 +149,19 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 			Stack<?> stack = TypeHelper.getClassStack(clazz);
 
 			while (!stack.isEmpty()) {
-				resourceTree.add((Class<DomainResource>) stack.pop());
+				resourceGraph.add((Class<DomainResource>) stack.pop());
 			}
 		}
 
-		return resourceTree;
+		return resourceGraph;
 	}
 
-	private <T extends DomainResource> void sealTree(DomainResourceTree<T> tree) throws Exception {
+	private <T extends DomainResource> void sealGraph(DomainResourceGraph<T> graph) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
-		logger.trace("Sealing {}", DomainResourceTree.class.getSimpleName());
+		logger.trace("Sealing {}", DomainResourceGraph.class.getSimpleName());
 
-		tree.forEach(node -> node.doAfterContextBuild());
+		graph.forEach(node -> node.doAfterContextBuild());
 	}
 
 	private Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> buildMetadatas(
@@ -192,11 +192,12 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 			return;
 		}
 
-		logger.debug("\n{}:\n\s\s\s{}", DomainResourceTree.class.getSimpleName(), visualizeTree(resourceTree, 0));
+		logger.debug("\n{}:\n\s\s\s{}", DomainResourceGraph.class.getSimpleName(), visualizeGraph(resourceGraph, 0));
 		logger.debug("\n{}", metadatasMap.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
 	}
 
-	private String visualizeTree(DomainResourceTree<? extends DomainResource> node, int indentation) throws Exception {
+	private String visualizeGraph(DomainResourceGraph<? extends DomainResource> node, int indentation)
+			throws Exception {
 		StringBuilder builder = new StringBuilder();
 		// @formatter:off
 		builder.append(String.format("%s%s\n\s\s\s",
@@ -211,7 +212,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 		node.getChildrens().forEach(children -> {
 			try {
-				builder.append(visualizeTree(children, indentation + 1));
+				builder.append(visualizeGraph(children, indentation + 1));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -221,34 +222,35 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T extends DomainResource> DomainResourceTree<T> locateTree(DomainResourceTree<? super T> root,
+	private <T extends DomainResource> DomainResourceGraph<T> locateGraph(DomainResourceGraph<? super T> root,
 			Class<T> resourceType) {
 		if (root.getResourceType().equals(resourceType)) {
-			return (DomainResourceTree<T>) root;
+			return (DomainResourceGraph<T>) root;
 		}
 
 		if (CollectionHelper.isEmpty(root.getChildrens())) {
 			return null;
 		}
 
-		return root.getChildrens().stream().map(node -> locateTree((DomainResourceTree<? super T>) node, resourceType))
-				.filter(Objects::nonNull).findFirst().orElse(null);
+		return root.getChildrens().stream()
+				.map(node -> locateGraph((DomainResourceGraph<? super T>) node, resourceType)).filter(Objects::nonNull)
+				.findFirst().orElse(null);
 	}
 
 	@Override
-	public DomainResourceTree<DomainResource> getResourceTree() {
-		return resourceTree;
+	public DomainResourceGraph<DomainResource> getResourceGraph() {
+		return resourceGraph;
 	}
 
 	@SuppressWarnings("rawtypes")
 	@Override
-	public DomainResourceTree<Entity> getEntityTree() {
-		return entityTree;
+	public DomainResourceGraph<Entity> getEntityGraph() {
+		return entityGraph;
 	}
 
 	@Override
-	public DomainResourceTree<Model> getModelTree() {
-		return modelTree;
+	public DomainResourceGraph<Model> getModelGraph() {
+		return modelGraph;
 	}
 
 	@SuppressWarnings("unchecked")

@@ -8,14 +8,14 @@ import java.io.Serializable;
 import javax.persistence.EntityManager;
 
 import multicados.internal.context.ContextBuildListener;
-import multicados.internal.context.Loggable;
 import multicados.internal.domain.DomainResource;
+import multicados.internal.domain.GraphWalker;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface DomainResourceBuilder<T extends DomainResource> extends ContextBuildListener, Loggable {
+public interface DomainResourceBuilder<T extends DomainResource> extends GraphWalker<T>, ContextBuildListener {
 
 	/**
 	 * Occurs only when the entity is being inserted
@@ -40,4 +40,9 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 
 	<E extends T> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next);
 
+	@Override
+	default <E extends T> GraphWalker<E> and(GraphWalker<E> next) {
+		return and((DomainResourceBuilder<E>) next);
+	}
+	
 }

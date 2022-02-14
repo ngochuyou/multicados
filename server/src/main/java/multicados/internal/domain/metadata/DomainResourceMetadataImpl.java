@@ -24,7 +24,7 @@ import org.springframework.util.Assert;
 import multicados.domain.entity.Entity;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.DomainResourceTree;
+import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.Utils;
@@ -203,10 +203,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private String[] joinWithParentAttributeNames(String[] declaredAttributes) throws Exception {
 			// @formatter:off
 			return Utils
-					.declare(resourceContextProvider.getResourceTree().locate((Class<DomainResource>) resourceType))
-					.identical(tree -> Assert.notNull(tree, String.format("Unable to locate %s for resource [%s]", DomainResourceTree.class, resourceType.getName())))
-					.then(DomainResourceTree::getParent)
-					.then(DomainResourceTree::getResourceType)
+					.declare(resourceContextProvider.getResourceGraph().locate((Class<DomainResource>) resourceType))
+					.identical(tree -> Assert.notNull(tree, String.format("Unable to locate %s for resource [%s]", DomainResourceGraph.class, resourceType.getName())))
+					.then(DomainResourceGraph::getParent)
+					.then(DomainResourceGraph::getResourceType)
 					.then(this::getDeclaredAttributeNames)
 					.then(parentAttributes -> CollectionHelper.join(String.class, declaredAttributes, parentAttributes))
 					.get();

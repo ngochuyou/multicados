@@ -22,29 +22,29 @@ import multicados.internal.helper.TypeHelper;
  * @author Ngoc Huy
  *
  */
-public class DomainResourceTreeImpl<T extends DomainResource> implements DomainResourceTree<T> {
+public class DomainResourceGraphImpl<T extends DomainResource> implements DomainResourceGraph<T> {
 
-	private final DomainResourceTree<? super T> parent;
+	private final DomainResourceGraph<? super T> parent;
 	private final Class<T> resourceType;
-	private Set<DomainResourceTree<? extends T>> childrens;
+	private Set<DomainResourceGraph<? extends T>> childrens;
 
-	public DomainResourceTreeImpl(Class<T> resourceType) {
+	public DomainResourceGraphImpl(Class<T> resourceType) {
 		this(null, resourceType);
 	}
 
-	public DomainResourceTreeImpl(DomainResourceTree<? super T> parent, Class<T> resourceType) {
+	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType) {
 		this(parent, resourceType, new HashSet<>(0));
 	}
 
-	public DomainResourceTreeImpl(DomainResourceTree<? super T> parent, Class<T> resourceType,
-			Set<DomainResourceTree<? extends T>> childrens) {
+	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType,
+			Set<DomainResourceGraph<? extends T>> childrens) {
 		this.parent = parent;
 		this.resourceType = resourceType;
 		this.childrens = Optional.ofNullable(childrens).orElse(new HashSet<>(0));
 	}
 
 	@Override
-	public DomainResourceTree<? super T> getParent() {
+	public DomainResourceGraph<? super T> getParent() {
 		return parent;
 	}
 
@@ -54,16 +54,16 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 	}
 
 	@Override
-	public Set<DomainResourceTree<? extends T>> getChildrens() {
+	public Set<DomainResourceGraph<? extends T>> getChildrens() {
 		return childrens;
 	}
 
 	@Override
-	public void forEach(HandledConsumer<DomainResourceTree<? extends DomainResource>, Exception> consumer)
+	public void forEach(HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer)
 			throws Exception {
 		consumer.accept(this);
 
-		for (DomainResourceTree<? extends T> children : childrens) {
+		for (DomainResourceGraph<? extends T> children : childrens) {
 			children.forEach(consumer);
 		}
 	}
@@ -75,7 +75,7 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 
 		if (this.resourceType.equals(resourceType.getSuperclass())
 				|| TypeHelper.isImplementedFrom(resourceType, this.resourceType)) {
-			childrens.add(new DomainResourceTreeImpl<>(this, (Class<? extends T>) resourceType));
+			childrens.add(new DomainResourceGraphImpl<>(this, (Class<? extends T>) resourceType));
 			return;
 		}
 
@@ -83,7 +83,7 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 	}
 
 	@Override
-	public DomainResourceTree<? extends T> locate(Class<DomainResource> resourceType) {
+	public DomainResourceGraph<? extends T> locate(Class<DomainResource> resourceType) {
 		if (this.resourceType.equals(resourceType)) {
 			return this;
 		}
@@ -92,9 +92,9 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 			return null;
 		}
 
-		DomainResourceTree<? extends T> target;
+		DomainResourceGraph<? extends T> target;
 
-		for (DomainResourceTree<? extends T> child : childrens) {
+		for (DomainResourceGraph<? extends T> child : childrens) {
 			target = child.locate(resourceType);
 
 			if (target != null) {
@@ -106,12 +106,12 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 	}
 
 	@SuppressWarnings("rawtypes")
-	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceTree, E> mapper) {
+	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph, E> mapper) {
 		C collection = factory.get();
 
 		collection.addAll(List.of(mapper.apply(this)));
 
-		for (DomainResourceTree<? extends T> child : childrens) {
+		for (DomainResourceGraph<? extends T> child : childrens) {
 			collection.addAll(child.collect(factory, mapper));
 		}
 
@@ -119,7 +119,7 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 	}
 	
 	@Override
-	public <E, C extends Collection<E>> C collect(DomainResourceTreeCollector<E, C> collector) {
+	public <E, C extends Collection<E>> C collect(DomainResourceGraphCollector<E, C> collector) {
 		return collect(collector.getFactory(), collector.getMapper());
 	}
 
@@ -152,7 +152,7 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 		if (getClass() != obj.getClass())
 			return false;
 
-		DomainResourceTreeImpl other = (DomainResourceTreeImpl) obj;
+		DomainResourceGraphImpl other = (DomainResourceGraphImpl) obj;
 
 		return Objects.equals(resourceType, other.resourceType);
 	}

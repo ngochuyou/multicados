@@ -15,12 +15,12 @@ import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
  */
 public interface DomainResourceContext extends ContextBuilder {
 
-	DomainResourceTree<DomainResource> getResourceTree();
+	DomainResourceGraph<DomainResource> getResourceGraph();
 
 	@SuppressWarnings("rawtypes")
-	DomainResourceTree<Entity> getEntityTree();
+	DomainResourceGraph<Entity> getEntityGraph();
 
-	DomainResourceTree<Model> getModelTree();
+	DomainResourceGraph<Model> getModelGraph();
 
 	<T extends DomainResource> DomainResourceMetadata<T> getMetadata(Class<T> resourceType);
 
