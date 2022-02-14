@@ -11,11 +11,11 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
+import javax.persistence.Tuple;
 
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
-import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -28,8 +28,10 @@ import multicados.domain.entity.Category;
 import multicados.domain.entity.Entity;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
+import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.domain.tuplizer.TuplizerException;
 import multicados.internal.helper.HibernateHelper;
@@ -42,6 +44,7 @@ import multicados.internal.service.ServiceResult;
  * @author Ngoc Huy
  *
  */
+@SuppressWarnings("unused")
 public class DummyDatabaseInitializer implements DatabaseInitializerContributor {
 
 	@Override
@@ -52,14 +55,17 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		session.beginTransaction();
 		// @formatter:off
 		try {
-			Utils.declare("data\\dummy\\dummy_categories.json")
-				.then(this::getArray)
-					.second(Category.class)
-				.then(this::toInstances)
-					.second(Category.class)
-				.identical(this::logInstances)
-					.third(session)
-				.identical(this::save);
+//			Utils.declare("data\\dummy\\dummy_categories.json")
+//				.then(this::getArray)
+//					.second(Category.class)
+//				.then(this::toInstances)
+//					.second(Category.class)
+//					.third(Map.entry(ContextManager.getBean(GenericRepository.class), session))
+//				.then(this::filter)
+//					.second(Category.class)
+//				.identical(this::logInstances)
+//					.third(session)
+//				.identical(this::create);
 			session.getTransaction().commit();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -76,7 +82,7 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		return (List<Map<String, Object>>) ContextManager.getBean(ObjectMapper.class)
 				.readValue(new ClassPathResource(uri).getInputStream(), List.class);
 	}
-
+	
 	private <S extends Serializable, E extends Entity<S>> List<E> toInstances(List<Map<String, Object>> objMaps,
 			Class<E> entityType) {
 		DomainResourceTuplizer<E> tuplizer = ContextManager.getBean(DomainResourceContext.class)
@@ -104,13 +110,24 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		}).collect(Collectors.toList());
 	}
 
-	private <S extends Serializable, E extends Entity<S>> void save(List<E> instances, Class<E> entityType,
-			EntityManager entityManager) throws Exception {
+	private <S extends Serializable, E extends Entity<S>> List<E> filter(List<E> instances, Class<E> entityType,
+			Map.Entry<GenericRepository, Session> argEntry) throws Exception {
+		GenericRepository repository = argEntry.getKey();
+		Session session = argEntry.getValue();
+		List<Tuple> tuples = repository.findAll(entityType,
+				(root, query, builder) -> List.of(root.get(Entity.id_), root.get(NamedResource.name_)),
+				(root, query, builder) -> builder.in(root.get(NamedResource.name_)).value(root), LockModeType.PESSIMISTIC_WRITE, session);
+		
+		return instances;
+	}
+
+	private <S extends Serializable, E extends Entity<S>> void create(List<E> instances, Class<E> entityType,
+			Session entityManager) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DummyDatabaseInitializer.class);
 		GenericCRUDService crudService = ContextManager.getBean(GenericCRUDService.class);
 
 		for (E e : instances) {
-			ServiceResult result = crudService.create(null, e, entityType, entityManager, true);
+			ServiceResult result = crudService.create(entityManager, e, entityType, entityManager, true);
 
 			if (result.isOk()) {
 				continue;
@@ -119,12 +136,6 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 			Exception exception = result.getException();
 
 			if (exception != null) {
-				if (ConstraintViolationException.class.isAssignableFrom(exception.getCause().getClass())) {
-					logger.warn("Skipping exsiting dummy resource of type {}, message: {}", entityType.getName(),
-							exception.getMessage());
-					continue;
-				}
-
 				throw exception;
 			}
 
