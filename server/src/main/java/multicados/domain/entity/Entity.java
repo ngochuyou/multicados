@@ -1,9 +1,11 @@
 /**
  * 
  */
-package multicados.internal.domain;
+package multicados.domain.entity;
 
 import java.io.Serializable;
+
+import multicados.internal.domain.IdentifiableDomainResource;
 
 /**
  * @author Ngoc Huy

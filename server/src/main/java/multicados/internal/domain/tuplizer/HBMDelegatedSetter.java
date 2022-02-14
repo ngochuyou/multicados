@@ -9,7 +9,7 @@ import java.lang.reflect.Member;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.tuple.entity.EntityTuplizer;
 
-import multicados.internal.domain.Entity;
+import multicados.domain.entity.Entity;
 
 /**
  * @author Ngoc Huy

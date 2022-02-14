@@ -5,6 +5,7 @@ package multicados.domain.entity;
 
 import static multicados.application.Common.SHARED_TABLE_GENERATOR;
 
+import java.math.BigInteger;
 import java.util.regex.Pattern;
 
 import javax.persistence.Column;
@@ -27,15 +28,16 @@ import multicados.internal.helper.StringHelper;
  */
 @Entity
 @Table(name = "categories")
-public class Category extends PermanentEntity<Long> implements NamedResource, EncryptedIdentifierResource<Long> {
+public class Category extends PermanentEntity<BigInteger>
+		implements NamedResource, EncryptedIdentifierResource<BigInteger> {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.TABLE, generator = SHARED_TABLE_GENERATOR)
-	// we start from 1033 so that the generator takes 1034
+
 	@TableGenerator(name = SHARED_TABLE_GENERATOR, initialValue = Base32.CROCKFORD_10A
 			- 1, allocationSize = 1, table = Common.SHARED_TABLE_GENERATOR_TABLENAME)
 	@Column(updatable = false)
-	private Long id;
+	private BigInteger id;
 
 	@Column(unique = true, length = MAXIMUM_CODE_LENGTH)
 	private String code;
@@ -47,12 +49,12 @@ public class Category extends PermanentEntity<Long> implements NamedResource, En
 	private String description;
 
 	@Override
-	public Long getId() {
+	public BigInteger getId() {
 		return id;
 	}
 
 	@Override
-	public void setId(Long id) {
+	public void setId(BigInteger id) {
 		this.id = id;
 	}
 

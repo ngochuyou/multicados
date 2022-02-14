@@ -21,10 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
+import multicados.domain.entity.Entity;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceTree;
-import multicados.internal.domain.Entity;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.Utils;

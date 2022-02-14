@@ -1,19 +1,19 @@
 [
 	{
 		"description": "In fashion, an accessory is an item used to contribute, in a secondary manner, to an individual's outfit. Accessories are often chosen to complete an outfit and complement the wearer's look.",
-		"name": "Accessories"
+		"name": "       Accessories        "
 	},
 	{
 		"description": "Formal wear, formal attire or full dress is the traditional Western dress code category applicable for the most formal occasions, such as weddings, christenings...",
-		"name": "Formalwear"
+		"name": "       Formalwear       "
 	},
 	{
 		"description": "Sportswear or activewear is clothing, including footwear, worn for sport or physical exercise. Sport-specific clothing is worn for most sports and physical exercise, for practical, comfort or safety reasons.",
-		"name": "Sportswear"
+		"name": "Sportswear    "
 	},
 	{
 		"description": "A shirt is a cloth garment for the upper body. Many terms are used to describe and differentiate types of shirts (and upper-body garments in general) and their construction.",
-		"name": "Shirts"
+		"name": "Shirts    "
 	},
 	{
 		"description": "Trousers (British English), slacks, or pants are an item of clothing that might have originated in Central Asia, worn from the waist to the ankles, covering both legs separately.",
@@ -21,6 +21,6 @@
 	},
 	{
 		"description": "Eyewear consists of items and accessories worn on or over the eyes, for fashion or adornment, protection against the environment, and to improve or enhance visual acuity.",
-		"name": "Eyewear"
+		"name": "   Eyewear"
 	}
 ]

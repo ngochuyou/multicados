@@ -12,8 +12,8 @@ import java.util.stream.Collectors;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.springframework.util.Assert;
 
+import multicados.domain.entity.Entity;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.Entity;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.Utils;
 

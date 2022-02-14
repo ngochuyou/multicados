@@ -4,9 +4,6 @@
 package multicados.internal.service;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.persistence.EntityManager;
 
@@ -15,56 +12,67 @@ import org.slf4j.LoggerFactory;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.DomainResourceTree;
-import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils;
-import multicados.internal.service.event.EventListenerFactory;
-import multicados.internal.service.event.PostPersistEventListener;
-import multicados.internal.service.event.ServiceEventListener;
+import multicados.internal.domain.builder.DomainResourceBuilder;
+import multicados.internal.domain.builder.DomainResourceBuilderFactory;
+import multicados.internal.domain.validation.Validation;
+import multicados.internal.domain.validation.Validator;
+import multicados.internal.domain.validation.ValidatorFactory;
+import multicados.internal.service.event.ServiceEventListenerGroups;
 
 /**
  * @author Ngoc Huy
  *
  */
 public class GenericCRUDServiceImpl implements GenericCRUDService {
+	
+	private static final Logger logger = LoggerFactory.getLogger(GenericCRUDServiceImpl.class);
+	
+	private final DomainResourceBuilderFactory builderFactory;
+	private final ValidatorFactory validatorFactory;
+	
+	private final ServiceEventListenerGroups eventListenerGroups;
 
-	private final Map<Class<DomainResource>, List<PostPersistEventListener<?>>> postInsertListenters;
-
-	public GenericCRUDServiceImpl(DomainResourceContext resourceContext) throws Exception {
-		// @formatter:off
-		this.postInsertListenters =
-			Utils.declare(resourceContext.getResourceTree())
-				.then(DomainResourceTree::toSet)
-				.then(EventListenerFactory::resolvePostPersistListeners)
-				.get();
-		// @formatter:on
+	public GenericCRUDServiceImpl(DomainResourceContext resourceContext, DomainResourceBuilderFactory builderFactory, ValidatorFactory validatorFactory)
+			throws Exception {
+		this.builderFactory = builderFactory;
+		this.validatorFactory = validatorFactory;
+		eventListenerGroups = new ServiceEventListenerGroups(resourceContext);
 	}
 
 	@Override
 	public <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type,
 			EntityManager entityManager, boolean flushOnFinish) {
-		return null;
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Creating a resource of type %s with identifier %s", type.getName(), id));
+		}
+		
+		try {
+			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
+			
+			model = resourceBuilder.buildInsertion(id, model, entityManager);
+			
+			Validator<E> validator = validatorFactory.getValidator(type);
+			Validation validation = validator.isSatisfiedBy(id, model);
+			
+			if (!validation.isOk()) {
+				return ServiceResult.bad(validation);
+			}
+			
+			entityManager.persist(model);
+			eventListenerGroups.firePostPersist(type, model);
+
+			return null;
+		} catch (Exception any) {
+			any.printStackTrace();
+			return ServiceResult.failed(any);
+		}
 	}
 
 	@Override
 	public void summary() throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-		logger.trace("PostPersistEventListener group:\n\t{}", getListenerGroupLogging(postInsertListenters));
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private String getListenerGroupLogging(Map listeners) {
-		// @formatter:off
-		return (String) listeners
-			.entrySet().stream()
-			.map(entry -> {
-				Map.Entry<Class<DomainResource>, List<ServiceEventListener>> casted = (Map.Entry<Class<DomainResource>, List<ServiceEventListener>>) entry;
-				
-				return String.format("%s: %s", casted.getKey().getSimpleName(), casted.getValue().stream().map(ServiceEventListener::getLoggableName).collect(Collectors.joining(StringHelper.COMMON_JOINER)));
-			})
-			.collect(Collectors.joining("\n\t"));
-		// @formatter:on
+		logger.trace(eventListenerGroups.toString());
 	}
 
 }

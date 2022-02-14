@@ -3,11 +3,15 @@
  */
 package multicados.internal.domain;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.springframework.util.Assert;
 
@@ -101,17 +105,22 @@ public class DomainResourceTreeImpl<T extends DomainResource> implements DomainR
 		return null;
 	}
 
-	@Override
-	public Set<Class<? extends T>> toSet() {
-		Set<Class<? extends T>> list = new HashSet<>();
+	@SuppressWarnings("rawtypes")
+	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceTree, E> mapper) {
+		C collection = factory.get();
 
-		list.add(resourceType);
+		collection.addAll(List.of(mapper.apply(this)));
 
 		for (DomainResourceTree<? extends T> child : childrens) {
-			list.addAll(child.toSet());
+			collection.addAll(child.collect(factory, mapper));
 		}
 
-		return list;
+		return collection;
+	}
+	
+	@Override
+	public <E, C extends Collection<E>> C collect(DomainResourceTreeCollector<E, C> collector) {
+		return collect(collector.getFactory(), collector.getMapper());
 	}
 
 	@Override

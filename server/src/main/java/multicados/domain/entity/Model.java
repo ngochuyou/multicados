@@ -1,7 +1,9 @@
 /**
  * 
  */
-package multicados.internal.domain;
+package multicados.domain.entity;
+
+import multicados.internal.domain.DomainResource;
 
 /**
  * @author Ngoc Huy

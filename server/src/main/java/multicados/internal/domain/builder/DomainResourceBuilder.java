@@ -5,6 +5,8 @@ package multicados.internal.domain.builder;
 
 import java.io.Serializable;
 
+import javax.persistence.EntityManager;
+
 import org.hibernate.SharedSessionContract;
 
 import multicados.internal.context.ContextBuildListener;
@@ -33,7 +35,7 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 		return buildInsertion(id, resource, HibernateHelper.getCurrentSession());
 	}
 
-	<E extends T> E buildInsertion(Serializable id, E resource, SharedSessionContract session) throws Exception;
+	<E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager) throws Exception;
 
 	/**
 	 * @see DomainResourceBuilder#insertionBuild(DomainResource)

@@ -6,11 +6,9 @@ package multicados.internal.domain;
 import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,6 +24,8 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
+import multicados.domain.entity.Entity;
+import multicados.domain.entity.Model;
 import multicados.internal.config.Constants;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
@@ -78,25 +78,12 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 				}))
 				.get();
 		metadatasMap = declare(resourceTree)
-				.then(tree -> {
-					List<Class<? extends DomainResource>> resourceTypes = new ArrayList<>();
-					
-					tree.forEach(node -> resourceTypes.add(node.getResourceType()));
-					
-					return resourceTypes;
-				})
+				.then(resourceTree -> resourceTree.collect(DomainResourceTreeCollectors.toTypesSet()))
 				.then(this::buildMetadatas)
 				.then(Collections::unmodifiableMap)
 				.get();
 		tuplizersMap = declare(resourceTree)
-				.then(tree -> {
-					@SuppressWarnings("rawtypes")
-					List<Class> entityTypes = new ArrayList<>();
-					
-					tree.forEach(node -> entityTypes.add(node.getResourceType()));
-					
-					return entityTypes;
-				})
+				.then(resourceTree -> resourceTree.collect(DomainResourceTreeCollectors.toTypesSet()))
 				.then(this::buildTuplizers)
 				.then(Collections::unmodifiableMap)
 				.get();
@@ -105,7 +92,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> buildTuplizers(
-			Collection<Class> entityTypes) throws Exception {
+			Collection<Class<DomainResource>> entityTypes) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceTuplizer.class.getSimpleName());
@@ -113,6 +100,10 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 		Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizers = new HashMap<>();
 
 		for (Class type : entityTypes) {
+			if (tuplizers.containsKey(type)) {
+				continue;
+			}
+
 			if (Entity.class.isAssignableFrom(type) && !Modifier.isAbstract(type.getModifiers())) {
 				logger.trace("HBM {}(s)", type.getName());
 
@@ -174,7 +165,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	}
 
 	private Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> buildMetadatas(
-			List<Class<? extends DomainResource>> resourceTypes) throws Exception {
+			Collection<Class<DomainResource>> resourceTypes) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceMetadata.class.getSimpleName());
@@ -183,7 +174,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 				0);
 		// we use iterator for exception handling
 		for (Class<? extends DomainResource> resourceType : resourceTypes) {
-			if (Modifier.isInterface(resourceType.getModifiers())) {
+			if (metadatasMap.containsKey(resourceType) || Modifier.isInterface(resourceType.getModifiers())) {
 				continue;
 			}
 

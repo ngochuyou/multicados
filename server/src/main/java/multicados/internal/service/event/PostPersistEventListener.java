@@ -9,8 +9,8 @@ import multicados.internal.domain.DomainResource;
  * @author Ngoc Huy
  *
  */
-public interface PostPersistEventListener<D extends DomainResource> extends ServiceEventListener {
+public interface PostPersistEventListener extends ServiceEventListener {
 
-	void onPostInsert(D resource) throws Exception;
+	<D extends DomainResource> void onPostPersist(D resource) throws Exception;
 
 }

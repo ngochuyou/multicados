@@ -7,8 +7,6 @@ import java.io.Serializable;
 
 import javax.persistence.EntityManager;
 
-import org.hibernate.SharedSessionContract;
-
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.helper.HibernateHelper;

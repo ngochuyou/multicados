@@ -10,7 +10,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 
-import multicados.internal.domain.Entity;
+import multicados.domain.entity.Entity;
 
 /**
  * @author Ngoc Huy

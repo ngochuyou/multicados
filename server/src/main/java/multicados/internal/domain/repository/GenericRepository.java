@@ -14,8 +14,8 @@ import org.hibernate.SharedSessionContract;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
+import multicados.domain.entity.Entity;
 import multicados.internal.context.ContextBuilder;
-import multicados.internal.domain.Entity;
 
 /**
  * @author Ngoc Huy

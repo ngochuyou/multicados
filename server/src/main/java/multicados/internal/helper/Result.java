@@ -27,14 +27,6 @@ public class Result {
 		return status == Status.SUCCESS;
 	}
 
-	public static Result success() {
-		return new Result(Status.SUCCESS);
-	}
-
-	public static Result failed() {
-		return new Result(Status.FAILED);
-	}
-
 	public enum Status {
 
 		SUCCESS, FAILED;

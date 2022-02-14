@@ -10,7 +10,6 @@ import javax.persistence.MappedSuperclass;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import multicados.internal.domain.Entity;
 import multicados.internal.domain.PermanentResource;
 
 /**

@@ -7,8 +7,8 @@ import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.persister.entity.EntityPersister;
 
+import multicados.domain.entity.Entity;
 import multicados.internal.context.ContextManager;
-import multicados.internal.domain.Entity;
 
 /**
  * @author Ngoc Huy

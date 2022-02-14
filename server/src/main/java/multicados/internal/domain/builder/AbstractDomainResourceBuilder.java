@@ -5,6 +5,8 @@ package multicados.internal.domain.builder;
 
 import java.io.Serializable;
 
+import javax.persistence.EntityManager;
+
 import org.hibernate.SharedSessionContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +43,8 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		}
 
 		@Override
-		public <E extends T> E buildInsertion(Serializable id, E resource, SharedSessionContract session) throws Exception {
-			return childBuilder.buildInsertion(id, parentBuilder.buildInsertion(id, resource, session), session);
+		public <E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager) throws Exception {
+			return childBuilder.buildInsertion(id, parentBuilder.buildInsertion(id, resource, entityManager), entityManager);
 		}
 
 		@Override

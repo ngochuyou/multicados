@@ -3,6 +3,8 @@
  */
 package multicados.internal.domain;
 
+import multicados.domain.entity.Entity;
+import multicados.domain.entity.Model;
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;

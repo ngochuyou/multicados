@@ -161,7 +161,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 				ValidatorFactory.class, 1,
 				GenericRepository.class, 2,
 				DomainResourceBuilderFactory.class, 3,
-//				GenericCRUDService.class, 4,
+				GenericCRUDService.class, 4,
 				DatabaseInitializer.class, 5);
 		final Map<Class<? extends ContextBuilder>, BeanDefinition> beansMap = beanDefs.stream()
 				.map(bean -> {

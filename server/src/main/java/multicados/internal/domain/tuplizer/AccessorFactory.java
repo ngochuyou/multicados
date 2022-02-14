@@ -14,8 +14,8 @@ import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.persister.entity.UniqueKeyLoadable;
 import org.hibernate.tuple.entity.EntityMetamodel;
 
-import multicados.internal.domain.Entity;
 import multicados.internal.helper.FunctionHelper.HandledBiFunction;
+import multicados.domain.entity.Entity;
 import multicados.internal.helper.StringHelper;
 
 /**

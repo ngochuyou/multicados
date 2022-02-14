@@ -35,8 +35,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
+import multicados.domain.entity.Entity;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.Entity;
 import multicados.internal.domain.PermanentResource;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.Utils;
@@ -123,9 +123,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 							(composition, current) -> composition.and(current));
 		// @formatter:on
 	}
-
-	@Override
-	public void summary() throws Exception {}
 
 	@Override
 	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
