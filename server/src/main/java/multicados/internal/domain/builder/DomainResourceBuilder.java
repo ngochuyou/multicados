@@ -7,12 +7,9 @@ import java.io.Serializable;
 
 import javax.persistence.EntityManager;
 
-import org.hibernate.SharedSessionContract;
-
 import multicados.internal.context.ContextBuildListener;
 import multicados.internal.context.Loggable;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.helper.HibernateHelper;
 
 /**
  * @author Ngoc Huy
@@ -31,10 +28,6 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 	 * @return entity {@link DomainResource}
 	 * @throws Exception
 	 */
-	default <E extends T> E buildInsertion(Serializable id, E resource) throws Exception {
-		return buildInsertion(id, resource, HibernateHelper.getCurrentSession());
-	}
-
 	<E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager) throws Exception;
 
 	/**
@@ -43,14 +36,8 @@ public interface DomainResourceBuilder<T extends DomainResource> extends Context
 	 * @param model
 	 * @return persisted {@link DomainResource}
 	 */
-	default <E extends T> E buildUpdate(Serializable id, E model, E resource) {
-		return buildUpdate(id, resource, resource, HibernateHelper.getCurrentSession());
-	}
-
-	<E extends T> E buildUpdate(Serializable id, E model, E resource, SharedSessionContract session);
+	<E extends T> E buildUpdate(Serializable id, E model, E resource, EntityManager entityManger);
 
 	<E extends T> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next);
 
-	<E extends T> boolean contains(DomainResourceBuilder<E> candidate);
-	
 }

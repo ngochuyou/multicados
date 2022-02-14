@@ -15,6 +15,7 @@ import javax.persistence.EntityManager;
 
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -59,7 +60,6 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 				.identical(this::logInstances)
 					.third(session)
 				.identical(this::save);
-			session.flush();
 			session.getTransaction().commit();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -77,8 +77,8 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 				.readValue(new ClassPathResource(uri).getInputStream(), List.class);
 	}
 
-	private <S extends Serializable, E extends Entity<S>> List<E> toInstances(
-			List<Map<String, Object>> objMaps, Class<E> entityType) {
+	private <S extends Serializable, E extends Entity<S>> List<E> toInstances(List<Map<String, Object>> objMaps,
+			Class<E> entityType) {
 		DomainResourceTuplizer<E> tuplizer = ContextManager.getBean(DomainResourceContext.class)
 				.getTuplizer(entityType);
 		int batchSize = objMaps.size();
@@ -110,22 +110,29 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		GenericCRUDService crudService = ContextManager.getBean(GenericCRUDService.class);
 
 		for (E e : instances) {
-			ServiceResult result = crudService.create(null, e, entityType, entityManager, false);
-			
+			ServiceResult result = crudService.create(null, e, entityType, entityManager, true);
+
 			if (result.isOk()) {
 				continue;
 			}
-			
-			if (result.getException() != null) {
-				throw result.getException();
+
+			Exception exception = result.getException();
+
+			if (exception != null) {
+				if (ConstraintViolationException.class.isAssignableFrom(exception.getCause().getClass())) {
+					logger.warn("Skipping exsiting dummy resource of type {}, message: {}", entityType.getName(),
+							exception.getMessage());
+					continue;
+				}
+
+				throw exception;
 			}
-			
+
 			logger.error("Failed to create dummy resource of type {}", entityType.getName());
 		}
 	}
 
-	private <S extends Serializable, E extends Entity<S>> void logInstances(List<E> instances,
-			Class<E> entityType) {
+	private <S extends Serializable, E extends Entity<S>> void logInstances(List<E> instances, Class<E> entityType) {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		if (!logger.isTraceEnabled()) {

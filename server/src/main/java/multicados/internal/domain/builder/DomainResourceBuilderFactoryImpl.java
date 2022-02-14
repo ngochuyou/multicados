@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import javax.persistence.EntityManager;
 
-import org.hibernate.SharedSessionContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -52,7 +51,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 				.then(this::mapFixedLogics)
 					.second(resourceContext)
 				.then(this::buildCollection)
-				.then(this::collect)
+				.then(this::join)
 				.then(Collections::unmodifiableMap)
 				.get();
 		// @formatter:on
@@ -232,7 +231,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private Map<Class, DomainResourceBuilder> collect(Map<Class, LinkedHashSet<DomainResourceBuilder>> builtBuilders) {
+	private Map<Class, DomainResourceBuilder> join(Map<Class, LinkedHashSet<DomainResourceBuilder>> builtBuilders) {
 		// @formatter:off
 		return builtBuilders.entrySet()
 				.stream()
@@ -367,7 +366,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 
 		@Override
 		public <E extends NamedResource> E buildUpdate(Serializable id, E model, E resource,
-				SharedSessionContract session) {
+				EntityManager entityManger) {
 			resource.setName(StringHelper.normalizeString(model.getName()));
 			return resource;
 		}
@@ -394,7 +393,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 
 		@Override
 		public <E extends PermanentResource> E buildUpdate(Serializable id, E model, E resource,
-				SharedSessionContract session) {
+				EntityManager entityManger) {
 			return resource;
 		}
 
@@ -447,7 +446,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 
 		@Override
 		public <E extends IdentifiableDomainResource> E buildUpdate(Serializable id, E model, E resource,
-				SharedSessionContract session) {
+				EntityManager entityManger) {
 			return resource;
 		}
 
@@ -473,7 +472,7 @@ public class DomainResourceBuilderFactoryImpl implements DomainResourceBuilderFa
 
 		@Override
 		public <E extends DomainResource> E buildUpdate(Serializable id, E model, E resource,
-				SharedSessionContract session) {
+				EntityManager entityManger) {
 			return resource;
 		}
 

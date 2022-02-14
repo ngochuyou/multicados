@@ -40,7 +40,7 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 	}
 
 	@Override
-	public <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type,
+	public <E extends DomainResource> ServiceResult create(Serializable id, E resource, Class<E> type,
 			EntityManager entityManager, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Creating a resource of type %s with identifier %s", type.getName(), id));
@@ -49,25 +49,53 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 		try {
 			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
 			
-			model = resourceBuilder.buildInsertion(id, model, entityManager);
+			resource = resourceBuilder.buildInsertion(id, resource, entityManager);
 			
 			Validator<E> validator = validatorFactory.getValidator(type);
-			Validation validation = validator.isSatisfiedBy(id, model);
+			Validation validation = validator.isSatisfiedBy(id, resource);
 			
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
 			}
 			
-			entityManager.persist(model);
-			eventListenerGroups.firePostPersist(type, model);
+			entityManager.persist(resource);
+			eventListenerGroups.firePostPersist(type, resource);
 
 			return ServiceResult.success(entityManager, flushOnFinish);
 		} catch (Exception any) {
-			any.printStackTrace();
 			return ServiceResult.failed(any);
 		}
 	}
 
+	@Override
+	public <E extends DomainResource> ServiceResult update(Serializable id, E resource, Class<E> type,
+			EntityManager entityManager, boolean flushOnFinish) {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Updating a resource of type %s with identifier %s", type.getName(), id));
+		}
+		
+		try {
+			E persistence = entityManager.find(type, id);
+			
+			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
+			
+			resource = resourceBuilder.buildUpdate(id, resource, persistence, entityManager);
+			
+			Validator<E> validator = validatorFactory.getValidator(type);
+			Validation validation = validator.isSatisfiedBy(id, resource);
+			
+			if (!validation.isOk()) {
+				return ServiceResult.bad(validation);
+			}
+			
+			entityManager.merge(resource);
+			
+			return null;
+		} catch (Exception any) {
+			return ServiceResult.failed(any);
+		}
+	}
+	
 	@Override
 	public void summary() throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());

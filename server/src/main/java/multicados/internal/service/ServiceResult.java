@@ -66,11 +66,11 @@ public class ServiceResult extends Result {
 	}
 
 	public static ServiceResult failed(Exception exception) {
-		return new ServiceResult(Status.SUCCESS).exception(exception);
+		return new ServiceResult(Status.FAILED).exception(exception);
 	}
 
 	public static ServiceResult bad(Validation validation) {
-		return new ServiceResult(Status.SUCCESS).validation(validation);
+		return new ServiceResult(Status.FAILED).validation(validation);
 	}
 
 }

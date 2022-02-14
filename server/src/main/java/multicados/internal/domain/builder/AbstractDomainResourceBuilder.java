@@ -7,7 +7,6 @@ import java.io.Serializable;
 
 import javax.persistence.EntityManager;
 
-import org.hibernate.SharedSessionContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
@@ -20,7 +19,7 @@ import multicados.internal.helper.Utils.Access;
  *
  */
 public abstract class AbstractDomainResourceBuilder<D extends DomainResource> implements DomainResourceBuilder<D> {
-	
+
 	private final Access access = new Access() {};
 
 	@Override
@@ -43,14 +42,16 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		}
 
 		@Override
-		public <E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager) throws Exception {
-			return childBuilder.buildInsertion(id, parentBuilder.buildInsertion(id, resource, entityManager), entityManager);
+		public <E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager)
+				throws Exception {
+			return childBuilder.buildInsertion(id, parentBuilder.buildInsertion(id, resource, entityManager),
+					entityManager);
 		}
 
 		@Override
-		public <E extends T> E buildUpdate(Serializable id, E model, E resource, SharedSessionContract session) {
-			return childBuilder.buildUpdate(id, model, parentBuilder.buildUpdate(id, model, resource, session),
-					session);
+		public <E extends T> E buildUpdate(Serializable id, E model, E resource, EntityManager entityManger) {
+			return childBuilder.buildUpdate(id, model, parentBuilder.buildUpdate(id, model, resource, entityManger),
+					entityManger);
 		}
 
 		@Override
@@ -63,11 +64,6 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 			parentBuilder.doAfterContextBuild();
 			childBuilder.doAfterContextBuild();
 		}
-		
-		@Override
-		public <E extends T> boolean contains(DomainResourceBuilder<E> candidate) {
-			return parentBuilder.contains(candidate) || childBuilder.contains(candidate);
-		}
 
 	}
 
@@ -76,11 +72,6 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace(Access.getClosingMessage(this));
-	}
-	
-	@Override
-	public <E extends D> boolean contains(DomainResourceBuilder<E> candidate) {
-		return this == candidate;
 	}
 
 }

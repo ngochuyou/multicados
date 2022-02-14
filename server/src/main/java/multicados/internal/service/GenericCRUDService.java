@@ -9,7 +9,6 @@ import javax.persistence.EntityManager;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.helper.HibernateHelper;
 
 /**
  * @author Ngoc Huy
@@ -17,16 +16,20 @@ import multicados.internal.helper.HibernateHelper;
  */
 public interface GenericCRUDService extends Service, ContextBuilder {
 
-	default <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type) {
-		return create(id, model, type, false);
-	}
-
 	default <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type,
-			boolean flushOnFinish) {
-		return create(id, model, type, HibernateHelper.getCurrentSession(), flushOnFinish);
+			EntityManager entityManager) {
+		return create(id, model, type, entityManager, false);
 	}
 
 	<E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type,
+			EntityManager entityManager, boolean flushOnFinish);
+
+	default <E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
+			EntityManager entityManager) {
+		return update(id, model, type, entityManager, false);
+	}
+
+	<E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
 			EntityManager entityManager, boolean flushOnFinish);
 
 }
