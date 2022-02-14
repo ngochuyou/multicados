@@ -3,6 +3,8 @@
  */
 package multicados.internal.service;
 
+import javax.persistence.EntityManager;
+
 import multicados.internal.domain.validation.Validation;
 import multicados.internal.helper.Result;
 
@@ -35,6 +37,28 @@ public class ServiceResult extends Result {
 	public ServiceResult exception(Exception exception) {
 		this.exception = exception;
 		return this;
+	}
+
+	public static ServiceResult finish(EntityManager em, ServiceResult result, boolean flushOnFinish) {
+		if (flushOnFinish) {
+			try {
+				if (result.isOk()) {
+					em.flush();
+					return result;
+				}
+
+				em.clear();
+				return result;
+			} catch (Exception any) {
+				return failed(any);
+			}
+		}
+
+		return result;
+	}
+
+	public static ServiceResult success(EntityManager em, boolean flushOnFinish) {
+		return ServiceResult.finish(em, success(), flushOnFinish);
 	}
 
 	public static ServiceResult success() {
