@@ -61,7 +61,7 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 			entityManager.persist(model);
 			eventListenerGroups.firePostPersist(type, model);
 
-			return null;
+			return ServiceUtils.success(entityManager, flushOnFinish);
 		} catch (Exception any) {
 			any.printStackTrace();
 			return ServiceResult.failed(any);
