@@ -29,7 +29,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 	private static final String FLAG_OFF = "off";
 
 	public DatabaseInitializerImpl(Environment env) throws Exception {
-		if (env.getProperty(FLAG_KEY).equals(FLAG_OFF)) {
+		if (env.getProperty(FLAG_KEY).toLowerCase().equals(FLAG_OFF)) {
 			return;
 		}
 

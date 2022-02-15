@@ -109,7 +109,7 @@ public abstract class AbstractGraphWalkerFactory {
 		final Map<Class, LinkedHashSet<GraphWalker>> walkersCollections = new HashMap<>();
 
 		for (DomainResourceGraph graph : resourceContext.getResourceGraph()
-				.collect(DomainResourceGraphCollectors.toTreesList())) {
+				.collect(DomainResourceGraphCollectors.toGraphsList())) {
 			Class resourceType = graph.getResourceType();
 			GraphWalker walker = mappedWalkers.get(resourceType);
 

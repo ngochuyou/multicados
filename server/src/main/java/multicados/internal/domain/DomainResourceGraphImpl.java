@@ -36,11 +36,29 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		this(parent, resourceType, new HashSet<>(0));
 	}
 
+	private DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, DomainResourceGraph<T> child) {
+		this.parent = parent;
+		resourceType = child.getResourceType();
+		childrens = child.getChildrens();
+	}
+
 	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType,
 			Set<DomainResourceGraph<? extends T>> childrens) {
 		this.parent = parent;
 		this.resourceType = resourceType;
-		this.childrens = Optional.ofNullable(childrens).orElse(new HashSet<>(0));
+
+		if (childrens == null) {
+			this.childrens = new HashSet<>();
+			return;
+		}
+
+		Set<DomainResourceGraph<? extends T>> associationSafeChilds = new HashSet<>();
+
+		for (DomainResourceGraph<? extends T> child : childrens) {
+			associationSafeChilds.add(new DomainResourceGraphImpl<>(this, child));
+		}
+
+		this.childrens = associationSafeChilds;
 	}
 
 	@Override
