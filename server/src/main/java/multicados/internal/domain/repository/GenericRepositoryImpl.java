@@ -73,7 +73,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.then(this::filterOutNonTargetedTypes)
 				.then(ArrayList::new)
 				.then(this::chainFixedSpecifications)
-				.second(entityType)
+					.second(entityType)
 				.biInverse()
 				.identical(fixedSpecifications::put);
 			// @formatter:on
