@@ -15,7 +15,7 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.builder.DomainResourceBuilder;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.validation.Validation;
-import multicados.internal.domain.validation.Validator;
+import multicados.internal.domain.validation.DomainResourceValidator;
 import multicados.internal.domain.validation.ValidatorFactory;
 import multicados.internal.service.event.ServiceEventListenerGroups;
 
@@ -51,7 +51,7 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 			
 			resource = resourceBuilder.buildInsertion(id, resource, entityManager);
 			
-			Validator<E> validator = validatorFactory.getValidator(type);
+			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
 			Validation validation = validator.isSatisfiedBy(id, resource);
 			
 			if (!validation.isOk()) {
@@ -68,7 +68,7 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 	}
 
 	@Override
-	public <E extends DomainResource> ServiceResult update(Serializable id, E resource, Class<E> type,
+	public <E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
 			EntityManager entityManager, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Updating a resource of type %s with identifier %s", type.getName(), id));
@@ -79,18 +79,18 @@ public class GenericCRUDServiceImpl implements GenericCRUDService {
 			
 			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
 			
-			resource = resourceBuilder.buildUpdate(id, resource, persistence, entityManager);
+			model = resourceBuilder.buildUpdate(id, model, persistence, entityManager);
 			
-			Validator<E> validator = validatorFactory.getValidator(type);
-			Validation validation = validator.isSatisfiedBy(id, resource);
+			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
+			Validation validation = validator.isSatisfiedBy(id, model);
 			
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
 			}
 			
-			entityManager.merge(resource);
+			entityManager.merge(model);
 			
-			return null;
+			return ServiceResult.success(entityManager, flushOnFinish);
 		} catch (Exception any) {
 			return ServiceResult.failed(any);
 		}

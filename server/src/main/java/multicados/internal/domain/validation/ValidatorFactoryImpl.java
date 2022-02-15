@@ -20,13 +20,13 @@ import multicados.internal.domain.DomainResourceContext;
 public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements ValidatorFactory {
 
 	public ValidatorFactoryImpl(DomainResourceContext resourceContextProvider) throws Exception {
-		super(Validator.class, resourceContextProvider, List.of(), () -> NO_OP_VALIDATOR);
+		super(DomainResourceValidator.class, resourceContextProvider, List.of(), () -> NO_OP_VALIDATOR);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends DomainResource> Validator<T> getValidator(Class<T> resourceType) {
-		return (Validator<T>) walkersMap.get(resourceType);
+	public <T extends DomainResource> DomainResourceValidator<T> getValidator(Class<T> resourceType) {
+		return (DomainResourceValidator<T>) walkersMap.get(resourceType);
 	}
 
 	@Override
@@ -38,7 +38,7 @@ public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements 
 	}
 
 	@SuppressWarnings("rawtypes")
-	private static final Validator NO_OP_VALIDATOR = new Validator() {
+	private static final DomainResourceValidator NO_OP_VALIDATOR = new DomainResourceValidator() {
 
 		@Override
 		public Validation isSatisfiedBy(DomainResource resource) {
@@ -51,7 +51,7 @@ public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements 
 		}
 
 		@Override
-		public Validator and(Validator next) {
+		public DomainResourceValidator and(DomainResourceValidator next) {
 			throw new UnsupportedOperationException();
 		}
 

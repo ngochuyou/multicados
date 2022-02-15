@@ -12,6 +12,6 @@ import multicados.internal.domain.DomainResource;
  */
 public interface ValidatorFactory extends ContextBuilder {
 
-	<T extends DomainResource> Validator<T> getValidator(Class<T> resourceType);
+	<T extends DomainResource> DomainResourceValidator<T> getValidator(Class<T> resourceType);
 
 }
