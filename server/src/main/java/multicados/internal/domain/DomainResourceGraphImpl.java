@@ -117,7 +117,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 
 		return collection;
 	}
-	
+
 	@Override
 	public <E, C extends Collection<E>> C collect(DomainResourceGraphCollector<E, C> collector) {
 		return collect(collector.getFactory(), collector.getMapper());

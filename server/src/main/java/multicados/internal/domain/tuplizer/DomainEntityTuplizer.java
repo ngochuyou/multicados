@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.springframework.util.Assert;
 
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.Utils;
@@ -21,7 +21,7 @@ import multicados.internal.helper.Utils;
  * @author Ngoc Huy
  *
  */
-public class DomainEntityTuplizer<I extends Serializable, E extends Entity<I>>
+public class DomainEntityTuplizer<I extends Serializable, E extends AbstractEntity<I>>
 		extends AbstractDomainResourceTuplizer<E> {
 
 	private static final String NULL_ACCESSOR_TEMPLATE = String.format("Unable to locate %s with property name [%s]",

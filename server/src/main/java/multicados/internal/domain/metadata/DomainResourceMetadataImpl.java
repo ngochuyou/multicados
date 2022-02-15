@@ -21,7 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
@@ -43,7 +43,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			throws Exception {
 		this.resourceType = resourceType;
 
-		Builder<T> builder = Entity.class.isAssignableFrom(resourceType)
+		Builder<T> builder = AbstractEntity.class.isAssignableFrom(resourceType)
 				&& !Modifier.isAbstract(resourceType.getModifiers())
 						? new HibernateResourceMetadataBuilder<>(resourceType)
 						: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider);
@@ -88,14 +88,14 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private static final Logger logger = LoggerFactory
 				.getLogger(DomainResourceMetadataImpl.HibernateResourceMetadataBuilder.class);
 
-		private final Class<? extends Entity> entityType;
+		private final Class<? extends AbstractEntity> entityType;
 		private final EntityPersister persister;
 		private final EntityMetamodel metamodel;
 
 		private HibernateResourceMetadataBuilder(Class<D> resourceType) {
 			logger.trace("Building {} for Hibernate entity of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
-			entityType = (Class<? extends Entity>) resourceType;
+			entityType = (Class<? extends AbstractEntity>) resourceType;
 			persister = HibernateHelper.getEntityPersister(entityType);
 			metamodel = persister.getEntityMetamodel();
 		}

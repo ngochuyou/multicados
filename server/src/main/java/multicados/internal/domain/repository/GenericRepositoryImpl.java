@@ -35,8 +35,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
-import multicados.domain.entity.Entity;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.Entity;
 import multicados.internal.domain.PermanentResource;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.Utils;
@@ -83,8 +83,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 		criteriaBuilder = sfi.getCriteriaBuilder();
 	}
 
-	@SuppressWarnings("rawtypes")
-	private <T extends Entity> Set<Class<?>> getAllInterfaces(Class<T> entityType) {
+	private <T extends Entity<?>> Set<Class<?>> getAllInterfaces(Class<T> entityType) {
 		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
 		logger.trace("Finding all interfaces of {} type [{}]", Entity.class.getSimpleName(),
@@ -125,26 +124,26 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
 			SharedSessionContract session) throws Exception {
 		return findAll(type, selector, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
 			LockModeType lockModeType, SharedSessionContract session) throws Exception {
 		return findAll(type, selector, DEFAULT_PAGEABLE, lockModeType, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Pageable pageable,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Pageable pageable, SharedSessionContract session) throws Exception {
 		return findAll(type, selector, pageable, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Pageable pageable,
-			LockModeType lockMode, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Pageable pageable, LockModeType lockMode, SharedSessionContract session) throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))
@@ -164,13 +163,13 @@ public class GenericRepositoryImpl implements GenericRepository {
 		// @formatter:on
 	}
 
-	private <T extends Entity<?>, E> CriteriaQuery<E> doSelect(CriteriaQuery<E> cq, Root<T> root,
-			Selector<T, E> selector) {
+	private <S extends Serializable, T extends Entity<S>, E> CriteriaQuery<E> doSelect(CriteriaQuery<E> cq,
+			Root<T> root, Selector<T, E> selector) {
 		return cq.multiselect(selector.select(root, cq, criteriaBuilder));
 	}
 
-	private <T extends Entity<?>, E> CriteriaQuery<E> doOrder(CriteriaQuery<E> cq, Root<T> root, Pageable pageable)
-			throws Exception {
+	private <S extends Serializable, T extends Entity<S>, E> CriteriaQuery<E> doOrder(CriteriaQuery<E> cq, Root<T> root,
+			Pageable pageable) throws Exception {
 		// @formatter:off
 		return declare(pageable.getSort())
 				.then(Sort::get)
@@ -181,7 +180,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 		// @formatter:on
 	}
 
-	private <T extends Entity<?>> Order toOrder(Root<T> root, org.springframework.data.domain.Sort.Order hbmOrder) {
+	private <S extends Serializable, T extends Entity<S>> Order toOrder(Root<T> root,
+			org.springframework.data.domain.Sort.Order hbmOrder) {
 		if (hbmOrder.isAscending()) {
 			return criteriaBuilder.asc(root.get(hbmOrder.getProperty()));
 		}
@@ -203,26 +203,27 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Specification<T> spec,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Specification<T> spec, SharedSessionContract session) throws Exception {
 		return findAll(type, selector, spec, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Specification<T> spec,
-			LockModeType lockModeType, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Specification<T> spec, LockModeType lockModeType, SharedSessionContract session) throws Exception {
 		return findAll(type, selector, spec, DEFAULT_PAGEABLE, lockModeType, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Specification<T> spec,
-			Pageable pageable, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Specification<T> spec, Pageable pageable, SharedSessionContract session) throws Exception {
 		return findAll(type, selector, spec, pageable, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector, Specification<T> spec,
-			Pageable pageable, LockModeType lockMode, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+			Specification<T> spec, Pageable pageable, LockModeType lockMode, SharedSessionContract session)
+			throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))
@@ -246,8 +247,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T extends Entity<?>, E> CriteriaQuery<E> doFilter(CriteriaQuery<E> cq, Root<T> root,
-			Specification<T> requestedSpecication) {
+	private <S extends Serializable, T extends Entity<S>, E> CriteriaQuery<E> doFilter(CriteriaQuery<E> cq,
+			Root<T> root, Specification<T> requestedSpecication) {
 		Specification<T> mandatorySpecification = (Specification<T>) fixedSpecifications
 				.get(root.getModel().getJavaType());
 
@@ -255,25 +256,26 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, SharedSessionContract session)
+			throws Exception {
 		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, LockModeType lockModeType,
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, LockModeType lockModeType,
 			SharedSessionContract session) throws Exception {
 		return findAll(type, DEFAULT_PAGEABLE, lockModeType, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, Pageable pageable, SharedSessionContract session)
-			throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
+			SharedSessionContract session) throws Exception {
 		return findAll(type, pageable, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, Pageable pageable, LockModeType lockMode,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
+			LockModeType lockMode, SharedSessionContract session) throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createQuery(type))
 				.second(cq -> cq.from(type))
@@ -291,26 +293,26 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, SharedSessionContract session, Specification<T> spec)
-			throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, SharedSessionContract session,
+			Specification<T> spec) throws Exception {
 		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session, spec);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, LockModeType lockModeType,
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, LockModeType lockModeType,
 			SharedSessionContract session, Specification<T> spec) throws Exception {
 		return findAll(type, DEFAULT_PAGEABLE, lockModeType, session, spec);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, Pageable pageable, SharedSessionContract session,
-			Specification<T> spec) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
+			SharedSessionContract session, Specification<T> spec) throws Exception {
 		return findAll(type, pageable, DEFAULT_LOCK_MODE, session, spec);
 	}
 
 	@Override
-	public <T extends Entity<?>> List<T> findAll(Class<T> type, Pageable pageable, LockModeType lockMode,
-			SharedSessionContract session, Specification<T> spec) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
+			LockModeType lockMode, SharedSessionContract session, Specification<T> spec) throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createQuery(type))
 				.second(cq -> cq.from(type))
@@ -331,8 +333,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<T> findById(Class<T> type, Serializable id, SharedSessionContract session)
-			throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<T> findById(Class<T> type, Serializable id,
+			SharedSessionContract session) throws Exception {
 		return findById(type, id, DEFAULT_LOCK_MODE, session);
 	}
 
@@ -341,32 +343,32 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<T> findById(Class<T> type, Serializable id, LockModeType lockMode,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<T> findById(Class<T> type, Serializable id,
+			LockModeType lockMode, SharedSessionContract session) throws Exception {
 		return findOne(type, hasId(id), lockMode, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<Tuple> findById(Class<T> type, Serializable id, Selector<T, Tuple> selector,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<Tuple> findById(Class<T> type, Serializable id,
+			Selector<T, Tuple> selector, SharedSessionContract session) throws Exception {
 		return findById(type, id, selector, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<Tuple> findById(Class<T> type, Serializable id, Selector<T, Tuple> selector,
-			LockModeType lockMode, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<Tuple> findById(Class<T> type, Serializable id,
+			Selector<T, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception {
 		return findOne(type, selector, hasId(id), session);
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<T> findOne(Class<T> type, Specification<T> spec,
+	public <S extends Serializable, T extends Entity<S>> Optional<T> findOne(Class<T> type, Specification<T> spec,
 			SharedSessionContract session) throws Exception {
 		return findOne(type, spec, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<T> findOne(Class<T> type, Specification<T> spec, LockModeType lockMode,
-			SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<T> findOne(Class<T> type, Specification<T> spec,
+			LockModeType lockMode, SharedSessionContract session) throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createQuery(type))
 				.second(cq -> cq.from(type))
@@ -383,14 +385,15 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<Tuple> findOne(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<Tuple> findOne(Class<T> type,
+			Selector<T, Tuple> selector, Specification<T> spec, SharedSessionContract session) throws Exception {
 		return findOne(type, selector, spec, DEFAULT_LOCK_MODE, session);
 	}
 
 	@Override
-	public <T extends Entity<?>> Optional<Tuple> findOne(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, LockModeType lockMode, SharedSessionContract session) throws Exception {
+	public <S extends Serializable, T extends Entity<S>> Optional<Tuple> findOne(Class<T> type,
+			Selector<T, Tuple> selector, Specification<T> spec, LockModeType lockMode, SharedSessionContract session)
+			throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))

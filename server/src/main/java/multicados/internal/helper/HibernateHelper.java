@@ -7,7 +7,7 @@ import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.persister.entity.EntityPersister;
 
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 import multicados.internal.context.ContextManager;
 
 /**
@@ -27,7 +27,7 @@ public class HibernateHelper {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public static <T extends Entity> EntityPersister getEntityPersister(Class<T> type) {
+	public static <T extends AbstractEntity> EntityPersister getEntityPersister(Class<T> type) {
 		return getSessionFactory().getMetamodel().entityPersister(type);
 	}
 

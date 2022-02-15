@@ -15,7 +15,7 @@ import org.hibernate.persister.entity.UniqueKeyLoadable;
 import org.hibernate.tuple.entity.EntityMetamodel;
 
 import multicados.internal.helper.FunctionHelper.HandledBiFunction;
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 import multicados.internal.helper.StringHelper;
 
 /**
@@ -39,7 +39,7 @@ public final class AccessorFactory {
 		return new StandardAccessor(propName, ownerType);
 	}
 
-	public static <S extends Serializable, T extends Entity<S>> Accessor hbm(Class<T> ownerType, String propName,
+	public static <S extends Serializable, T extends AbstractEntity<S>> Accessor hbm(Class<T> ownerType, String propName,
 			SessionFactoryImplementor sfi) {
 		return new HBMDelegatedAccessor(sfi, ownerType, propName);
 	}
@@ -318,7 +318,7 @@ public final class AccessorFactory {
 	private static class HBMDelegatedAccessor extends AbstractAccessor {
 
 		@SuppressWarnings("rawtypes")
-		private static <T extends Entity> Getter locateGetter(SessionFactoryImplementor sfi, Class<T> owningType,
+		private static <T extends AbstractEntity> Getter locateGetter(SessionFactoryImplementor sfi, Class<T> owningType,
 				String propName) {
 			EntityPersister persister = sfi.getMetamodel().entityPersister(owningType);
 			EntityMetamodel metamodel = persister.getEntityMetamodel();
@@ -331,12 +331,12 @@ public final class AccessorFactory {
 					.getGetter(((UniqueKeyLoadable) persister).getPropertyIndex(propName)));
 		}
 
-		private static <S extends Serializable, T extends Entity<S>> Setter locateSetter(SessionFactoryImplementor sfi,
+		private static <S extends Serializable, T extends AbstractEntity<S>> Setter locateSetter(SessionFactoryImplementor sfi,
 				Class<T> owningType, String propName) {
 			return new HBMDelegatedSetter(owningType, propName, sfi);
 		}
 
-		private <S extends Serializable, T extends Entity<S>> HBMDelegatedAccessor(SessionFactoryImplementor sfi,
+		private <S extends Serializable, T extends AbstractEntity<S>> HBMDelegatedAccessor(SessionFactoryImplementor sfi,
 				Class<T> owningType, String propName) {
 			super(locateGetter(sfi, owningType, propName), locateSetter(sfi, owningType, propName));
 		}

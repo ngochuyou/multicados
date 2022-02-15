@@ -10,6 +10,7 @@ import javax.persistence.MappedSuperclass;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import multicados.domain.AbstractEntity;
 import multicados.internal.domain.PermanentResource;
 
 /**
@@ -17,7 +18,7 @@ import multicados.internal.domain.PermanentResource;
  *
  */
 @MappedSuperclass
-public abstract class PermanentEntity<T extends Serializable> extends Entity<T> implements PermanentResource {
+public abstract class PermanentEntity<T extends Serializable> extends AbstractEntity<T> implements PermanentResource {
 
 	@Column(nullable = false)
 	private Boolean active;

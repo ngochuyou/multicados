@@ -10,7 +10,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 
-import multicados.domain.entity.Entity;
+import multicados.internal.domain.Entity;
 
 /**
  * @author Ngoc Huy
@@ -19,5 +19,5 @@ import multicados.domain.entity.Entity;
 public interface Selector<T extends Entity<?>, E> {
 
 	List<Selection<?>> select(Root<T> root, CriteriaQuery<E> query, CriteriaBuilder builder);
-	
+
 }

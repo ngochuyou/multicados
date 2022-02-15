@@ -24,7 +24,7 @@ import com.fasterxml.jackson.core.exc.StreamReadException;
 import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.NamedResource;
@@ -81,7 +81,7 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 				.readValue(new ClassPathResource(uri).getInputStream(), List.class);
 	}
 
-	private <S extends Serializable, E extends Entity<S>> List<E> toInstances(List<Map<String, Object>> objMaps,
+	private <S extends Serializable, E extends AbstractEntity<S>> List<E> toInstances(List<Map<String, Object>> objMaps,
 			Class<E> entityType) {
 		DomainResourceTuplizer<E> tuplizer = ContextManager.getBean(DomainResourceContext.class)
 				.getTuplizer(entityType);
@@ -108,19 +108,19 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		}).collect(Collectors.toList());
 	}
 
-	private <S extends Serializable, E extends Entity<S>> List<E> filter(List<E> instances, Class<E> entityType,
+	private <S extends Serializable, E extends AbstractEntity<S>> List<E> filter(List<E> instances, Class<E> entityType,
 			Map.Entry<GenericRepository, Session> argEntry) throws Exception {
 		GenericRepository repository = argEntry.getKey();
 		Session session = argEntry.getValue();
 		List<Tuple> tuples = repository.findAll(entityType,
-				(root, query, builder) -> List.of(root.get(Entity.id_), root.get(NamedResource.name_)),
+				(root, query, builder) -> List.of(root.get(AbstractEntity.id_), root.get(NamedResource.name_)),
 				(root, query, builder) -> builder.in(root.get(NamedResource.name_)).value(root),
 				LockModeType.PESSIMISTIC_WRITE, session);
 
 		return instances;
 	}
 
-	private <S extends Serializable, E extends Entity<S>> void create(List<E> instances, Class<E> entityType,
+	private <S extends Serializable, E extends AbstractEntity<S>> void create(List<E> instances, Class<E> entityType,
 			Session entityManager) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DummyDatabaseInitializer.class);
 		GenericCRUDService crudService = ContextManager.getBean(GenericCRUDService.class);
@@ -142,7 +142,7 @@ public class DummyDatabaseInitializer implements DatabaseInitializerContributor 
 		}
 	}
 
-	private <S extends Serializable, E extends Entity<S>> void logInstances(List<E> instances, Class<E> entityType) {
+	private <S extends Serializable, E extends AbstractEntity<S>> void logInstances(List<E> instances, Class<E> entityType) {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		if (!logger.isTraceEnabled()) {

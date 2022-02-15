@@ -1,17 +1,15 @@
 /**
  * 
  */
-package multicados.domain.entity;
+package multicados.internal.domain;
 
 import java.io.Serializable;
-
-import multicados.internal.domain.IdentifiableResource;
 
 /**
  * @author Ngoc Huy
  *
  */
-public abstract class Entity<T extends Serializable> implements IdentifiableResource<T> {
+public interface Entity<S extends Serializable> extends IdentifiableResource<S> {
 
 	/* ==========METADATAS========== */
 	public static final String id_ = "id";

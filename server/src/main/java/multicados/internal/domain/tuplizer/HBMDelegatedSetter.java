@@ -9,7 +9,7 @@ import java.lang.reflect.Member;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.tuple.entity.EntityTuplizer;
 
-import multicados.domain.entity.Entity;
+import multicados.domain.AbstractEntity;
 
 /**
  * @author Ngoc Huy
@@ -20,7 +20,7 @@ class HBMDelegatedSetter implements Setter {
 	private final EntityTuplizer tuplizer;
 	private final String propName;
 
-	<S extends Serializable, T extends Entity<S>> HBMDelegatedSetter(Class<T> entityType, String propName,
+	<S extends Serializable, T extends AbstractEntity<S>> HBMDelegatedSetter(Class<T> entityType, String propName,
 			SessionFactoryImplementor sfi) {
 		super();
 		this.tuplizer = sfi.getMetamodel().entityPersister(entityType).getEntityTuplizer();

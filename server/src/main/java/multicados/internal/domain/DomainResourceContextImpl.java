@@ -9,6 +9,8 @@ import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,8 +26,6 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
-import multicados.domain.entity.Entity;
-import multicados.domain.entity.Model;
 import multicados.internal.config.Constants;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
@@ -40,17 +40,17 @@ import multicados.internal.helper.TypeHelper;
  * @author Ngoc Huy
  *
  */
-public class DomainResourceContextProviderImpl implements DomainResourceContext {
+public class DomainResourceContextImpl implements DomainResourceContext {
 
 	private final DomainResourceGraph<DomainResource> resourceGraph;
 	@SuppressWarnings("rawtypes")
 	private final DomainResourceGraph<Entity> entityGraph;
-	private final DomainResourceGraph<Model> modelGraph;
 
 	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
-	public DomainResourceContextProviderImpl() throws Exception {
+	@SuppressWarnings("rawtypes")
+	public DomainResourceContextImpl() throws Exception {
 		// @formatter:off
 		resourceGraph = declare(scan())
 				.then(this::buildGraph)
@@ -59,22 +59,11 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 		entityGraph = declare(resourceGraph)
 				.then(root -> locateGraph(root, Entity.class))
 				.then(graph -> Optional.ofNullable(graph).orElseGet(() -> {
-					@SuppressWarnings("rawtypes")
 					DomainResourceGraphImpl<Entity> entityGraph = new DomainResourceGraphImpl<>(resourceGraph, Entity.class);
 					
 					entityGraph.doAfterContextBuild();
 					
 					return entityGraph;
-				}))
-				.get();
-		modelGraph = declare(resourceGraph)
-				.then(root -> locateGraph(root, Model.class))
-				.then(graph -> Optional.ofNullable(graph).orElseGet(() -> {
-					DomainResourceGraphImpl<Model> modelGraph = new DomainResourceGraphImpl<>(resourceGraph, Model.class);
-					
-					modelGraph.doAfterContextBuild();
-					
-					return graph;
 				}))
 				.get();
 		metadatasMap = declare(resourceGraph)
@@ -93,7 +82,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> buildTuplizers(
 			Collection<Class<DomainResource>> entityTypes) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceTuplizer.class.getSimpleName());
 
@@ -118,7 +107,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 	private Set<BeanDefinition> scan() {
 		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Scanning for {}", DomainResource.class.getSimpleName());
 		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResource.class));
@@ -132,14 +121,20 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 	@SuppressWarnings("unchecked")
 	private DomainResourceGraph<DomainResource> buildGraph(Set<BeanDefinition> beanDefs) throws ClassNotFoundException {
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Building {}", DomainResourceGraph.class.getSimpleName());
 		// @formatter:off
 		DomainResourceGraphImpl<DomainResource> resourceGraph = new DomainResourceGraphImpl<>(null, DomainResource.class, Set.of(
-				new DomainResourceGraphImpl<>(IdentifiableResource.class),
+				new DomainResourceGraphImpl<>(
+						null,
+						IdentifiableResource.class,
+						new HashSet<>(List.of(
+								new DomainResourceGraphImpl<>(EncryptedIdentifierResource.class),
+								new DomainResourceGraphImpl<>(Entity.class)))),
 				new DomainResourceGraphImpl<>(NamedResource.class),
-				new DomainResourceGraphImpl<>(PermanentResource.class)));
+				new DomainResourceGraphImpl<>(PermanentResource.class),
+				new DomainResourceGraphImpl<>(SpannedResource.class)));
 		// @formatter:on
 		for (BeanDefinition beanDef : beanDefs) {
 			Class<DomainResource> clazz = (Class<DomainResource>) Class.forName(beanDef.getBeanClassName());
@@ -157,7 +152,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	}
 
 	private <T extends DomainResource> void sealGraph(DomainResourceGraph<T> graph) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Sealing {}", DomainResourceGraph.class.getSimpleName());
 
@@ -166,7 +161,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 	private Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> buildMetadatas(
 			Collection<Class<DomainResource>> resourceTypes) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceMetadata.class.getSimpleName());
 
@@ -186,7 +181,7 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 
 	@Override
 	public void summary() throws Exception {
-		final Logger logger = LoggerFactory.getLogger(DomainResourceContextProviderImpl.class);
+		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		if (!logger.isDebugEnabled()) {
 			return;
@@ -246,11 +241,6 @@ public class DomainResourceContextProviderImpl implements DomainResourceContext 
 	@Override
 	public DomainResourceGraph<Entity> getEntityGraph() {
 		return entityGraph;
-	}
-
-	@Override
-	public DomainResourceGraph<Model> getModelGraph() {
-		return modelGraph;
 	}
 
 	@SuppressWarnings("unchecked")
