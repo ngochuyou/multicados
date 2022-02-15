@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
@@ -120,13 +119,14 @@ public class WebConfiguration implements WebMvcConfigurer {
 				.get();
 		// @formatter:on
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	private List<BeanDefinition> doSorting(Map<Class<? extends ContextBuilder>, Integer> buildersOrder, Set<BeanDefinition> beanDefs) {
+	private List<BeanDefinition> doSorting(Map<Class<? extends ContextBuilder>, Integer> buildersOrder,
+			Set<BeanDefinition> beanDefs) {
 		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
 
 		logger.trace("Sorting {}(s)", ContextBuilder.class.getSimpleName());
-		
+
 		return beanDefs.stream().sorted((left, right) -> {
 			try {
 				Class<? extends ContextBuilder> leftType = (Class<? extends ContextBuilder>) Class
@@ -175,16 +175,16 @@ public class WebConfiguration implements WebMvcConfigurer {
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		// @formatter:on
 		Map<Class<? extends ContextBuilder>, Integer> beansOrder = new HashMap<>();
-		
-		for (Map.Entry<Class<? extends ContextBuilder>, BeanDefinition> beanEntry: beansMap.entrySet()) {
-			for (Map.Entry<Class<? extends ContextBuilder>, Integer> orderEntry: buildersOrder.entrySet()) {
+
+		for (Map.Entry<Class<? extends ContextBuilder>, BeanDefinition> beanEntry : beansMap.entrySet()) {
+			for (Map.Entry<Class<? extends ContextBuilder>, Integer> orderEntry : buildersOrder.entrySet()) {
 				if (TypeHelper.isImplementedFrom(beanEntry.getKey(), orderEntry.getKey())) {
 					beansOrder.put((Class<? extends ContextBuilder>) beanEntry.getKey(), orderEntry.getValue());
 					break;
 				}
 			}
 		}
-		
+
 		return beansOrder;
 	}
 
@@ -230,7 +230,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 		for (BeanDefinition beanDef : beanDefs) {
 			beanDef.setScope(BeanDefinition.SCOPE_SINGLETON);
 			beanDef.setLazyInit(false);
-			ContextManager.registerBean(beanDef.getBeanClassName(), new GenericBeanDefinition(beanDef));
+			ContextManager.registerBean(beanDef.getBeanClassName(), beanDef);
 			buildersTypes.add((Class<ContextBuilder>) Class.forName(beanDef.getBeanClassName()));
 		}
 

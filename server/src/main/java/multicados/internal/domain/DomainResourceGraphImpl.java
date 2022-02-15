@@ -5,7 +5,7 @@ package multicados.internal.domain;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,7 +33,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 	}
 
 	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType) {
-		this(parent, resourceType, new HashSet<>(0));
+		this(parent, resourceType, new LinkedHashSet<>(0));
 	}
 
 	private DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, DomainResourceGraph<T> child) {
@@ -48,11 +48,11 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		this.resourceType = resourceType;
 
 		if (childrens == null) {
-			this.childrens = new HashSet<>();
+			this.childrens = new LinkedHashSet<>();
 			return;
 		}
 
-		Set<DomainResourceGraph<? extends T>> associationSafeChilds = new HashSet<>();
+		Set<DomainResourceGraph<? extends T>> associationSafeChilds = new LinkedHashSet<>();
 
 		for (DomainResourceGraph<? extends T> child : childrens) {
 			associationSafeChilds.add(new DomainResourceGraphImpl<>(this, child));

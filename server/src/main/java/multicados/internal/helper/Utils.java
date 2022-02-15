@@ -121,7 +121,7 @@ public class Utils {
 		@Override
 		public Declaration<FIRST> identical(HandledConsumer<FIRST, Exception> consumer) throws Exception {
 			consumer.accept(firstArg);
-			return new Declaration<FIRST>(firstArg);
+			return this;
 		}
 
 		@Override

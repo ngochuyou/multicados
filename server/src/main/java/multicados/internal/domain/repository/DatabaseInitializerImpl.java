@@ -4,6 +4,7 @@
 package multicados.internal.domain.repository;
 
 import java.lang.reflect.Constructor;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -17,6 +18,7 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Constants;
 import multicados.internal.context.ContextManager;
+import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 
 /**
@@ -25,11 +27,14 @@ import multicados.internal.helper.Utils;
  */
 public class DatabaseInitializerImpl implements DatabaseInitializer {
 
-	private static final String FLAG_KEY = "multicados.dummy-database-initializer";
+	private static final String FLAG_KEY = "multicados.database-initializer";
 	private static final String FLAG_OFF = "off";
 
 	public DatabaseInitializerImpl(Environment env) throws Exception {
-		if (env.getProperty(FLAG_KEY).toLowerCase().equals(FLAG_OFF)) {
+		String flagValue = Optional.ofNullable(env.getProperty(FLAG_KEY)).orElse(StringHelper.EMPTY_STRING)
+				.toLowerCase();
+
+		if (flagValue.equals(FLAG_OFF)) {
 			return;
 		}
 

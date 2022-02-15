@@ -36,6 +36,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.DomainResourceGraph;
+import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.Entity;
 import multicados.internal.domain.PermanentResource;
 import multicados.internal.helper.SpecificationHelper;
@@ -54,19 +56,20 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	private final CriteriaBuilder criteriaBuilder;
 
-	@SuppressWarnings({ "unchecked" })
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public GenericRepositoryImpl(DomainResourceContext resourceContextProvider, SessionFactoryImplementor sfi)
 			throws Exception {
 		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
 		Map<Class<? extends Entity<?>>, Specification<? extends Entity<?>>> fixedSpecifications = new HashMap<>(0);
 
-		resourceContextProvider.getEntityGraph().forEach(node -> {
+		for (DomainResourceGraph<Entity> node : resourceContextProvider.getEntityGraph()
+				.collect(DomainResourceGraphCollectors.toGraphsSet())) {
 			Class<? extends Entity<?>> entityType = (Class<? extends Entity<?>>) node.getResourceType();
 
 			if (Modifier.isAbstract(entityType.getModifiers())) {
-				logger.trace("Skipping abstract {} type [{}]", Entity.class.getSimpleName(), entityType.getName());
-				return;
+				logger.trace("Skipping abstract {} type {}", Entity.class.getSimpleName(), entityType.getName());
+				break;
 			}
 			// @formatter:off
 			Utils.declare(getAllInterfaces(entityType))
@@ -77,7 +80,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.biInverse()
 				.identical(fixedSpecifications::put);
 			// @formatter:on
-		});
+		}
 
 		this.fixedSpecifications = Collections.unmodifiableMap(fixedSpecifications);
 		criteriaBuilder = sfi.getCriteriaBuilder();
