@@ -52,13 +52,13 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 			return;
 		}
 
-		Set<DomainResourceGraph<? extends T>> associationSafeChilds = new LinkedHashSet<>();
+		Set<DomainResourceGraph<? extends T>> associationSafeChildrens = new LinkedHashSet<>();
 
 		for (DomainResourceGraph<? extends T> child : childrens) {
-			associationSafeChilds.add(new DomainResourceGraphImpl<>(this, child));
+			associationSafeChildrens.add(new DomainResourceGraphImpl<>(this, child));
 		}
 
-		this.childrens = associationSafeChilds;
+		this.childrens = associationSafeChildrens;
 	}
 
 	@Override

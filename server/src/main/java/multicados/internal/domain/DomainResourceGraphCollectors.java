@@ -28,12 +28,12 @@ public class DomainResourceGraphCollectors {
 
 	@SuppressWarnings("rawtypes")
 	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, Set<DomainResourceGraph>> toGraphsSet() {
-		return new AbstractCollector<>(HashSet::new, tree -> tree) {};
+		return new AbstractCollector<>(HashSet::new, graph -> graph) {};
 	}
 
 	@SuppressWarnings("rawtypes")
 	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, List<DomainResourceGraph>> toGraphsList() {
-		return new AbstractCollector<>(ArrayList::new, tree -> tree) {};
+		return new AbstractCollector<>(ArrayList::new, graph -> graph) {};
 	}
 
 }
