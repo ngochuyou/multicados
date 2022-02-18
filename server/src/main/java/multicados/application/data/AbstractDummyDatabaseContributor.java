@@ -56,7 +56,6 @@ public abstract class AbstractDummyDatabaseContributor {
 
 	protected <S extends Serializable, E extends AbstractEntity<S>> List<E> toInstances(
 			List<Map<String, Object>> objMaps, Class<E> entityType) {
-
 		DomainResourceTuplizer<E> tuplizer = resourceContext.getTuplizer(entityType);
 		int batchSize = objMaps.size();
 		List<E> instances = IntStream.range(0, batchSize).mapToObj(index -> {
@@ -69,13 +68,15 @@ public abstract class AbstractDummyDatabaseContributor {
 		}).filter(Objects::nonNull).collect(Collectors.toList());
 
 		return IntStream.range(0, batchSize).mapToObj(index -> {
-			objMaps.get(index).entrySet().stream().forEach(entry -> {
+			Map<String, Object> state = objMaps.get(index);
+			
+			for(Map.Entry<String, Object> entry: state.entrySet()) {
 				try {
 					tuplizer.setProperty(instances.get(index), entry.getKey(), entry.getValue());
 				} catch (TuplizerException e) {
 					e.printStackTrace();
 				}
-			});
+			}
 
 			return instances.get(index);
 		}).collect(Collectors.toList());

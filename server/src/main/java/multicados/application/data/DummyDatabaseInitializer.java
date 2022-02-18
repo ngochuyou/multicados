@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.domain.entity.Category;
+import multicados.domain.entity.entities.Category;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
 import multicados.internal.domain.repository.GenericRepository;
@@ -30,7 +30,6 @@ import multicados.internal.service.GenericCRUDService;
  * @author Ngoc Huy
  *
  */
-@SuppressWarnings("unused")
 public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		implements DatabaseInitializerContributor {
 

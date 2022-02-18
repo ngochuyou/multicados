@@ -1,0 +1,178 @@
+/**
+ * 
+ */
+package multicados.domain.entity.entities;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Id;
+import javax.persistence.Inheritance;
+import javax.persistence.InheritanceType;
+import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import multicados.domain.entity.Gender;
+import multicados.domain.entity.PermanentEntity;
+import multicados.domain.entity.Role;
+
+/**
+ * @author Ngoc Huy
+ *
+ */
+@Entity
+@Table(name = "users")
+@Inheritance(strategy = InheritanceType.JOINED)
+public class User extends PermanentEntity<String> {
+
+	@Id
+	private String id;
+
+	private String email;
+
+	private String address;
+
+	@Column(nullable = false)
+	private String phone;
+
+	private String lastName;
+
+	private String firstName;
+
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
+	private Gender gender;
+
+	private LocalDate birthDate;
+
+	@Enumerated(EnumType.STRING)
+	@Column(length = 20)
+	private Role role;
+
+	@Column(nullable = false)
+	private String password;
+
+	@Column(nullable = false)
+	private LocalDateTime updatedTimestamp;
+
+	@Column(nullable = false)
+	private Boolean locked;
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public Gender getGender() {
+		return gender;
+	}
+
+	public void setGender(Gender gender) {
+		this.gender = gender;
+	}
+
+	public LocalDate getBirthDate() {
+		return birthDate;
+	}
+
+	public void setBirthDate(LocalDate birthDate) {
+		this.birthDate = birthDate;
+	}
+
+	public Role getRole() {
+		return role;
+	}
+
+	public void setRole(Role role) {
+		this.role = role;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public LocalDateTime getUpdatedTimestamp() {
+		return updatedTimestamp;
+	}
+
+	public void setUpdatedTimestamp(LocalDateTime updatedTimestamp) {
+		this.updatedTimestamp = updatedTimestamp;
+	}
+
+	@JsonProperty()
+	public Boolean isLocked() {
+		return locked;
+	}
+
+	public void setLocked(Boolean locked) {
+		this.locked = locked;
+	}
+
+	/* ==========METADATAS========== */
+	public static final String email_ = "email";
+	public static final String address_ = "address";
+	public static final String phone_ = "phone";
+	public static final String lastName_ = "lastName";
+	public static final String firstName_ = "firstName";
+	public static final String gender_ = "gender";
+	public static final String birthDate_ = "birthDate";
+	public static final String photo_ = "photo";
+	public static final String role_ = "role";
+	public static final String password_ = "password";
+	public static final String updatedTimestamp_ = "updatedTimestamp";
+	public static final String locked_ = "locked";
+	/* ==========METADATAS========== */
+	
+}

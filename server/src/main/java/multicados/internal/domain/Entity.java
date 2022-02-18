@@ -12,7 +12,7 @@ import java.io.Serializable;
 public interface Entity<S extends Serializable> extends IdentifiableResource<S> {
 
 	/* ==========METADATAS========== */
-	public static final String id_ = "id";
+	String id_ = "id";
 	/* ==========METADATAS========== */
 
 }

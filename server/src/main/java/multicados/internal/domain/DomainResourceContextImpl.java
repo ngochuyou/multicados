@@ -127,14 +127,14 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 		// @formatter:off
 		DomainResourceGraphImpl<DomainResource> resourceGraph = new DomainResourceGraphImpl<>(null, DomainResource.class, Set.of(
 				new DomainResourceGraphImpl<>(
-						null,
 						IdentifiableResource.class,
 						new HashSet<>(List.of(
 								new DomainResourceGraphImpl<>(EncryptedIdentifierResource.class),
 								new DomainResourceGraphImpl<>(Entity.class)))),
 				new DomainResourceGraphImpl<>(NamedResource.class),
 				new DomainResourceGraphImpl<>(PermanentResource.class),
-				new DomainResourceGraphImpl<>(SpannedResource.class)));
+				new DomainResourceGraphImpl<>(SpannedResource.class),
+				new DomainResourceGraphImpl<>(AuditableResource.class)));
 		// @formatter:on
 		for (BeanDefinition beanDef : beanDefs) {
 			Class<DomainResource> clazz = (Class<DomainResource>) Class.forName(beanDef.getBeanClassName());

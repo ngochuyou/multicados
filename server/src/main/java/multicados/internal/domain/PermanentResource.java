@@ -13,6 +13,6 @@ public interface PermanentResource extends DomainResource {
 
 	void setActive(Boolean activeState);
 
-	static final String active_ = "active";
+	String active_ = "active";
 	
 }

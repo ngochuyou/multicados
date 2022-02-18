@@ -3,13 +3,13 @@
  */
 package multicados.internal.domain;
 
-import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAccessor;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface SpannedResource<T extends Temporal> extends DomainResource {
+public interface SpannedResource<T extends TemporalAccessor> extends DomainResource {
 
 	T getAppliedTimestamp();
 

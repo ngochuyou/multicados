@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.domain.entity;
+package multicados.domain.entity.entities;
 
 import static multicados.application.Common.SHARED_TABLE_GENERATOR;
 
@@ -17,6 +17,7 @@ import javax.persistence.Table;
 import javax.persistence.TableGenerator;
 
 import multicados.application.Common;
+import multicados.domain.entity.PermanentEntity;
 import multicados.internal.domain.EncryptedIdentifierResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.helper.Base32;
