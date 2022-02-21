@@ -29,11 +29,4 @@ public interface AuditableResource<S extends Serializable, A extends ResourceAud
 
 	void setUpdater(A updater);
 
-	/* ==========METADATAS========== */
-	String creator_ = "creator";
-	String createdTimestamp_ = "createdTimestamp";
-	String updater_ = "updater";
-	String updatedTimestamp_ = "updatedTimestamp";
-	/* ==========METADATAS========== */
-
 }

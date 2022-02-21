@@ -15,7 +15,4 @@ public interface SpannedResource<T extends TemporalAccessor> extends DomainResou
 
 	T getDroppedTimestamp();
 
-	String appliedTimestamp_ = "appliedTimestamp";
-	String droppedTimestamp_ = "droppedTimestamp";
-
 }
