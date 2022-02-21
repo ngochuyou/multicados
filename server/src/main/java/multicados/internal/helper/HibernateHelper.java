@@ -21,7 +21,7 @@ public class HibernateHelper {
 	public static SessionFactoryImplementor getSessionFactory() {
 		return ContextManager.getBean(SessionFactoryImplementor.class);
 	}
-	
+
 	public static Session getCurrentSession() {
 		return getSessionFactory().getCurrentSession();
 	}

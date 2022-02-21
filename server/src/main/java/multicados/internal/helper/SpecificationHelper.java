@@ -22,7 +22,7 @@ public class SpecificationHelper {
 	}
 
 	public static <T extends NamedResource> Specification<T> hasName(T namedResource) {
-		return (root, query, builder) -> builder.equal(root.get(NamedResource.name_), namedResource.getName());
+		return (root, query, builder) -> builder.equal(root.get("name"), namedResource.getName());
 	}
 
 }

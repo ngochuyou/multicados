@@ -3,11 +3,17 @@
  */
 package multicados.internal.domain.metadata;
 
+import static java.util.Collections.unmodifiableList;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import multicados.domain.AbstractEntity;
+import multicados.internal.domain.DomainComponentType;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
@@ -38,17 +45,23 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final Class<T> resourceType;
 
 	private final List<String> attributeNames;
+	private final List<String> enclosedAttributeNames;
+	private final Map<String, Class<?>> attributeTypes;
 
-	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider)
+	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
+			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap)
 			throws Exception {
 		this.resourceType = resourceType;
 
 		Builder<T> builder = AbstractEntity.class.isAssignableFrom(resourceType)
 				&& !Modifier.isAbstract(resourceType.getModifiers())
 						? new HibernateResourceMetadataBuilder<>(resourceType)
-						: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider);
+						: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider,
+								metadatasMap);
 
-		attributeNames = builder.locateAttributeNames();
+		attributeNames = unmodifiableList(builder.locateAttributeNames());
+		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
+		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
 	}
 
 	@Override
@@ -62,8 +75,13 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	}
 
 	@Override
+	public List<String> getEnclosedAttributeNames() {
+		return enclosedAttributeNames;
+	}
+
+	@Override
 	public Class<?> getAttributeType(String attributeName) {
-		return null;
+		return attributeTypes.get(attributeName);
 	}
 
 	@Override
@@ -76,9 +94,18 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		return false;
 	}
 
+	@Override
+	public Map<String, Class<?>> getAttributeTypes() {
+		return attributeTypes;
+	}
+
 	private interface Builder<D extends DomainResource> {
 
 		List<String> locateAttributeNames() throws Exception;
+
+		List<String> locateEnclosedAttributeNames() throws Exception;
+
+		Map<String, Class<?>> locateAttributeTypes() throws Exception;
 
 	}
 
@@ -108,6 +135,56 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.then(this::addIdentifierAttributeNames)
 					.then(Arrays::asList)
 					.get();
+			// @formatter:on
+		}
+
+		@Override
+		public List<String> locateEnclosedAttributeNames() throws Exception {
+			// @formatter:off
+			return Utils.declare(getAttributeNames())
+					.then(this::addIdentifierAttributeNames)
+					.then(Arrays::asList)
+					.get();
+			// @formatter:on
+		}
+
+		@Override
+		public Map<String, Class<?>> locateAttributeTypes() throws Exception {
+			// @formatter:off
+			return Utils.declare(getAttributeNames())
+					.then(this::mapTypes)
+					.then(this::unwrapTypes)
+					.get();
+			// @formatter:on
+		}
+
+		private Map<String, Type> mapTypes(String[] attributes) {
+			return Stream.of(attributes)
+					.map(attribute -> Map.entry(attribute,
+							metamodel.getPropertyTypes()[metamodel.getPropertyIndex(attribute)]))
+					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		}
+
+		private Map<String, Class<?>> unwrapTypes(Map<String, Type> types) {
+			// @formatter:off
+			return types.entrySet().stream().map(entry -> {
+				Type type = entry.getValue();
+
+				if (!ComponentType.class.isAssignableFrom(type.getClass())) {
+					return Stream.of(entry);
+				}
+
+				ComponentType componentType = (ComponentType) type;
+
+				return Stream.concat(
+						Stream.of(componentType.getPropertyNames())
+								.map(name -> Map.entry(name,
+										componentType.getSubtypes()[componentType.getPropertyIndex(name)])),
+						Stream.of(entry));
+			})
+			.flatMap(Function.identity())
+			.map(entry -> Map.entry(entry.getKey(), entry.getValue().getReturnedClass()))
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 			// @formatter:on
 		}
 
@@ -170,27 +247,69 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private final Class<D> resourceType;
 
 		private final DomainResourceContext resourceContextProvider;
+		private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 
-		public NonHibernateResourceMetadataBuilder(Class<D> resourceType,
-				DomainResourceContext resourceContextProvider) {
+		public NonHibernateResourceMetadataBuilder(Class<D> resourceType, DomainResourceContext resourceContextProvider,
+				Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap) {
 			logger.trace("Building {} for resource of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
 			this.resourceType = resourceType;
 			this.resourceContextProvider = resourceContextProvider;
+			this.metadatasMap = metadatasMap;
 		}
 
 		@Override
 		public List<String> locateAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(resourceType)
-					.then(this::getDeclaredAttributeNames)
+			return Utils.declare(getDeclaredAttributeNames())
+					.then(this::unwrapAttributeNames)
 					.then(this::joinWithParentAttributeNames)
 					.then(Arrays::asList)
 					.get();
 			// @formatter:on
 		}
 
-		private String[] getDeclaredAttributeNames(Class<? extends DomainResource> resourceType) {
+		@Override
+		public List<String> locateEnclosedAttributeNames() throws Exception {
+			// @formatter:off
+			return Utils.declare(getDeclaredAttributeNames())
+					.then(this::joinWithParentEnclosedAttributeNames)
+					.then(Arrays::asList)
+					.get();
+			// @formatter:on
+		}
+
+		@Override
+		public Map<String, Class<?>> locateAttributeTypes() throws Exception {
+			// @formatter:off
+			return Utils.declare(getDeclaredAttributeNames())
+					.then(this::getAttributeTypes)
+					.then(this::unwrapAttributeTypes)
+					.then(this::joinWithParentAttributeTypes)
+					.get();
+			// @formatter:on
+		}
+
+		private Map<String, Class<?>> unwrapAttributeTypes(Map<String, Class<?>> typesMap) {
+			Map<String, Class<?>> unwrappedTypesMap = new HashMap<>();
+
+			for (Map.Entry<String, Class<?>> entry : typesMap.entrySet()) {
+				Class<?> attributeType = entry.getValue();
+
+				if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
+					unwrappedTypesMap.put(entry.getKey(), entry.getValue());
+					continue;
+				}
+
+				for (Field componentField : attributeType.getDeclaredFields()) {
+					unwrappedTypesMap.put(componentField.getName(), componentField.getType());
+				}
+			}
+
+			return unwrappedTypesMap;
+		}
+
+		private String[] getDeclaredAttributeNames() {
 			// @formatter:off
 			return Stream.of(resourceType.getDeclaredFields())
 					.filter(field -> !Modifier.isStatic(field.getModifiers()))
@@ -199,20 +318,109 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			// @formatter:on
 		}
 
+		private String[] unwrapAttributeNames(String[] attributeNames) throws NoSuchFieldException, SecurityException {
+			Map<String, Class<?>> typesMap = getAttributeTypes(attributeNames);
+			// @formatter:off
+			return Stream.of(attributeNames)
+					.map(attribute -> {
+						if (!DomainComponentType.class.isAssignableFrom(typesMap.get(attribute))) {
+							return Stream.of(attribute);
+						}
+
+						return Stream.concat(Stream.of(typesMap.get(attribute).getDeclaredFields())
+								.map(Field::getName), Stream.of(attribute));
+					})
+					.flatMap(Function.identity())
+					.toArray(String[]::new);
+			// @formatter:on
+		}
+
+		private Map<String, Class<?>> getAttributeTypes(String[] attributeNames)
+				throws NoSuchFieldException, SecurityException {
+			Map<String, Class<?>> typesMap = new HashMap<>(attributeNames.length, 1.5f);
+
+			for (String attribute : attributeNames) {
+				typesMap.put(attribute, resourceType.getDeclaredField(attribute).getType());
+			}
+
+			return typesMap;
+		}
+
 		@SuppressWarnings("unchecked")
+		private DomainResourceGraph<? super DomainResource> locateParentGraph() throws Exception {
+			return (DomainResourceGraph<? super DomainResource>) Utils
+					.declare(resourceContextProvider.getResourceGraph().locate((Class<DomainResource>) resourceType))
+					.identical(
+							tree -> Assert
+									.notNull(tree,
+											String.format("Unable to locate %s for resource [%s]",
+													DomainResourceGraph.class, resourceType.getName())))
+					.then(DomainResourceGraph::getParent).get();
+		}
+
+		private Map<String, Class<?>> joinWithParentAttributeTypes(Map<String, Class<?>> typesMap) throws Exception {
+			// @formatter:off
+			return Utils
+					.declare(locateParentGraph())
+					.then(DomainResourceGraph::getResourceType)
+					.then(metadatasMap::get)
+					.then(metadata -> {
+						if (metadata == null) {
+							// happens when the current node is the root
+							return Collections.<String, Class<?>>emptyMap();
+						}
+						
+						return metadata.getAttributeTypes();
+					})
+					.then(parentAttributeTypes -> {
+						typesMap.putAll(parentAttributeTypes);
+						return typesMap;
+					})
+					.get();
+			// @formatter:on
+		}
+
 		private String[] joinWithParentAttributeNames(String[] declaredAttributes) throws Exception {
 			// @formatter:off
 			return Utils
-					.declare(resourceContextProvider.getResourceGraph().locate((Class<DomainResource>) resourceType))
-					.identical(tree -> Assert.notNull(tree, String.format("Unable to locate %s for resource [%s]", DomainResourceGraph.class, resourceType.getName())))
-					.then(DomainResourceGraph::getParent)
+					.declare(locateParentGraph())
 					.then(DomainResourceGraph::getResourceType)
-					.then(this::getDeclaredAttributeNames)
+					.then(metadatasMap::get)
+					.then(metadata -> {
+						if (metadata == null) {
+							// happens when the current node is the root
+							return Collections.emptyList();
+						}
+						
+						return metadata.getAttributeNames();
+					})
+					.then(List::stream)
+					.then(stream -> stream.toArray(String[]::new))
 					.then(parentAttributes -> CollectionHelper.join(String.class, declaredAttributes, parentAttributes))
 					.get();
 			// @formatter:on
 		}
 
+		private String[] joinWithParentEnclosedAttributeNames(String[] declaredAttributes) throws Exception {
+			// @formatter:off
+			return Utils
+					.declare(locateParentGraph())
+					.then(DomainResourceGraph::getResourceType)
+					.then(metadatasMap::get)
+					.then(metadata -> {
+						if (metadata == null) {
+							// happens when the current node is the root
+							return Collections.emptyList();
+						}
+						
+						return metadata.getEnclosedAttributeNames();
+					})
+					.then(List::stream)
+					.then(stream -> stream.toArray(String[]::new))
+					.then(parentAttributes -> CollectionHelper.join(String.class, declaredAttributes, parentAttributes))
+					.get();
+			// @formatter:on
+		}
 	}
 
 	@Override
@@ -222,10 +430,27 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\tattributeNames=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
+				+ "\tenclosedAttributeNames=[\n"
+				+ "\t\t%s\n"
+				+ "\t],\n"
+				+ "\tattributeTypes=[\n"
+				+ "\t\t%s\n"
+				+ "\t],\n"
 				+ ")",
 				this.getClass().getSimpleName(), resourceType.getName(),
-				attributeNames.size() == 0 ? "<<empty>>" : attributeNames.stream().collect(Collectors.joining("\n\t\t")));
+				collectList(attributeNames, Function.identity()),
+				collectList(enclosedAttributeNames, Function.identity()),
+				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName())));
 		// @formatter:on
+	}
+
+	private <E> String collectList(List<E> list, Function<E, String> toString) {
+		return list.size() == 0 ? "<<empty>>" : list.stream().map(toString).collect(Collectors.joining("\n\t\t"));
+	}
+
+	private <K, V> String collectMap(Map<K, V> map, Function<Map.Entry<K, V>, String> toString) {
+		return map.size() == 0 ? "<<empty>>"
+				: map.entrySet().stream().map(toString).collect(Collectors.joining("\n\t\t"));
 	}
 
 }

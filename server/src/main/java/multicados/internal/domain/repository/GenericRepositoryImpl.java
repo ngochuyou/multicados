@@ -105,7 +105,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	@SuppressWarnings("rawtypes")
 	private static final Map<Class, Specification> FIXED_SPECIFICATIONS = Map.of(PermanentResource.class,
-			(root, query, builder) -> builder.equal(root.get(PermanentResource.active_), Boolean.TRUE));
+			(root, query, builder) -> builder.equal(root.get("active"), Boolean.TRUE));
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Specification chainFixedSpecifications(List<Class<?>> interfaces) {
@@ -342,7 +342,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	private static <T> Specification<T> hasId(Serializable id) {
-		return (root, query, builder) -> builder.equal(root.get(Entity.id_), id);
+		return (root, query, builder) -> builder.equal(root.get("id"), id);
 	}
 
 	@Override

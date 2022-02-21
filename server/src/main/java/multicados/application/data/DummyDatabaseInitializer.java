@@ -74,8 +74,8 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		Set<String> exsitingCategories = repository
 				.findAll(
 						Category.class,
-						(root, query, builder) -> List.of(root.get(Category.name_)),
-						(root, query, builder) -> builder.in(root.get(Category.name_))
+						(root, query, builder) -> List.of(root.get("name")),
+						(root, query, builder) -> builder.in(root.get("name"))
 								.value(categories.stream().map(Category::getName).collect(Collectors.toList())),
 						LockModeType.PESSIMISTIC_WRITE,
 						session)

@@ -26,7 +26,7 @@ public class Personnel extends Operator implements AuditableResource<String, Ope
 
 	public Personnel() {
 		setRole(Role.PERSONNEL);
-		auditInformations = new AuditInformations();
+//		auditInformations = new AuditInformations();
 	}
 
 	public AuditInformations getAuditInformations() {
@@ -35,6 +35,16 @@ public class Personnel extends Operator implements AuditableResource<String, Ope
 
 	public void setAuditInformations(AuditInformations auditInformations) {
 		this.auditInformations = auditInformations;
+	}
+
+	@Override
+	public LocalDateTime getUpdatedTimestamp() {
+		return auditInformations.getUpdatedTimestamp();
+	}
+
+	@Override
+	public void setUpdatedTimestamp(LocalDateTime timestamp) {
+		auditInformations.setCreatedTimestamp(timestamp);
 	}
 
 	@Override

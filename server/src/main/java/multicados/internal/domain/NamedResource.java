@@ -13,6 +13,4 @@ public interface NamedResource extends DomainResource {
 
 	void setName(String name);
 
-	String name_ = "name";
-
 }

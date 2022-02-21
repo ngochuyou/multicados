@@ -11,8 +11,4 @@ import java.io.Serializable;
  */
 public interface Entity<S extends Serializable> extends IdentifiableResource<S> {
 
-	/* ==========METADATAS========== */
-	String id_ = "id";
-	/* ==========METADATAS========== */
-
 }

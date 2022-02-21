@@ -13,7 +13,6 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
 import multicados.domain.entity.entities.Operator;
-import multicados.domain.entity.entities.User;
 import multicados.internal.domain.AuditableResource;
 import multicados.internal.domain.DomainComponentType;
 
@@ -27,11 +26,11 @@ public class AuditInformations implements DomainComponentType, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = AuditableResource.creator_, referencedColumnName = User.id_, updatable = false)
+	@JoinColumn(name = AuditableResource.creator_, referencedColumnName = "id", updatable = false)
 	private Operator creator;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = AuditableResource.updater_, referencedColumnName = User.id_)
+	@JoinColumn(name = AuditableResource.updater_, referencedColumnName = "id")
 	private Operator updater;
 
 	@Column(nullable = false, updatable = false)

@@ -96,7 +96,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 			if (Entity.class.isAssignableFrom(type) && !Modifier.isAbstract(type.getModifiers())) {
 				logger.trace("HBM {}(s)", type.getName());
 
-				tuplizers.put(type, new DomainEntityTuplizer<>(type, this,
+				tuplizers.put(type, new DomainEntityTuplizer<>(type, getMetadata(type),
 						ContextManager.getBean(SessionFactoryImplementor.class)));
 				continue;
 			}
@@ -173,7 +173,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 				continue;
 			}
 
-			metadatasMap.put(resourceType, new DomainResourceMetadataImpl<>(resourceType, this));
+			metadatasMap.put(resourceType, new DomainResourceMetadataImpl<>(resourceType, this, metadatasMap));
 		}
 
 		return metadatasMap;

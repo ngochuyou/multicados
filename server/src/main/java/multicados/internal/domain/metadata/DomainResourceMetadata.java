@@ -4,6 +4,7 @@
 package multicados.internal.domain.metadata;
 
 import java.util.List;
+import java.util.Map;
 
 import multicados.internal.domain.DomainResource;
 
@@ -16,8 +17,12 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 	Class<T> getResourceType();
 
 	List<String> getAttributeNames();
+	
+	List<String> getEnclosedAttributeNames();
 
 	Class<?> getAttributeType(String attributeName);
+	
+	Map<String, Class<?>> getAttributeTypes();
 
 	List<String> getNonLazyAttributeNames();
 

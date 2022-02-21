@@ -58,7 +58,7 @@ public class User extends PermanentEntity<String> {
 	private String password;
 
 	@Column(nullable = false)
-	private LocalDateTime updatedTimestamp;
+	private LocalDateTime credentialVersion;
 
 	@Column(nullable = false)
 	private Boolean locked;
@@ -143,12 +143,12 @@ public class User extends PermanentEntity<String> {
 		this.password = password;
 	}
 
-	public LocalDateTime getUpdatedTimestamp() {
-		return updatedTimestamp;
+	public LocalDateTime getCredentialVersion() {
+		return credentialVersion;
 	}
 
-	public void setUpdatedTimestamp(LocalDateTime updatedTimestamp) {
-		this.updatedTimestamp = updatedTimestamp;
+	public void setCredentialVersion(LocalDateTime credentialVersion) {
+		this.credentialVersion = credentialVersion;
 	}
 
 	@JsonProperty()
@@ -160,19 +160,4 @@ public class User extends PermanentEntity<String> {
 		this.locked = locked;
 	}
 
-	/* ==========METADATAS========== */
-	public static final String email_ = "email";
-	public static final String address_ = "address";
-	public static final String phone_ = "phone";
-	public static final String lastName_ = "lastName";
-	public static final String firstName_ = "firstName";
-	public static final String gender_ = "gender";
-	public static final String birthDate_ = "birthDate";
-	public static final String photo_ = "photo";
-	public static final String role_ = "role";
-	public static final String password_ = "password";
-	public static final String updatedTimestamp_ = "updatedTimestamp";
-	public static final String locked_ = "locked";
-	/* ==========METADATAS========== */
-	
 }

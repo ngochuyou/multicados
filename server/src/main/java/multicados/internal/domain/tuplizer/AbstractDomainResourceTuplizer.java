@@ -14,7 +14,7 @@ import multicados.internal.helper.TypeHelper;
  */
 public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> implements DomainResourceTuplizer<D> {
 
-	protected final Class<D> resourceType;
+	private final Class<D> resourceType;
 
 	public AbstractDomainResourceTuplizer(Class<D> resourceType) {
 		this.resourceType = resourceType;
@@ -51,5 +51,9 @@ public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> i
 	protected abstract Getter getGetter(String propName);
 
 	protected abstract Setter getSetter(String propName);
+
+	public Class<D> getResourceType() {
+		return resourceType;
+	}
 
 }

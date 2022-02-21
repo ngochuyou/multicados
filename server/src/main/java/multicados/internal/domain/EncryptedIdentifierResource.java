@@ -13,6 +13,4 @@ public interface EncryptedIdentifierResource<S extends Serializable> extends Ide
 
 	void setCode(String encrypted);
 
-	String code_ = "code";
-
 }
