@@ -26,7 +26,7 @@ public class Personnel extends Operator implements AuditableResource<String, Ope
 
 	public Personnel() {
 		setRole(Role.PERSONNEL);
-//		auditInformations = new AuditInformations();
+		auditInformations = new AuditInformations();
 	}
 
 	public AuditInformations getAuditInformations() {

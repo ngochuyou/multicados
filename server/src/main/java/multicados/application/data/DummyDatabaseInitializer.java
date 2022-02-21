@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import multicados.domain.entity.entities.Category;
+import multicados.domain.entity.entities.Category_;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
 import multicados.internal.domain.repository.GenericRepository;
@@ -74,8 +75,8 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		Set<String> exsitingCategories = repository
 				.findAll(
 						Category.class,
-						(root, query, builder) -> List.of(root.get("name")),
-						(root, query, builder) -> builder.in(root.get("name"))
+						(root, query, builder) -> List.of(root.get(Category_.name)),
+						(root, query, builder) -> builder.in(root.get(Category_.NAME))
 								.value(categories.stream().map(Category::getName).collect(Collectors.toList())),
 						LockModeType.PESSIMISTIC_WRITE,
 						session)

@@ -8,6 +8,8 @@ import java.io.Serializable;
 import javax.persistence.Column;
 import javax.persistence.MappedSuperclass;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import multicados.domain.AbstractEntity;
 import multicados.internal.domain.PermanentResource;
 
@@ -22,7 +24,7 @@ public abstract class PermanentEntity<T extends Serializable> extends AbstractEn
 	private Boolean active;
 
 	@Override
-//	@JsonProperty(PermanentEntity.active_)
+	@JsonProperty(value = PermanentEntity_.ACTIVE)
 	public Boolean isActive() {
 		return active;
 	}

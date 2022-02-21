@@ -35,6 +35,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
+import multicados.domain.entity.PermanentEntity_;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.DomainResourceGraphCollectors;
@@ -49,7 +50,7 @@ import multicados.internal.helper.Utils;
  */
 public class GenericRepositoryImpl implements GenericRepository {
 
-	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(50);
+	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 	private static final LockModeType DEFAULT_LOCK_MODE = LockModeType.NONE;
 
 	private final Map<Class<? extends Entity<?>>, Specification<? extends Entity<?>>> fixedSpecifications;
@@ -103,9 +104,9 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return interfaces.stream().filter(FIXED_SPECIFICATIONS::containsKey).collect(Collectors.toSet());
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private static final Map<Class, Specification> FIXED_SPECIFICATIONS = Map.of(PermanentResource.class,
-			(root, query, builder) -> builder.equal(root.get("active"), Boolean.TRUE));
+			(root, query, builder) -> builder.equal(root.get(PermanentEntity_.active), Boolean.TRUE));
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Specification chainFixedSpecifications(List<Class<?>> interfaces) {
