@@ -15,9 +15,8 @@ public interface Credential<S extends Serializable> {
 
 	S evaluate() throws CredentialException;
 
-	<E extends S> boolean has(Credential<E> target);
+	boolean has(Credential<S> target);
 
-	<E extends S> Credential<E> and(Credential<E> next,
-			HandledBiFunction<Credential<S>, Credential<E>, E, Exception> combiner);
+	Credential<S> and(Credential<S> next, HandledBiFunction<Credential<S>, Credential<S>, S, Exception> combiner);
 
 }

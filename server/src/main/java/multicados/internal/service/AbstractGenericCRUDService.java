@@ -23,16 +23,16 @@ import multicados.internal.service.event.ServiceEventListenerGroups;
  * @author Ngoc Huy
  *
  */
-public class GenericCRUDServiceImpl implements GenericCRUDService {
+public abstract class AbstractGenericCRUDService<TUPLE> implements GenericCRUDService<TUPLE> {
 	
-	private static final Logger logger = LoggerFactory.getLogger(GenericCRUDServiceImpl.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractGenericCRUDService.class);
 	
 	private final DomainResourceBuilderFactory builderFactory;
 	private final ValidatorFactory validatorFactory;
 	
 	private final ServiceEventListenerGroups eventListenerGroups;
 
-	public GenericCRUDServiceImpl(DomainResourceContext resourceContext, DomainResourceBuilderFactory builderFactory, ValidatorFactory validatorFactory)
+	public AbstractGenericCRUDService(DomainResourceContext resourceContext, DomainResourceBuilderFactory builderFactory, ValidatorFactory validatorFactory)
 			throws Exception {
 		this.builderFactory = builderFactory;
 		this.validatorFactory = validatorFactory;

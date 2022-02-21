@@ -14,19 +14,19 @@ import multicados.internal.helper.FunctionHelper.HandledBiFunction;
 public abstract class AbstractCredential<S extends Serializable> implements Credential<S> {
 
 	@Override
-	public <E extends S> Credential<E> and(Credential<E> next,
-			HandledBiFunction<Credential<S>, Credential<E>, E, Exception> combiner) {
-		return new CompositeCredential<>(this, next, combiner);
+	public Credential<S> and(Credential<S> next,
+			HandledBiFunction<Credential<S>, Credential<S>, S, Exception> combiner) {
+		return new CompositeCredential(this, next, combiner);
 	}
 
-	private class CompositeCredential<T extends S> extends AbstractCredential<T> {
+	private class CompositeCredential extends AbstractCredential<S> {
 
 		private final Credential<S> left;
-		private final Credential<T> right;
-		private final HandledBiFunction<Credential<S>, Credential<T>, T, Exception> combiner;
+		private final Credential<S> right;
+		private final HandledBiFunction<Credential<S>, Credential<S>, S, Exception> combiner;
 
-		public CompositeCredential(Credential<S> parent, Credential<T> child,
-				HandledBiFunction<Credential<S>, Credential<T>, T, Exception> combiner) {
+		public CompositeCredential(Credential<S> parent, Credential<S> child,
+				HandledBiFunction<Credential<S>, Credential<S>, S, Exception> combiner) {
 			super();
 			this.left = parent;
 			this.right = child;
@@ -34,7 +34,7 @@ public abstract class AbstractCredential<S extends Serializable> implements Cred
 		}
 
 		@Override
-		public T evaluate() throws CredentialException {
+		public S evaluate() throws CredentialException {
 			try {
 				return combiner.apply(left, right);
 			} catch (Exception any) {
@@ -43,7 +43,7 @@ public abstract class AbstractCredential<S extends Serializable> implements Cred
 		}
 
 		@Override
-		public <E extends T> boolean has(Credential<E> target) {
+		public boolean has(Credential<S> target) {
 			return left.has(target) || right.has(target);
 		}
 

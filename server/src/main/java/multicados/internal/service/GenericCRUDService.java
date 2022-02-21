@@ -4,8 +4,12 @@
 package multicados.internal.service;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.List;
 
 import javax.persistence.EntityManager;
+
+import org.springframework.data.domain.Pageable;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
@@ -14,7 +18,7 @@ import multicados.internal.domain.DomainResource;
  * @author Ngoc Huy
  *
  */
-public interface GenericCRUDService extends Service, ContextBuilder {
+public interface GenericCRUDService<TUPLE> extends Service, ContextBuilder {
 
 	default <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type,
 			EntityManager entityManager) {
@@ -31,5 +35,11 @@ public interface GenericCRUDService extends Service, ContextBuilder {
 
 	<E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
 			EntityManager entityManager, boolean flushOnFinish);
+
+	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties, Pageable pageable,
+			CRUDCredential credential, EntityManager entityManager);
+
+	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
+			CRUDCredential credential, EntityManager entityManager);
 
 }
