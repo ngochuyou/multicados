@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service;
+package multicados.internal.service.credential;
 
 import multicados.internal.security.Credential;
 

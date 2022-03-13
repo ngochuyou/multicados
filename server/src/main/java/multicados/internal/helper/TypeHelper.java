@@ -3,7 +3,10 @@
  */
 package multicados.internal.helper;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Stack;
 
 /**
@@ -37,6 +40,10 @@ public class TypeHelper {
 	public static <T> T constructFromNonArgs(Class<T> clazz) throws InstantiationException, IllegalAccessException,
 			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 		return clazz.getConstructor().newInstance();
+	}
+	
+	public static Type getGenericType(Field field) {
+		return ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
 	}
 
 }

@@ -94,7 +94,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 			}
 
 			if (Entity.class.isAssignableFrom(type) && !Modifier.isAbstract(type.getModifiers())) {
-				logger.trace("HBM {}(s)", type.getName());
+				logger.trace("HBM {}", type.getName());
 
 				tuplizers.put(type, new DomainEntityTuplizer<>(type, getMetadata(type),
 						ContextManager.getBean(SessionFactoryImplementor.class)));

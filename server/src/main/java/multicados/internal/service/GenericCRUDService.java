@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
+import multicados.internal.service.credential.CRUDCredential;
 
 /**
  * @author Ngoc Huy

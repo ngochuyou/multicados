@@ -1,11 +1,12 @@
 /**
  * 
  */
-package multicados.internal.service;
+package multicados.internal.service.credential;
 
 import multicados.internal.helper.FunctionHelper.HandledBiFunction;
 import multicados.internal.security.AbstractCredential;
 import multicados.internal.security.Credential;
+import multicados.internal.security.CredentialException;
 
 /**
  * @author Ngoc Huy
@@ -26,6 +27,22 @@ public abstract class AbstractCRUDCredential extends AbstractCredential<String> 
 	@Override
 	public String getDelimiter() {
 		return DELIMITER;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (!(obj instanceof CRUDCredential)) {
+			return false;
+		}
+
+		CRUDCredential other = (CRUDCredential) obj;
+
+		try {
+			return this.evaluate().equals(other.evaluate());
+		} catch (CredentialException any) {
+			any.printStackTrace();
+			return false;
+		}
 	}
 
 }

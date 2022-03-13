@@ -21,7 +21,10 @@ import org.hibernate.internal.util.StringHelper;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.tuple.IdentifierProperty;
 import org.hibernate.tuple.entity.EntityMetamodel;
+import org.hibernate.type.AssociationType;
+import org.hibernate.type.CollectionType;
 import org.hibernate.type.ComponentType;
+import org.hibernate.type.EntityType;
 import org.hibernate.type.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +35,10 @@ import multicados.internal.domain.DomainComponentType;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
+import multicados.internal.domain.Entity;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
+import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
 /**
@@ -46,6 +51,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	private final List<String> attributeNames;
 	private final List<String> enclosedAttributeNames;
+	private final List<String> nonLazyAttributeNames;
 	private final Map<String, Class<?>> attributeTypes;
 
 	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
@@ -61,6 +67,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		attributeNames = unmodifiableList(builder.locateAttributeNames());
 		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
+		nonLazyAttributeNames = unmodifiableList(builder.locateNonLazyAttributeNames());
 		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
 	}
 
@@ -86,7 +93,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	@Override
 	public List<String> getNonLazyAttributeNames() {
-		return null;
+		return nonLazyAttributeNames;
 	}
 
 	@Override
@@ -104,6 +111,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		List<String> locateAttributeNames() throws Exception;
 
 		List<String> locateEnclosedAttributeNames() throws Exception;
+
+		List<String> locateNonLazyAttributeNames() throws Exception;
 
 		Map<String, Class<?>> locateAttributeTypes() throws Exception;
 
@@ -136,6 +145,80 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.then(Arrays::asList)
 					.get();
 			// @formatter:on
+		}
+
+		@Override
+		public List<String> locateNonLazyAttributeNames() throws Exception {
+			// @formatter:off
+			return Utils.declare(getAttributeNames())
+					.then(Arrays::asList)
+					.then(this::resolveNonLazyAttributes)
+					.get();
+			// @formatter:on
+		}
+
+		private List<String> resolveNonLazyAttributes(List<String> attributes) {
+			// @formatter:off
+			return attributes
+					.stream()
+					.map(this::doResolveNonLazyAttributes)
+					.flatMap(List::stream)
+					.collect(Collectors.toList());
+			// @formatter:on
+		}
+
+		private List<String> doResolveNonLazyAttributes(String attributeName) {
+			try {
+				int index = metamodel.getPropertyIndex(attributeName);
+				Type type = metamodel.getPropertyTypes()[index];
+
+				if (!ComponentType.class.isAssignableFrom(type.getClass())) {
+					return isLazy(attributeName, type, index) ? Collections.emptyList() : List.of(attributeName);
+				}
+
+				ComponentType componentType = (ComponentType) type;
+				List<String> nonLazyProperties = new ArrayList<>();
+				int componentPropertyIndex;
+
+				for (String componentProperty : componentType.getPropertyNames()) {
+					componentPropertyIndex = componentType.getPropertyIndex(componentProperty);
+
+					if (!isLazy(componentProperty, componentType.getSubtypes()[componentPropertyIndex],
+							componentPropertyIndex)) {
+						nonLazyProperties.add(componentProperty);
+					}
+				}
+
+				return nonLazyProperties.isEmpty() ? Collections.emptyList() : nonLazyProperties;
+			} catch (NoSuchFieldException | SecurityException any) {
+				return Collections.emptyList();
+			}
+		}
+
+		private boolean isLazy(String name, Type type, int index) throws NoSuchFieldException, SecurityException {
+			if (!AssociationType.class.isAssignableFrom(type.getClass())) {
+				return metamodel.getPropertyLaziness()[index];
+			}
+
+			if (EntityType.class.isAssignableFrom(type.getClass())) {
+				return !((EntityType) type).isEager(null);
+			}
+
+			Class owningType = type.getReturnedClass();
+
+			if (CollectionType.class.isAssignableFrom(type.getClass())) {
+				if (!Entity.class
+						.isAssignableFrom((Class) TypeHelper.getGenericType(owningType.getDeclaredField(name)))) {
+					return metamodel.getPropertyLaziness()[index];
+				}
+				// this is how a CollectionPersister role is resolved by Hibernate
+				// see org.hibernate.cfg.annotations.CollectionBinder.bind()
+				String collectionRole = StringHelper.qualify(owningType.getName(), name);
+
+				return persister.getFactory().getMetamodel().collectionPersister(collectionRole).isLazy();
+			}
+
+			return metamodel.getPropertyLaziness()[index];
 		}
 
 		@Override
@@ -277,6 +360,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.then(Arrays::asList)
 					.get();
 			// @formatter:on
+		}
+
+		@Override
+		public List<String> locateNonLazyAttributeNames() throws Exception {
+			return enclosedAttributeNames;
 		}
 
 		@Override
@@ -433,6 +521,9 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\tenclosedAttributeNames=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
+				+ "\tnonLazyAttributes=[\n"
+				+ "\t\t%s\n"
+				+ "\t],\n"
 				+ "\tattributeTypes=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
@@ -440,17 +531,20 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				this.getClass().getSimpleName(), resourceType.getName(),
 				collectList(attributeNames, Function.identity()),
 				collectList(enclosedAttributeNames, Function.identity()),
-				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName())));
+				collectList(nonLazyAttributeNames, Function.identity()),
+				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName()), "\n\t\t"));
 		// @formatter:on
 	}
 
 	private <E> String collectList(List<E> list, Function<E, String> toString) {
-		return list.size() == 0 ? "<<empty>>" : list.stream().map(toString).collect(Collectors.joining("\n\t\t"));
+		return list.size() == 0 ? "<<empty>>"
+				: list.stream().map(toString)
+						.collect(Collectors.joining(multicados.internal.helper.StringHelper.COMMON_JOINER));
 	}
 
-	private <K, V> String collectMap(Map<K, V> map, Function<Map.Entry<K, V>, String> toString) {
+	private <K, V> String collectMap(Map<K, V> map, Function<Map.Entry<K, V>, String> toString, CharSequence joiner) {
 		return map.size() == 0 ? "<<empty>>"
-				: map.entrySet().stream().map(toString).collect(Collectors.joining("\n\t\t"));
+				: map.entrySet().stream().map(toString).collect(Collectors.joining(joiner));
 	}
 
 }
