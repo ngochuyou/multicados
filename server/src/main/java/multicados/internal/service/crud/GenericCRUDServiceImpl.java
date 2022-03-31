@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service;
+package multicados.internal.service.crud;
 
 import java.util.Collection;
 import java.util.List;
@@ -15,7 +15,7 @@ import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.validation.ValidatorFactory;
-import multicados.internal.service.credential.CRUDCredential;
+import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy

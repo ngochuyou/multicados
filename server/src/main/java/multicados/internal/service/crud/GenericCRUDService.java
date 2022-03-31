@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service;
+package multicados.internal.service.crud;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -13,7 +13,9 @@ import org.springframework.data.domain.Pageable;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.credential.CRUDCredential;
+import multicados.internal.service.Service;
+import multicados.internal.service.ServiceResult;
+import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy

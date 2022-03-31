@@ -18,6 +18,7 @@ import javax.sql.DataSource;
 
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy;
+import org.hibernate.cfg.AvailableSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.FactoryBean;
@@ -47,13 +48,14 @@ import multicados.internal.domain.validation.ValidatorFactory;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
-import multicados.internal.service.GenericCRUDService;
+import multicados.internal.service.crud.GenericCRUDService;
+import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
  * @author Ngoc Huy
  *
  */
-@ComponentScan(Constants.BASE_PACKAGE)
+@ComponentScan(Settings.BASE_PACKAGE)
 @Configuration
 @EnableTransactionManagement
 @EnableWebMvc
@@ -69,21 +71,20 @@ public class WebConfiguration implements WebMvcConfigurer {
 		LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
 
 		sessionFactory.setDataSource(dataSource);
-		sessionFactory.setPackagesToScan(new String[] { env.getProperty("multicados.scanned-packages.entity") });
+		sessionFactory.setPackagesToScan(new String[] { env.getProperty(Settings.SCANNED_ENTITY_PACKAGES) });
 		// snake_case for columns
 		sessionFactory.setPhysicalNamingStrategy(new CamelCaseToUnderscoresNamingStrategy());
 
 		Properties properties = new Properties();
 
-		properties.put("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
-		properties.put("hibernate.show_sql", true);
-		properties.put("hibernate.format_sql", true);
-		properties.put("hibernate.id.new_generator_mappings", "true");
-		properties.put("hibernate.hbm2ddl.auto", "update");
-		properties.put("hibernate.flush_mode", "MANUAL");
-		properties.put("hibernate.jdbc.batch_size", 50);
-		properties.put("hibernate.order_inserts", true);
-		properties.put("hibernate.order_updates", true);
+		properties.put(AvailableSettings.DIALECT, "org.hibernate.dialect.MySQL8Dialect");
+		properties.put(AvailableSettings.SHOW_SQL, true);
+		properties.put(AvailableSettings.FORMAT_SQL, true);
+		properties.put(AvailableSettings.USE_NEW_ID_GENERATOR_MAPPINGS, "true");
+		properties.put(AvailableSettings.HBM2DDL_AUTO, "update");
+		properties.put(AvailableSettings.STATEMENT_BATCH_SIZE, 50);
+		properties.put(AvailableSettings.ORDER_INSERTS, true);
+		properties.put(AvailableSettings.ORDER_UPDATES, true);
 
 		sessionFactory.setHibernateProperties(properties);
 
@@ -115,13 +116,13 @@ public class WebConfiguration implements WebMvcConfigurer {
 		return Utils
 				.declare(resolveBuildersOrder(beanDefs))
 					.second(beanDefs)
-				.then(this::doSorting)
+				.then(this::doSort)
 				.get();
 		// @formatter:on
 	}
 
 	@SuppressWarnings("unchecked")
-	private List<BeanDefinition> doSorting(Map<Class<? extends ContextBuilder>, Integer> buildersOrder,
+	private List<BeanDefinition> doSort(Map<Class<? extends ContextBuilder>, Integer> buildersOrder,
 			Set<BeanDefinition> beanDefs) {
 		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
 
@@ -156,13 +157,23 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 		logger.trace("Resolving builders order", ContextBuilder.class.getSimpleName());
 		// @formatter:off
-		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = Map.of(
-				DomainResourceContext.class, 0,
-				ValidatorFactory.class, 1,
-				GenericRepository.class, 2,
-				DomainResourceBuilderFactory.class, 3,
-				GenericCRUDService.class, 4,
-				DatabaseInitializer.class, 5);
+		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = new HashMap<>();
+		List<Class<? extends ContextBuilder>> builderTypes = List.of(
+				DomainResourceContext.class,
+				ValidatorFactory.class,
+				GenericRepository.class,
+				DomainResourceBuilderFactory.class,
+				
+				ReadSecurityManager.class,
+				GenericCRUDService.class,
+				DatabaseInitializer.class
+			);
+		int size = builderTypes.size();
+		
+		for (int i = 0; i < size; i++) {
+			buildersOrder.put(builderTypes.get(i), i);
+		}
+
 		final Map<Class<? extends ContextBuilder>, BeanDefinition> beansMap = beanDefs.stream()
 				.map(bean -> {
 					try {
@@ -204,7 +215,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(ContextBuilder.class));
 
-		return scanner.findCandidateComponents(Constants.BASE_PACKAGE);
+		return scanner.findCandidateComponents(Settings.BASE_PACKAGE);
 	}
 
 	private void summaryContextBuilders(List<Class<ContextBuilder>> buildersTypes) throws Exception {

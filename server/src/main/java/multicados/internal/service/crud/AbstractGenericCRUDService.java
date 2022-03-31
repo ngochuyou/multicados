@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service;
+package multicados.internal.service.crud;
 
 import java.io.Serializable;
 
@@ -17,7 +17,8 @@ import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.validation.Validation;
 import multicados.internal.domain.validation.DomainResourceValidator;
 import multicados.internal.domain.validation.ValidatorFactory;
-import multicados.internal.service.event.ServiceEventListenerGroups;
+import multicados.internal.service.ServiceResult;
+import multicados.internal.service.crud.event.ServiceEventListenerGroups;
 
 /**
  * @author Ngoc Huy

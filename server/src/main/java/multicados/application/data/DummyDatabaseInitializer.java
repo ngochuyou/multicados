@@ -25,7 +25,7 @@ import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitial
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.Utils;
-import multicados.internal.service.GenericCRUDService;
+import multicados.internal.service.crud.GenericCRUDService;
 
 /**
  * @author Ngoc Huy

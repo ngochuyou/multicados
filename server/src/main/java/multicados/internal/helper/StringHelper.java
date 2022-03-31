@@ -68,7 +68,7 @@ public class StringHelper extends StringUtils {
 	public static String combineIntoCamel(String first, String second) {
 		return toCamel(String.format("%s%s%s", first, SPACE, second), SPACE);
 	}
-	
+
 	public static String toCamel(String s, CharSequence seperator) {
 		String input = s.trim();
 

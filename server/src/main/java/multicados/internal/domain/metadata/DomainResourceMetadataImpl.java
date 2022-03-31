@@ -153,8 +153,27 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			return Utils.declare(getAttributeNames())
 					.then(Arrays::asList)
 					.then(this::resolveNonLazyAttributes)
+					.then(this::resolveIdentifierLaziness)
 					.get();
 			// @formatter:on
+		}
+
+		private List<String> resolveIdentifierLaziness(List<String> nonLazyAttributes) {
+			IdentifierProperty identifier = metamodel.getIdentifierProperty();
+
+			if (identifier.isVirtual()) {
+				return nonLazyAttributes;
+			}
+
+			if (!ComponentType.class.isAssignableFrom(identifier.getType().getClass())) {
+				nonLazyAttributes.add(identifier.getName());
+
+				return nonLazyAttributes;
+			}
+
+			nonLazyAttributes.addAll(List.of(((ComponentType) identifier.getType()).getPropertyNames()));
+
+			return nonLazyAttributes;
 		}
 
 		private List<String> resolveNonLazyAttributes(List<String> attributes) {
@@ -173,20 +192,35 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				Type type = metamodel.getPropertyTypes()[index];
 
 				if (!ComponentType.class.isAssignableFrom(type.getClass())) {
-					return isLazy(attributeName, type, index) ? Collections.emptyList() : List.of(attributeName);
+					// @formatter:off
+					return isLazy(
+							attributeName,
+							type,
+							index,
+							metamodel.getPropertyLaziness()) ?
+									Collections.emptyList() :
+										List.of(attributeName);
+					// @formatter:on
 				}
 
 				ComponentType componentType = (ComponentType) type;
 				List<String> nonLazyProperties = new ArrayList<>();
 				int componentPropertyIndex;
+				boolean[] componentPropertyLaziness = new boolean[componentType.getPropertyNames().length];
+				// assumes all properties in a component is non-lazy
+				Arrays.fill(componentPropertyLaziness, false);
 
 				for (String componentProperty : componentType.getPropertyNames()) {
 					componentPropertyIndex = componentType.getPropertyIndex(componentProperty);
-
-					if (!isLazy(componentProperty, componentType.getSubtypes()[componentPropertyIndex],
-							componentPropertyIndex)) {
+					// @formatter:off
+					if (!isLazy(
+							componentProperty,
+							componentType.getSubtypes()[componentPropertyIndex],
+							componentPropertyIndex,
+							componentPropertyLaziness)) {
 						nonLazyProperties.add(componentProperty);
 					}
+					// @formatter:on					
 				}
 
 				return nonLazyProperties.isEmpty() ? Collections.emptyList() : nonLazyProperties;
@@ -195,9 +229,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			}
 		}
 
-		private boolean isLazy(String name, Type type, int index) throws NoSuchFieldException, SecurityException {
+		private boolean isLazy(String name, Type type, int index, boolean[] propertyLaziness)
+				throws NoSuchFieldException, SecurityException {
 			if (!AssociationType.class.isAssignableFrom(type.getClass())) {
-				return metamodel.getPropertyLaziness()[index];
+				return propertyLaziness[index];
 			}
 
 			if (EntityType.class.isAssignableFrom(type.getClass())) {
@@ -209,7 +244,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			if (CollectionType.class.isAssignableFrom(type.getClass())) {
 				if (!Entity.class
 						.isAssignableFrom((Class) TypeHelper.getGenericType(owningType.getDeclaredField(name)))) {
-					return metamodel.getPropertyLaziness()[index];
+					return propertyLaziness[index];
 				}
 				// this is how a CollectionPersister role is resolved by Hibernate
 				// see org.hibernate.cfg.annotations.CollectionBinder.bind()
@@ -218,7 +253,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				return persister.getFactory().getMetamodel().collectionPersister(collectionRole).isLazy();
 			}
 
-			return metamodel.getPropertyLaziness()[index];
+			return propertyLaziness[index];
 		}
 
 		@Override

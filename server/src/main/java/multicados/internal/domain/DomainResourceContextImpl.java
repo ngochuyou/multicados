@@ -26,7 +26,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
-import multicados.internal.config.Constants;
+import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl;
@@ -112,7 +112,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 		logger.trace("Scanning for {}", DomainResource.class.getSimpleName());
 		scanner.addIncludeFilter(new AssignableTypeFilter(DomainResource.class));
 
-		Set<BeanDefinition> candidates = scanner.findCandidateComponents(Constants.BASE_PACKAGE);
+		Set<BeanDefinition> candidates = scanner.findCandidateComponents(Settings.BASE_PACKAGE);
 
 		logger.trace("Found {} candidate(s)", candidates.size());
 

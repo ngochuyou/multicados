@@ -36,6 +36,18 @@ public class TypeHelper {
 
 		return false;
 	}
+	
+	public static boolean isParentOf(Class<?> possibleParent, Class<?> child) {
+		Stack<?> classStack = getClassStack(child);
+
+		while (!classStack.isEmpty()) {
+			if (classStack.pop().equals(possibleParent)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 
 	public static <T> T constructFromNonArgs(Class<T> clazz) throws InstantiationException, IllegalAccessException,
 			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {

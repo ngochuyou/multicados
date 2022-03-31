@@ -20,7 +20,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
-import multicados.internal.config.Constants;
+import multicados.internal.config.Settings;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
@@ -62,7 +62,7 @@ public abstract class AbstractGraphWalkerFactory {
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(walkerType));
 
-		return scanner.findCandidateComponents(Constants.BASE_PACKAGE);
+		return scanner.findCandidateComponents(Settings.BASE_PACKAGE);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })

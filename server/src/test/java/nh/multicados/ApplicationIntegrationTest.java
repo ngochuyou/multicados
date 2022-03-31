@@ -3,24 +3,30 @@
  */
 package nh.multicados;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import javax.persistence.Tuple;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.Root;
+import javax.transaction.Transactional;
 
-import java.time.LocalDateTime;
-
+import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import multicados.domain.entity.entities.Personnel;
+import multicados.domain.entity.entities.District;
+import multicados.domain.entity.entities.District_;
+import multicados.domain.entity.entities.Province;
+import multicados.domain.entity.entities.Province_;
 import multicados.internal.config.WebConfiguration;
-import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.domain.tuplizer.TuplizerException;
+import multicados.internal.helper.HibernateHelper;
+import multicados.internal.helper.StringHelper;
 
 /**
  * @author Ngoc Huy
@@ -33,22 +39,19 @@ import multicados.internal.domain.tuplizer.TuplizerException;
 @AutoConfigureMockMvc
 public class ApplicationIntegrationTest {
 
-	private final DomainResourceContext resourceContext;
-
-	@Autowired
-	public ApplicationIntegrationTest(DomainResourceContext resourceContext) {
-		this.resourceContext = resourceContext;
-	}
-
 	@Test
-	public void testTuplizer() throws TuplizerException {
-		DomainResourceTuplizer<Personnel> tuplizer = resourceContext.getTuplizer(Personnel.class);
-		LocalDateTime now = LocalDateTime.now();
-		Personnel personnel = new Personnel();
+	@Transactional
+	public void test() throws TuplizerException {
+		Session session = HibernateHelper.getCurrentSession();
+		CriteriaBuilder builder = HibernateHelper.getSessionFactory().getCriteriaBuilder();
+		CriteriaQuery<Tuple> cq = builder.createTupleQuery();
+		Root<District> root = cq.from(District.class);
+		Join<District, Province> join = root.join(District_.province);
 
-		tuplizer.setProperty(personnel, "createdTimestamp", now);
+		cq.multiselect(root.get(District_.id), root.get(District_.name), join.get(Province_.name));
 
-		assertTrue(tuplizer.getProperty(personnel, "createdTimestamp").equals(now), "You suck");
+		session.createQuery(cq).getResultStream().forEach(
+				tuple -> System.out.println(String.format(StringHelper.COMMON_JOINER, tuple.get(0), tuple.get(1))));
 	}
 
 }

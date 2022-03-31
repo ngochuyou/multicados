@@ -16,7 +16,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
-import multicados.internal.config.Constants;
+import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
@@ -48,7 +48,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 		scanner.addIncludeFilter(new AssignableTypeFilter(DatabaseInitializer.DatabaseInitializerContributor.class));
 		logger.trace("Scanning for {}", DatabaseInitializer.DatabaseInitializerContributor.class.getSimpleName());
 
-		return scanner.findCandidateComponents(Constants.BASE_PACKAGE);
+		return scanner.findCandidateComponents(Settings.BASE_PACKAGE);
 	}
 
 	@SuppressWarnings("unchecked")

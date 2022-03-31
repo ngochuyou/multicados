@@ -7,7 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 
-import multicados.internal.config.Constants;
+import multicados.internal.config.Settings;
 
 /**
  * Application entry point
@@ -18,7 +18,7 @@ import multicados.internal.config.Constants;
 // @formatter:off
 @SpringBootApplication(
 		exclude = HibernateJpaAutoConfiguration.class,
-		scanBasePackages = Constants.BASE_PACKAGE)
+		scanBasePackages = Settings.BASE_PACKAGE)
 // @formatter:on
 public class BootEntry {
 

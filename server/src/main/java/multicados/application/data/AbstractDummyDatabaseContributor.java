@@ -26,8 +26,8 @@ import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.domain.tuplizer.TuplizerException;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.service.GenericCRUDService;
 import multicados.internal.service.ServiceResult;
+import multicados.internal.service.crud.GenericCRUDService;
 
 /**
  * @author Ngoc Huy

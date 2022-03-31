@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service.credential;
+package multicados.internal.service.crud.security;
 
 import multicados.internal.domain.DomainResource;
 

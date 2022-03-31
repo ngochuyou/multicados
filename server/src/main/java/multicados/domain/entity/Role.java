@@ -9,6 +9,6 @@ package multicados.domain.entity;
  */
 public enum Role {
 
-	ANONYMOUS, PERSONNEL, HEAD, CUSTOMER
+	ANONYMOUS, PERSONNEL, HEAD, CUSTOMER;
 
 }

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.service.event;
+package multicados.internal.service.crud.event;
 
 import java.util.List;
 import java.util.Map;
