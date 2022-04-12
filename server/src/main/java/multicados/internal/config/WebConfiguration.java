@@ -48,6 +48,7 @@ import multicados.internal.domain.validation.ValidatorFactory;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.security.CredentialFactory;
 import multicados.internal.service.crud.GenericCRUDService;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
@@ -162,8 +163,8 @@ public class WebConfiguration implements WebMvcConfigurer {
 				DomainResourceContext.class,
 				ValidatorFactory.class,
 				GenericRepository.class,
+				CredentialFactory.class,
 				DomainResourceBuilderFactory.class,
-				
 				ReadSecurityManager.class,
 				GenericCRUDService.class,
 				DatabaseInitializer.class

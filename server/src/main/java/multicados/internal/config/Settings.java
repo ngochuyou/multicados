@@ -15,4 +15,8 @@ public interface Settings {
 
 	public static final String READ_FAILURE_EXCEPTION_THROWING_STRATEGY = "multicados.crud.security.read.failurestrategy";
 
+	public static final String DUMMY_DATABASE_MODE = "multicados.dummy-database.initializer";
+	
+	public static final String DUMMY_DATABASE_PATH = "multicados.dummy-database.path";
+	
 }

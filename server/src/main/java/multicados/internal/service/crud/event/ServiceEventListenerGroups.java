@@ -39,10 +39,12 @@ public class ServiceEventListenerGroups {
 	}
 
 	public <D extends DomainResource> void firePostPersist(Class<D> resourceType, D model) throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("Firing post persist event with resource type {}", resourceType.getName());
+		logger.debug("Firing post persist event on resource type {}", resourceType.getName());
+
+		if (!postInsertListenters.containsKey(resourceType)) {
+			return;
 		}
-		
+
 		for (PostPersistEventListener listener : postInsertListenters.get(resourceType)) {
 			listener.onPostPersist(model);
 		}

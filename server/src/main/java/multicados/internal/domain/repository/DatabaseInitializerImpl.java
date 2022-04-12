@@ -27,12 +27,11 @@ import multicados.internal.helper.Utils;
  */
 public class DatabaseInitializerImpl implements DatabaseInitializer {
 
-	private static final String FLAG_KEY = "multicados.database-initializer";
 	private static final String FLAG_OFF = "off";
 
 	public DatabaseInitializerImpl(Environment env) throws Exception {
-		String flagValue = Optional.ofNullable(env.getProperty(FLAG_KEY)).orElse(StringHelper.EMPTY_STRING)
-				.toLowerCase();
+		String flagValue = Optional.ofNullable(env.getProperty(Settings.DUMMY_DATABASE_MODE))
+				.orElse(StringHelper.EMPTY_STRING).toLowerCase();
 
 		if (flagValue.equals(FLAG_OFF)) {
 			return;
