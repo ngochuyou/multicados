@@ -3,6 +3,7 @@
  */
 package multicados.internal.domain.validation;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +24,11 @@ public class Validation extends Result {
 		this.errors = new HashMap<>();
 	}
 
+	private Validation(Status status, Map<String, Error> errors) {
+		super(status);
+		this.errors = errors;
+	}
+
 	public Map<String, Error> getErrors() {
 		return errors;
 	}
@@ -32,7 +38,7 @@ public class Validation extends Result {
 		errors.putAll(other.getErrors());
 		return this;
 	}
-	
+
 	public Validation dataTooLong(String attributeName, String message) {
 		status = Status.FAILED;
 		errors.put(attributeName, new Error(MysqlErrorNumbers.ER_DATA_TOO_LONG, message));
@@ -46,7 +52,7 @@ public class Validation extends Result {
 	}
 
 	public static Validation success() {
-		return new Validation(Status.SUCCESS);
+		return new Validation(Status.SUCCESS, Collections.emptyMap());
 	}
 
 	public static Validation failed() {

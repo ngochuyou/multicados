@@ -12,7 +12,6 @@ import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.security.CredentialException;
 import multicados.internal.service.crud.security.CRUDCredential;
-import multicados.internal.service.crud.security.UnauthorizedCredentialException;
 
 /**
  * @author Ngoc Huy
@@ -31,7 +30,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 
 	@Override
 	public List<String> check(Collection<String> requestedAttributes, CRUDCredential credential)
-			throws CredentialException, UnknownAttributesException, UnauthorizedCredentialException {
+			throws CredentialException, UnknownAttributesException {
 		String credentialValue = credential.evaluate();
 		Set<String> authorizedAttributesByCredential = getAuthorizedAttributes(credentialValue);
 

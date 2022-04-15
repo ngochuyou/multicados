@@ -15,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import multicados.internal.context.ContextBuilder;
-import multicados.internal.domain.Entity;
+import multicados.internal.domain.DomainResource;
 
 /**
  * @author Ngoc Huy
@@ -23,82 +23,80 @@ import multicados.internal.domain.Entity;
  */
 public interface GenericRepository extends ContextBuilder {
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
 			SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
 			LockModeType lockModeType, SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Pageable pageable,
+			SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Pageable pageable,
+			LockModeType lockMode, SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Specification<D> spec,
+			SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Specification<D> spec,
+			LockModeType lockModeType, SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Specification<D> spec,
 			Pageable pageable, SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
+	<D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Specification<D> spec,
 			Pageable pageable, LockModeType lockMode, SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, SharedSessionContract session) throws Exception;
+	/* ==================== */
+	<D extends DomainResource> List<D> findAll(Class<D> type, SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, LockModeType lockModeType, SharedSessionContract session) throws Exception;
-
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, Pageable pageable, SharedSessionContract session) throws Exception;
-
-	<S extends Serializable, T extends Entity<S>> List<Tuple> findAll(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, Pageable pageable, LockModeType lockMode, SharedSessionContract session)
+	<D extends DomainResource> List<D> findAll(Class<D> type, LockModeType lockModeType, SharedSessionContract session)
 			throws Exception;
 
-	/* ==================== */
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, SharedSessionContract session)
+	<D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, SharedSessionContract session)
 			throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, LockModeType lockModeType,
+	<D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, LockModeType lockMode,
 			SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
-			SharedSessionContract session) throws Exception;
+	<D extends DomainResource> List<D> findAll(Class<D> type, SharedSessionContract session, Specification<D> spec)
+			throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
-			LockModeType lockMode, SharedSessionContract session) throws Exception;
+	<D extends DomainResource> List<D> findAll(Class<D> type, LockModeType lockModeType, SharedSessionContract session,
+			Specification<D> spec) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, SharedSessionContract session,
-			Specification<T> spec) throws Exception;
+	<D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, SharedSessionContract session,
+			Specification<D> spec) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, LockModeType lockModeType,
-			SharedSessionContract session, Specification<T> spec) throws Exception;
-
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
-			SharedSessionContract session, Specification<T> spec) throws Exception;
-
-	<S extends Serializable, T extends Entity<S>> List<T> findAll(Class<T> type, Pageable pageable,
-			LockModeType lockMode, SharedSessionContract session, Specification<T> spec) throws Exception;
+	<D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, LockModeType lockMode,
+			SharedSessionContract session, Specification<D> spec) throws Exception;
 
 	/* ==================== */
-	<S extends Serializable, T extends Entity<S>> Optional<T> findById(Class<T> clazz, Serializable id,
+	<D extends DomainResource> Optional<D> findById(Class<D> clazz, Serializable id, SharedSessionContract session)
+			throws Exception;
+
+	<D extends DomainResource> Optional<D> findById(Class<D> clazz, Serializable id, LockModeType lockMode,
 			SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> Optional<T> findById(Class<T> clazz, Serializable id,
-			LockModeType lockMode, SharedSessionContract session) throws Exception;
-
 	/* ==================== */
-	<S extends Serializable, T extends Entity<S>> Optional<Tuple> findById(Class<T> clazz, Serializable id,
-			Selector<T, Tuple> selector, SharedSessionContract session) throws Exception;
-
-	<S extends Serializable, T extends Entity<S>> Optional<Tuple> findById(Class<T> clazz, Serializable id,
-			Selector<T, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception;
-
-	/* ==================== */
-	<S extends Serializable, T extends Entity<S>> Optional<T> findOne(Class<T> type, Specification<T> spec,
+	<D extends DomainResource> Optional<Tuple> findById(Class<D> clazz, Serializable id, Selector<D, Tuple> selector,
 			SharedSessionContract session) throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> Optional<T> findOne(Class<T> type, Specification<T> spec,
+	<D extends DomainResource> Optional<Tuple> findById(Class<D> clazz, Serializable id, Selector<D, Tuple> selector,
 			LockModeType lockMode, SharedSessionContract session) throws Exception;
 
 	/* ==================== */
-	<S extends Serializable, T extends Entity<S>> Optional<Tuple> findOne(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, SharedSessionContract session) throws Exception;
+	<D extends DomainResource> Optional<D> findOne(Class<D> type, Specification<D> spec, SharedSessionContract session)
+			throws Exception;
 
-	<S extends Serializable, T extends Entity<S>> Optional<Tuple> findOne(Class<T> type, Selector<T, Tuple> selector,
-			Specification<T> spec, LockModeType lockMode, SharedSessionContract session) throws Exception;
+	<D extends DomainResource> Optional<D> findOne(Class<D> type, Specification<D> spec, LockModeType lockMode,
+			SharedSessionContract session) throws Exception;
+
+	/* ==================== */
+	<D extends DomainResource> Optional<Tuple> findOne(Class<D> type, Selector<D, Tuple> selector,
+			Specification<D> spec, SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> Optional<Tuple> findOne(Class<D> type, Selector<D, Tuple> selector,
+			Specification<D> spec, LockModeType lockMode, SharedSessionContract session) throws Exception;
 
 }

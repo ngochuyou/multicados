@@ -12,8 +12,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -43,28 +41,15 @@ import multicados.internal.helper.TypeHelper;
 public class DomainResourceContextImpl implements DomainResourceContext {
 
 	private final DomainResourceGraph<DomainResource> resourceGraph;
-	@SuppressWarnings("rawtypes")
-	private final DomainResourceGraph<Entity> entityGraph;
 
 	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
-	@SuppressWarnings("rawtypes")
 	public DomainResourceContextImpl() throws Exception {
 		// @formatter:off
 		resourceGraph = declare(scan())
 				.then(this::buildGraph)
 				.identical(this::sealGraph)
-				.get();
-		entityGraph = declare(resourceGraph)
-				.then(root -> locateGraph(root, Entity.class))
-				.then(graph -> Optional.ofNullable(graph).orElseGet(() -> {
-					DomainResourceGraphImpl<Entity> entityGraph = new DomainResourceGraphImpl<>(resourceGraph, Entity.class);
-					
-					entityGraph.doAfterContextBuild();
-					
-					return entityGraph;
-				}))
 				.get();
 		metadatasMap = declare(resourceGraph)
 				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))
@@ -167,15 +152,21 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 
 		Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap = new HashMap<>(
 				0);
+//		ObservableMetadataEntries metadataEntries = new ObservableMetadataEntriesImpl();
 		// we use iterator for exception handling
 		for (Class<? extends DomainResource> resourceType : resourceTypes) {
 			if (metadatasMap.containsKey(resourceType) || Modifier.isInterface(resourceType.getModifiers())) {
 				continue;
 			}
 
-			metadatasMap.put(resourceType, new DomainResourceMetadataImpl<>(resourceType, this, metadatasMap));
+			DomainResourceMetadataImpl<? extends DomainResource> metadata = new DomainResourceMetadataImpl<>(
+					resourceType, this, metadatasMap);
+
+//			metadataEntries.notify(metadata);
+			metadatasMap.put(resourceType, metadata);
 		}
 
+//		metadataEntries.close();
 		return metadatasMap;
 	}
 
@@ -216,31 +207,25 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 		return builder.toString();
 	}
 
-	@SuppressWarnings("unchecked")
-	private <T extends DomainResource> DomainResourceGraph<T> locateGraph(DomainResourceGraph<? super T> root,
-			Class<T> resourceType) {
-		if (root.getResourceType().equals(resourceType)) {
-			return (DomainResourceGraph<T>) root;
-		}
-
-		if (CollectionHelper.isEmpty(root.getChildrens())) {
-			return null;
-		}
-
-		return root.getChildrens().stream()
-				.map(node -> locateGraph((DomainResourceGraph<? super T>) node, resourceType)).filter(Objects::nonNull)
-				.findFirst().orElse(null);
-	}
+//	@SuppressWarnings("unchecked")
+//	private <T extends DomainResource> DomainResourceGraph<T> locateGraph(DomainResourceGraph<? super T> root,
+//			Class<T> resourceType) {
+//		if (root.getResourceType().equals(resourceType)) {
+//			return (DomainResourceGraph<T>) root;
+//		}
+//
+//		if (CollectionHelper.isEmpty(root.getChildrens())) {
+//			return null;
+//		}
+//
+//		return root.getChildrens().stream()
+//				.map(node -> locateGraph((DomainResourceGraph<? super T>) node, resourceType)).filter(Objects::nonNull)
+//				.findFirst().orElse(null);
+//	}
 
 	@Override
 	public DomainResourceGraph<DomainResource> getResourceGraph() {
 		return resourceGraph;
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Override
-	public DomainResourceGraph<Entity> getEntityGraph() {
-		return entityGraph;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -254,5 +239,50 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 	public <T extends DomainResource> DomainResourceTuplizer<T> getTuplizer(Class<T> resourceType) {
 		return (DomainResourceTuplizer<T>) tuplizersMap.get(resourceType);
 	}
+
+//	private class ObservableMetadataEntriesImpl implements ObservableMetadataEntries {
+//
+//		private Utils.Access access = new Access() {};
+//
+//		@SuppressWarnings("rawtypes")
+//		private final Map<Class<? extends DomainResource>, List<MetadataEntryObserver>> observers = new HashMap<>();
+//
+//		public synchronized <D extends DomainResource> void subscribe(Class<D> expectingType,
+//				MetadataEntryObserver<D> observer) throws IllegalAccessException {
+//			Assert.notNull(access, Access.CLOSED_MESSAGE);
+//			LoggerFactory.getLogger(DomainResourceContextImpl.ObservableMetadataEntries.class).trace(
+//					"Registering new {} for type {}", MetadataEntryObserver.class.getSimpleName(), expectingType);
+//
+//			if (!observers.containsKey(expectingType)) {
+//				observers.put(expectingType, Stream.of(observer).collect(Collectors.toList()));
+//				return;
+//			}
+//
+//			observers.get(expectingType).add(observer);
+//		}
+//
+//		@SuppressWarnings("unchecked")
+//		public synchronized <D extends DomainResource> void notify(DomainResourceMetadata<D> metadata) {
+//			Assert.notNull(access, Access.CLOSED_MESSAGE);
+//			final Class<D> type = metadata.getResourceType();
+//
+//			LoggerFactory.getLogger(DomainResourceContextImpl.ObservableMetadataEntries.class)
+//					.trace("Invoking signals for observers of type {}", type);
+//
+//			for (MetadataEntryObserver<D> observer : observers.get(type)) {
+//				observer.notify(metadata);
+//			}
+//
+//			observers.remove(type);
+//		}
+//
+//		@Override
+//		public void close() throws IOException {
+//			LoggerFactory.getLogger(DomainResourceContextImpl.ObservableMetadataEntries.class)
+//					.trace(Access.getClosingMessage(this));
+//			access = null;
+//		}
+//
+//	}
 
 }

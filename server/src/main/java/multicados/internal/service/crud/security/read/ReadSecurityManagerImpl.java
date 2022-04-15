@@ -68,8 +68,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	@Override
 	public <D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
-			CRUDCredential credential)
-			throws UnauthorizedCredentialException, CredentialException, UnknownAttributesException {
+			CRUDCredential credential) throws CredentialException, UnknownAttributesException {
 		@SuppressWarnings("unchecked")
 		ReadSecurityNode<D> readSecurityNode = securityNodes.get(resourceType);
 
@@ -629,7 +628,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 		@Override
 		public void doOnUnauthorizedCredential(Class<?> resourceType, String credential)
-				throws UnauthorizedCredentialException {
+				throws CredentialException {
 			throw new UnauthorizedCredentialException(credential, resourceType.getName());
 		}
 

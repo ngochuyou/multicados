@@ -10,7 +10,6 @@ import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.security.CredentialException;
 import multicados.internal.service.crud.security.CRUDCredential;
-import multicados.internal.service.crud.security.UnauthorizedCredentialException;
 
 /**
  * @author Ngoc Huy
@@ -19,8 +18,7 @@ import multicados.internal.service.crud.security.UnauthorizedCredentialException
 public interface ReadSecurityManager extends ContextBuilder {
 
 	<D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
-			CRUDCredential credential)
-			throws UnauthorizedCredentialException, CredentialException, UnknownAttributesException;
+			CRUDCredential credential) throws CredentialException, UnknownAttributesException;
 
 	interface WithType<D extends DomainResource> {
 

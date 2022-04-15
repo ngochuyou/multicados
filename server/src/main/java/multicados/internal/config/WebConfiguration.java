@@ -49,7 +49,7 @@ import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.CredentialFactory;
-import multicados.internal.service.crud.GenericCRUDService;
+import multicados.internal.service.crud.GenericHibernateCRUDService;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
@@ -166,7 +166,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 				CredentialFactory.class,
 				DomainResourceBuilderFactory.class,
 				ReadSecurityManager.class,
-				GenericCRUDService.class,
+				GenericHibernateCRUDService.class,
 				DatabaseInitializer.class
 			);
 		int size = builderTypes.size();

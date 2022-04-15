@@ -3,7 +3,7 @@
  */
 package multicados.internal.service.crud.security;
 
-import javax.security.auth.login.CredentialException;
+import multicados.internal.security.CredentialException;
 
 /**
  * @author Ngoc Huy

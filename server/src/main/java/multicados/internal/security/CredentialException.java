@@ -14,6 +14,8 @@ public class CredentialException extends Exception {
 	 */
 	private static final long serialVersionUID = 1L;
 
+	public CredentialException() {}
+
 	public CredentialException(Throwable cause) {
 		super(cause);
 	}

@@ -4,6 +4,7 @@
 package multicados.internal.domain.metadata;
 
 import static java.util.Collections.unmodifiableList;
+import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -11,8 +12,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -54,6 +57,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final List<String> nonLazyAttributeNames;
 	private final Map<String, Class<?>> attributeTypes;
 
+	private final Set<String> associationAttributeNames;
+
 	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap)
 			throws Exception {
@@ -69,6 +74,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
 		nonLazyAttributeNames = unmodifiableList(builder.locateNonLazyAttributeNames());
 		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
+		associationAttributeNames = Collections.unmodifiableSet(builder.locateAssociationAttributeNames());
 	}
 
 	@Override
@@ -98,7 +104,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	@Override
 	public boolean isAssociation(String attributeName) {
-		return false;
+		return associationAttributeNames.contains(attributeName);
 	}
 
 	@Override
@@ -115,6 +121,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		List<String> locateNonLazyAttributeNames() throws Exception;
 
 		Map<String, Class<?>> locateAttributeTypes() throws Exception;
+
+		Set<String> locateAssociationAttributeNames() throws Exception;
 
 	}
 
@@ -137,9 +145,65 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
+		public Set<String> locateAssociationAttributeNames() throws Exception {
+			// @formatter:off
+			return declare(getAttributeNames())
+					.then(this::doLocateAssociations)
+					.then(HashSet::new)
+					.get();
+			// @formatter:on
+		}
+
+		private List<String> doLocateAssociations(String[] attributeNames) throws Exception {
+			Type[] types = persister.getPropertyTypes();
+			List<String> associationAttributes = new ArrayList<>(16);
+			int span = attributeNames.length;
+
+			for (int i = 0; i < span; i++) {
+				// @formatter:off
+				declare(attributeNames[i])
+						.second(types[metamodel.getPropertyIndex(attributeNames[i])])
+					.then(this::individuallyLocateAssociations)
+					.identical(associationAttributes::addAll);
+				// @formatter:on
+			}
+
+			return associationAttributes;
+		}
+
+		private List<String> individuallyLocateAssociations(String attributeName, Type type) throws Exception {
+			List<String> associationAttributes = new ArrayList<>(8);
+
+			if (type instanceof AssociationType) {
+				associationAttributes.add(attributeName);
+				return associationAttributes;
+			}
+
+			if (type instanceof ComponentType) {
+				ComponentType componentType = (ComponentType) type;
+				String[] subAttributes = componentType.getPropertyNames();
+				Type[] subtypes = componentType.getSubtypes();
+				int span = subAttributes.length;
+
+				for (int i = 0; i < span; i++) {
+					// @formatter:off
+					declare(subAttributes[i])
+							.second(subtypes[componentType.getPropertyIndex(subAttributes[i])])
+						.then(this::individuallyLocateAssociations)
+						.identical(associationAttributes::addAll);
+					// @formatter:on
+				}
+
+				return associationAttributes;
+			}
+
+			return Collections.emptyList();
+		}
+
+		@Override
 		public List<String> locateAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(getAttributeNames())
+			return declare(getAttributeNames())
 					.then(this::unwrapComponentsAttributes)
 					.then(this::addIdentifierAttributeNames)
 					.then(Arrays::asList)
@@ -150,7 +214,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public List<String> locateNonLazyAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(getAttributeNames())
+			return declare(getAttributeNames())
 					.then(Arrays::asList)
 					.then(this::resolveNonLazyAttributes)
 					.then(this::resolveIdentifierLaziness)
@@ -259,7 +323,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public List<String> locateEnclosedAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(getAttributeNames())
+			return declare(getAttributeNames())
 					.then(this::addIdentifierAttributeNames)
 					.then(Arrays::asList)
 					.get();
@@ -269,7 +333,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public Map<String, Class<?>> locateAttributeTypes() throws Exception {
 			// @formatter:off
-			return Utils.declare(getAttributeNames())
+			return declare(getAttributeNames())
 					.then(this::mapTypes)
 					.then(this::unwrapTypes)
 					.get();
@@ -367,6 +431,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private final DomainResourceContext resourceContextProvider;
 		private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 
+//		private ObservableMetadataEntries observableMetadataEntries;
+
 		public NonHibernateResourceMetadataBuilder(Class<D> resourceType, DomainResourceContext resourceContextProvider,
 				Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap) {
 			logger.trace("Building {} for resource of type [{}]", DomainResourceMetadata.class.getSimpleName(),
@@ -377,9 +443,66 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
+		public Set<String> locateAssociationAttributeNames() throws Exception {
+			// @formatter:off
+			return declare(getDeclaredAttributeNames())
+					.then(this::joinWithParentEnclosedAttributeNames)
+					.then(this::doLocateAssocations)
+					.then(HashSet::new)
+					.get();
+			// @formatter:on
+		}
+
+		private List<String> doLocateAssocations(String[] attributeNames) throws Exception {
+			int span = attributeNames.length;
+			List<String> associations = new ArrayList<>();
+
+			for (int i = 0; i < span; i++) {
+				// @formatter:off
+				declare(attributeNames[i])
+						.second(attributeTypes.get(attributeNames[i]))
+					.then(this::individuallyLocateAssocations)
+					.identical(associations::addAll);
+				// @formatter:on
+			}
+
+			return associations;
+		}
+
+		private List<String> individuallyLocateAssocations(String attributeName, Class<?> owningType) throws Exception {
+			List<String> associations = new ArrayList<>();
+
+			if (DomainResource.class.isAssignableFrom(owningType)) {
+				associations.add(attributeName);
+				return associations;
+			}
+
+			if (DomainComponentType.class.isAssignableFrom(owningType)) {
+				Field[] subFields = Stream.of(owningType.getDeclaredFields())
+						.filter(field -> !Modifier.isStatic(field.getModifiers())).toArray(Field[]::new);
+				String[] subAttributes = Stream.of(subFields).map(Field::getName).toArray(String[]::new);
+				Class<?>[] subTypes = Stream.of(subFields).map(Field::getType).toArray(Class[]::new);
+				int span = subAttributes.length;
+
+				for (int i = 0; i < span; i++) {
+					// @formatter:off
+					declare(subAttributes[i])
+							.second(subTypes[i])
+						.then(this::individuallyLocateAssocations)
+						.identical(associations::addAll);
+					// @formatter:on
+				}
+
+				return associations;
+			}
+
+			return Collections.emptyList();
+		}
+
+		@Override
 		public List<String> locateAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(getDeclaredAttributeNames())
+			return declare(getDeclaredAttributeNames())
 					.then(this::unwrapAttributeNames)
 					.then(this::joinWithParentAttributeNames)
 					.then(Arrays::asList)
@@ -390,7 +513,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public List<String> locateEnclosedAttributeNames() throws Exception {
 			// @formatter:off
-			return Utils.declare(getDeclaredAttributeNames())
+			return declare(getDeclaredAttributeNames())
 					.then(this::joinWithParentEnclosedAttributeNames)
 					.then(Arrays::asList)
 					.get();
@@ -405,7 +528,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public Map<String, Class<?>> locateAttributeTypes() throws Exception {
 			// @formatter:off
-			return Utils.declare(getDeclaredAttributeNames())
+			return declare(getDeclaredAttributeNames())
 					.then(this::getAttributeTypes)
 					.then(this::unwrapAttributeTypes)
 					.then(this::joinWithParentAttributeTypes)
@@ -562,12 +685,16 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\tattributeTypes=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
+				+ "\tassociationAttributeNames=[\n"
+				+ "\t\t%s\n"
+				+ "\t],\n"
 				+ ")",
 				this.getClass().getSimpleName(), resourceType.getName(),
 				collectList(attributeNames, Function.identity()),
 				collectList(enclosedAttributeNames, Function.identity()),
 				collectList(nonLazyAttributeNames, Function.identity()),
-				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName()), "\n\t\t"));
+				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName()), "\n\t\t"),
+				collectList(associationAttributeNames.stream().collect(Collectors.toList()), Function.identity()));
 		// @formatter:on
 	}
 

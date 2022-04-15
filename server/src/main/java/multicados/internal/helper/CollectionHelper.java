@@ -53,7 +53,6 @@ public class CollectionHelper {
 				C collection = collectionSupplier.get();
 
 				collection.add(value);
-
 				result.put(key, collection);
 				return;
 			}
