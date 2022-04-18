@@ -188,7 +188,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 		// @formatter:off
 		builder.append(String.format("%s%s\n\s\s\s",
 				indentation != 0 ? String.format("%s%s",
-						IntStream.range(0, indentation - 1).mapToObj(index -> "\s\s\s").collect(Collectors.joining(StringHelper.EMPTY_STRING)),
+						IntStream.range(0, indentation).mapToObj(index -> "\s\s\s").collect(Collectors.joining(StringHelper.EMPTY_STRING)),
 						"|__") : StringHelper.EMPTY_STRING,
 				node.getResourceType().getSimpleName()));
 		// @formatter:on

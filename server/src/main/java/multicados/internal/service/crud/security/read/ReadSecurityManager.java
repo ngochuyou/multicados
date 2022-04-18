@@ -5,6 +5,7 @@ package multicados.internal.service.crud.security.read;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
@@ -19,6 +20,8 @@ public interface ReadSecurityManager extends ContextBuilder {
 
 	<D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
 			CRUDCredential credential) throws CredentialException, UnknownAttributesException;
+
+	<D extends DomainResource> Map<String, String> translate(Class<D> resourceType, Collection<String> attributes);
 
 	interface WithType<D extends DomainResource> {
 

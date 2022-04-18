@@ -17,7 +17,7 @@ import multicados.internal.domain.DomainResourceContext;
  * @author Ngoc Huy
  *
  */
-public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements ValidatorFactory {
+public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements DomainResourceValidatorFactory {
 
 	public ValidatorFactoryImpl(DomainResourceContext resourceContextProvider) throws Exception {
 		super(DomainResourceValidator.class, resourceContextProvider, List.of(), () -> NO_OP_VALIDATOR);

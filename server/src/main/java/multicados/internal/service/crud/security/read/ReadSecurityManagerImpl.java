@@ -67,6 +67,15 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	}
 
 	@Override
+	public <D extends DomainResource> Map<String, String> translate(Class<D> resourceType,
+			Collection<String> attributes) {
+		@SuppressWarnings("unchecked")
+		ReadSecurityNode<D> readSecurityNode = securityNodes.get(resourceType);
+
+		return readSecurityNode.translate(attributes);
+	}
+
+	@Override
 	public <D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
 			CRUDCredential credential) throws CredentialException, UnknownAttributesException {
 		@SuppressWarnings("unchecked")
@@ -161,6 +170,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			// @formatter:off
 			ExceptionThrowingStrategy strategy = Optional.ofNullable(configuredStrategy)
 					.map(String::toUpperCase)
+					.map(String::trim)
 					.map(ExceptionThrowingStrategy::valueOf)
 					.orElse(ExceptionThrowingStrategy.USE_REGISTERED_ATTRIBUTES);
 			// @formatter:on
@@ -627,8 +637,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private abstract class AbstractReadFailureExceptionHandler implements ReadFailureExceptionHandler {
 
 		@Override
-		public void doOnUnauthorizedCredential(Class<?> resourceType, String credential)
-				throws CredentialException {
+		public void doOnUnauthorizedCredential(Class<?> resourceType, String credential) throws CredentialException {
 			throw new UnauthorizedCredentialException(credential, resourceType.getName());
 		}
 

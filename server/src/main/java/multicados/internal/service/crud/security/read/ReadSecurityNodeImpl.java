@@ -3,6 +3,7 @@
  */
 package multicados.internal.service.crud.security.read;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,6 +69,12 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.then(Collections::unmodifiableMap)
 				.get();
 		// @formatter:on
+	}
+
+	@Override
+	public Map<String, String> translate(Collection<String> attributes) {
+		return attributes.stream().map(attr -> Map.entry(attr, aliasesByOrigins.get(attr)))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 	}
 
 	private Map<String, String> getAlias(List<SecuredAttribute<D>> attributes, DomainResourceMetadata<D> metadata) {

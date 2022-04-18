@@ -15,7 +15,7 @@ import multicados.internal.domain.builder.DomainResourceBuilder;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.validation.DomainResourceValidator;
 import multicados.internal.domain.validation.Validation;
-import multicados.internal.domain.validation.ValidatorFactory;
+import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.service.ServiceResult;
 import multicados.internal.service.crud.event.ServiceEventListenerGroups;
 
@@ -28,12 +28,12 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 	private static final Logger logger = LoggerFactory.getLogger(AbstractGenericCRUDService.class);
 
 	private final DomainResourceBuilderFactory builderFactory;
-	private final ValidatorFactory validatorFactory;
+	private final DomainResourceValidatorFactory validatorFactory;
 
 	private final ServiceEventListenerGroups eventListenerGroups;
 
 	public AbstractGenericCRUDService(DomainResourceContext resourceContext,
-			DomainResourceBuilderFactory builderFactory, ValidatorFactory validatorFactory) throws Exception {
+			DomainResourceBuilderFactory builderFactory, DomainResourceValidatorFactory validatorFactory) throws Exception {
 		this.builderFactory = builderFactory;
 		this.validatorFactory = validatorFactory;
 		eventListenerGroups = new ServiceEventListenerGroups(resourceContext);

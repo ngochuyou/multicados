@@ -3,8 +3,11 @@
  */
 package multicados.internal.service.crud.security.read;
 
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
@@ -19,12 +22,18 @@ public class DefaultReadSecurityNode<D extends DomainResource> extends AbstractR
 
 	public DefaultReadSecurityNode(DomainResourceMetadata<D> metadata, ReadFailureExceptionHandler exceptionThrower) {
 		super(metadata, exceptionThrower);
-		authorizedAttributes = new HashSet<>(metadata.getAttributeNames());
+		authorizedAttributes = new HashSet<>(metadata.getNonLazyAttributeNames());
 	}
 
 	@Override
 	protected String getActualAttributeName(String requestedName) {
 		return requestedName;
+	}
+
+	@Override
+	public Map<String, String> translate(Collection<String> attributes) {
+		return authorizedAttributes.stream().map(attributeName -> Map.entry(attributeName, attributeName))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 	}
 
 	@Override

@@ -17,17 +17,15 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 	Class<T> getResourceType();
 
 	List<String> getAttributeNames();
-	
+
 	List<String> getEnclosedAttributeNames();
 
 	Class<?> getAttributeType(String attributeName);
-	
+
 	Map<String, Class<?>> getAttributeTypes();
 
 	List<String> getNonLazyAttributeNames();
 
 	boolean isAssociation(String attributeName);
-
-//	AssociationType getAssociationType(String associationName);
 
 }

@@ -44,7 +44,7 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.repository.DatabaseInitializer;
 import multicados.internal.domain.repository.GenericRepository;
-import multicados.internal.domain.validation.ValidatorFactory;
+import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -161,7 +161,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = new HashMap<>();
 		List<Class<? extends ContextBuilder>> builderTypes = List.of(
 				DomainResourceContext.class,
-				ValidatorFactory.class,
+				DomainResourceValidatorFactory.class,
 				GenericRepository.class,
 				CredentialFactory.class,
 				DomainResourceBuilderFactory.class,

@@ -10,7 +10,6 @@ import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.persister.entity.EntityPersister;
 
-import multicados.domain.AbstractEntity;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.repository.Selector;
@@ -31,13 +30,12 @@ public class HibernateHelper {
 		return getSessionFactory().getCurrentSession();
 	}
 
-	@SuppressWarnings("rawtypes")
-	public static <T extends AbstractEntity> EntityPersister getEntityPersister(Class<T> type) {
+	public static <T extends DomainResource> EntityPersister getEntityPersister(Class<T> type) {
 		return getSessionFactory().getMetamodel().entityPersister(type);
 	}
 
-	public static <D extends DomainResource, E> Selector<D, E> toSelector(Collection<String> properties) {
-		return (root, query, builder) -> properties.stream().map(root::get).collect(Collectors.toList());
+	public static <D extends DomainResource, E> Selector<D, E> toSelector(Collection<String> attributes) {
+		return (root, query, builder) -> attributes.stream().map(root::get).collect(Collectors.toList());
 	}
 
 }

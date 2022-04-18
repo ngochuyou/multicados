@@ -335,6 +335,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			// @formatter:off
 			return declare(getAttributeNames())
 					.then(this::mapTypes)
+					.then(this::addIdentifierType)
 					.then(this::unwrapTypes)
 					.get();
 			// @formatter:on
@@ -347,27 +348,58 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		}
 
-		private Map<String, Class<?>> unwrapTypes(Map<String, Type> types) {
-			// @formatter:off
-			return types.entrySet().stream().map(entry -> {
-				Type type = entry.getValue();
+		private Map<String, Type> addIdentifierType(Map<String, Type> types) {
+			IdentifierProperty identifierProp = metamodel.getIdentifierProperty();
 
-				if (!ComponentType.class.isAssignableFrom(type.getClass())) {
-					return Stream.of(entry);
+			types.put(identifierProp.getName(), identifierProp.getType());
+
+			return types;
+		}
+
+		private Map<String, Class<?>> unwrapTypes(Map<String, Type> types) throws Exception {
+			Map<String, Type> results = new HashMap<>();
+
+			for (Map.Entry<String, Type> entry : types.entrySet()) {
+				results.put(entry.getKey(), entry.getValue());
+
+				if (!ComponentType.class.isAssignableFrom(entry.getValue().getClass())) {
+					continue;
 				}
-
-				ComponentType componentType = (ComponentType) type;
-
-				return Stream.concat(
-						Stream.of(componentType.getPropertyNames())
-								.map(name -> Map.entry(name,
-										componentType.getSubtypes()[componentType.getPropertyIndex(name)])),
-						Stream.of(entry));
-			})
-			.flatMap(Function.identity())
-			.map(entry -> Map.entry(entry.getKey(), entry.getValue().getReturnedClass()))
-			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+				// @formatter:off
+				declare(entry.getKey())
+						.second((ComponentType) entry.getValue())
+					.then(this::unwrapComponentType)
+					.identical(results::putAll);
+				// @formatter:on
+			}
+			// @formatter:off
+			return results.entrySet().stream()
+				.map(entry -> Map.entry(entry.getKey(), entry.getValue().getReturnedClass()))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 			// @formatter:on
+		}
+
+		private Map<String, Type> unwrapComponentType(String attributeName, ComponentType componentType)
+				throws Exception {
+			Map<String, Type> types = new HashMap<>();
+
+			for (String subAttr : componentType.getPropertyNames()) {
+				Type subType = componentType.getSubtypes()[componentType.getPropertyIndex(subAttr)];
+
+				types.put(subAttr, subType);
+
+				if (!ComponentType.class.isAssignableFrom(subType.getClass())) {
+					continue;
+				}
+				// @formatter:off
+				declare(subAttr)
+						.second((ComponentType) subType)
+					.then(this::unwrapComponentType)
+					.identical(types::putAll);
+				// @formatter:on
+			}
+
+			return types;
 		}
 
 		private String[] getAttributeNames() {

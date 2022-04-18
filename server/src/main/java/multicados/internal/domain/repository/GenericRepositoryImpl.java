@@ -41,6 +41,7 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.PermanentResource;
+import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.Utils;
 
@@ -49,6 +50,8 @@ import multicados.internal.helper.Utils;
  *
  */
 public class GenericRepositoryImpl implements GenericRepository {
+
+	private static final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 	private static final LockModeType DEFAULT_LOCK_MODE = LockModeType.NONE;
@@ -60,8 +63,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@SuppressWarnings({ "unchecked" })
 	public GenericRepositoryImpl(DomainResourceContext resourceContextProvider, SessionFactoryImplementor sfi)
 			throws Exception {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
-
 		Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
 				0);
 
@@ -72,7 +73,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			if (Modifier.isAbstract(entityType.getModifiers())) {
 				logger.trace("Skipping abstract {} type {}", DomainResource.class.getSimpleName(),
 						entityType.getName());
-				break;
+				continue;
 			}
 			// @formatter:off
 			Utils.declare(getAllInterfaces(entityType))
@@ -90,8 +91,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	private <D extends DomainResource> Set<Class<?>> getAllInterfaces(Class<D> entityType) {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
-
 		logger.trace("Finding all interfaces of {} type [{}]", DomainResource.class.getSimpleName(),
 				entityType.getSimpleName());
 
@@ -99,8 +98,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	private Set<Class<?>> filterOutNonTargetedTypes(Set<Class<?>> interfaces) {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
-
 		logger.trace("Filtering fixed interfaces");
 
 		return interfaces.stream().filter(FIXED_SPECIFICATIONS::containsKey).collect(Collectors.toSet());
@@ -112,8 +109,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Specification chainFixedSpecifications(List<Class<?>> interfaces) {
-		final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
-
 		logger.trace("Chaining {}(s)", Specification.class.getSimpleName());
 		// shouldn't be null here
 		if (interfaces.isEmpty()) {
@@ -127,6 +122,12 @@ public class GenericRepositoryImpl implements GenericRepository {
 							FIXED_SPECIFICATIONS.get(interfaces.get(0)),
 							(composition, current) -> composition.and(current));
 		// @formatter:on
+	}
+
+	private void log(Query<?> query) {
+		if (logger.isDebugEnabled()) {
+			logger.debug(query.getQueryString());
+		}
 	}
 
 	@Override
@@ -164,6 +165,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -228,7 +230,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	@Override
 	public <D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
-			Specification<D> spec, Pageable pageable, LockModeType lockMode, SharedSessionContract session)
+			Specification<D> specification, Pageable pageable, LockModeType lockMode, SharedSessionContract session)
 			throws Exception {
 		// @formatter:off
 		return declare(criteriaBuilder.createTupleQuery())
@@ -236,7 +238,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.third(selector)
 			.identical(this::doSelect)
 				.useFirstTwo()
-				.third(spec)
+				.third(specification)
 			.identical(this::doFilter)
 				.useFirstTwo()
 				.third(pageable)
@@ -247,6 +249,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -292,6 +295,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -332,6 +336,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -343,14 +348,15 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return findById(type, id, DEFAULT_LOCK_MODE, session);
 	}
 
-	private static <D> Specification<D> hasId(Serializable id) {
-		return (root, query, builder) -> builder.equal(root.get("id"), id);
+	private static <D extends DomainResource> Specification<D> hasId(Class<D> type, Serializable id) {
+		return (root, query, builder) -> builder.equal(root.get(
+				HibernateHelper.getEntityPersister(type).getEntityMetamodel().getIdentifierProperty().getName()), id);
 	}
 
 	@Override
 	public <D extends DomainResource> Optional<D> findById(Class<D> type, Serializable id, LockModeType lockMode,
 			SharedSessionContract session) throws Exception {
-		return findOne(type, hasId(id), lockMode, session);
+		return findOne(type, hasId(type, id), lockMode, session);
 	}
 
 	@Override
@@ -362,7 +368,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findById(Class<D> type, Serializable id,
 			Selector<D, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception {
-		return findOne(type, selector, hasId(id), session);
+		return findOne(type, selector, hasId(type, id), session);
 	}
 
 	@Override
@@ -383,6 +389,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::createHQL)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::getResultStream)
 			.then(Stream::findFirst)
 			.get();
@@ -410,6 +417,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::createHQL)
 				.second(lockMode)
 			.then(this::doLocking)
+			.identical(this::log)
 			.then(Query::getResultStream)
 			.then(Stream::findFirst)
 			.get();

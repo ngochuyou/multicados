@@ -5,6 +5,7 @@ package multicados.internal.service.crud.security.read;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.security.CredentialException;
@@ -18,5 +19,7 @@ public interface ReadSecurityNode<D extends DomainResource> {
 
 	List<String> check(Collection<String> requestedAttributes, CRUDCredential credential)
 			throws CredentialException, UnknownAttributesException;
+
+	Map<String, String> translate(Collection<String> attributes);
 
 }

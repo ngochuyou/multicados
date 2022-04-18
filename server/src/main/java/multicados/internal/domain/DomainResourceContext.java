@@ -24,7 +24,7 @@ public interface DomainResourceContext extends ContextBuilder {
 
 	public interface ObservableMetadataEntries extends Loggable, Closeable {
 
-		<D extends DomainResource> void subscribe(Class<D> expectingType, MetadataEntryObserver<D> observer)
+		<D extends DomainResource> void register(Class<D> expectingType, MetadataEntryObserver<D> observer)
 				throws IllegalAccessException;
 
 		<D extends DomainResource> void notify(DomainResourceMetadata<D> metadata);
