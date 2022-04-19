@@ -8,19 +8,20 @@ import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Queue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.hibernate.internal.util.StringHelper;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.tuple.IdentifierProperty;
 import org.hibernate.tuple.entity.EntityMetamodel;
@@ -31,16 +32,18 @@ import org.hibernate.type.EntityType;
 import org.hibernate.type.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
-import multicados.domain.AbstractEntity;
 import multicados.internal.domain.DomainComponentType;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.Entity;
+import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation.OptionalAssociation;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
+import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
@@ -57,14 +60,15 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final List<String> nonLazyAttributeNames;
 	private final Map<String, Class<?>> attributeTypes;
 
-	private final Set<String> associationAttributeNames;
+	private final Map<String, DomainAssociation> associationAttributeNames;
+	private final Map<String, ComponentPath> componentPaths;
 
 	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap)
 			throws Exception {
 		this.resourceType = resourceType;
 
-		Builder<T> builder = AbstractEntity.class.isAssignableFrom(resourceType)
+		Builder<T> builder = Entity.class.isAssignableFrom(resourceType)
 				&& !Modifier.isAbstract(resourceType.getModifiers())
 						? new HibernateResourceMetadataBuilder<>(resourceType)
 						: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider,
@@ -74,7 +78,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
 		nonLazyAttributeNames = unmodifiableList(builder.locateNonLazyAttributeNames());
 		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
-		associationAttributeNames = Collections.unmodifiableSet(builder.locateAssociationAttributeNames());
+		associationAttributeNames = Collections.unmodifiableMap(builder.locateAssociations());
+		componentPaths = Collections.unmodifiableMap(builder.locateComponentPaths());
 	}
 
 	@Override
@@ -104,12 +109,25 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	@Override
 	public boolean isAssociation(String attributeName) {
-		return associationAttributeNames.contains(attributeName);
+		return associationAttributeNames.containsKey(attributeName);
+	}
+
+	/**
+	 * Assumes association exists
+	 */
+	@Override
+	public boolean isAssociationOptional(String associationName) {
+		return OptionalAssociation.class.isAssignableFrom(associationAttributeNames.get(associationName).getClass());
 	}
 
 	@Override
 	public Map<String, Class<?>> getAttributeTypes() {
 		return attributeTypes;
+	}
+
+	@Override
+	public Map<String, ComponentPath> getComponentPaths() {
+		return componentPaths;
 	}
 
 	private interface Builder<D extends DomainResource> {
@@ -122,7 +140,9 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		Map<String, Class<?>> locateAttributeTypes() throws Exception;
 
-		Set<String> locateAssociationAttributeNames() throws Exception;
+		Map<String, DomainAssociation> locateAssociations() throws Exception;
+
+		Map<String, ComponentPath> locateComponentPaths() throws Exception;
 
 	}
 
@@ -132,51 +152,120 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private static final Logger logger = LoggerFactory
 				.getLogger(DomainResourceMetadataImpl.HibernateResourceMetadataBuilder.class);
 
-		private final Class<? extends AbstractEntity> entityType;
+		private final Class<? extends Entity<?>> entityType;
 		private final EntityPersister persister;
 		private final EntityMetamodel metamodel;
 
 		private HibernateResourceMetadataBuilder(Class<D> resourceType) {
 			logger.trace("Building {} for Hibernate entity of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
-			entityType = (Class<? extends AbstractEntity>) resourceType;
+			entityType = (Class<? extends Entity<?>>) resourceType;
 			persister = HibernateHelper.getEntityPersister(entityType);
 			metamodel = persister.getEntityMetamodel();
 		}
 
 		@Override
-		public Set<String> locateAssociationAttributeNames() throws Exception {
+		public Map<String, ComponentPath> locateComponentPaths() throws Exception {
 			// @formatter:off
 			return declare(getAttributeNames())
-					.then(this::doLocateAssociations)
-					.then(HashSet::new)
+					.then(this::addEnclosedIdentifierAttributeName)
+					.then(this::doLocateComponentPaths)
 					.get();
 			// @formatter:on
 		}
 
-		private List<String> doLocateAssociations(String[] attributeNames) throws Exception {
-			Type[] types = persister.getPropertyTypes();
-			List<String> associationAttributes = new ArrayList<>(16);
+		private Map<String, ComponentPath> doLocateComponentPaths(String[] attributeNames) throws Exception {
 			int span = attributeNames.length;
+			Map<String, ComponentPath> paths = new HashMap<>();
+
+			for (int i = 0; i < span; i++) {
+				String attributeName = attributeNames[i];
+				Type type = metamodel.getIdentifierProperty().getName().equals(attributeName)
+						? metamodel.getIdentifierProperty().getType()
+						: metamodel.getPropertyTypes()[metamodel.getPropertyIndex(attributeName)];
+
+				if (!type.getClass().isAssignableFrom(ComponentType.class)) {
+					continue;
+				}
+
+				List<Entry<String, ComponentPathImpl>> pathEntries = individuallyResolveComponentPath(
+						new ComponentPathImpl(), attributeName, type);
+
+				for (Map.Entry<String, ComponentPathImpl> entry : pathEntries) {
+					paths.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			return paths;
+		}
+
+		private List<Map.Entry<String, ComponentPathImpl>> individuallyResolveComponentPath(
+				ComponentPathImpl currentPath, String attributeName, Type type) throws Exception {
+			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
+					.identical(self -> self.add(attributeName)).get();
+
+			if (!(type instanceof ComponentType)) {
+				return List.of(Map.entry(attributeName, root));
+			}
+
+			List<Map.Entry<String, ComponentPathImpl>> paths = new ArrayList<>();
+			ComponentType componentType = (ComponentType) type;
+			int span = componentType.getPropertyNames().length;
 
 			for (int i = 0; i < span; i++) {
 				// @formatter:off
-				declare(attributeNames[i])
-						.second(types[metamodel.getPropertyIndex(attributeNames[i])])
-					.then(this::individuallyLocateAssociations)
-					.identical(associationAttributes::addAll);
+				declare(new ComponentPathImpl(root))
+						.second(componentType.getPropertyNames()[i])
+						.third(componentType.getSubtypes()[i])
+					.then(this::individuallyResolveComponentPath)
+					.identical(paths::addAll);
+				// @formatter:on
+			}
+
+			return paths;
+		}
+
+		@Override
+		public Map<String, DomainAssociation> locateAssociations() throws Exception {
+			// @formatter:off
+			return declare(getAttributeNames())
+					.then(this::doLocateAssociations)
+					.get();
+			// @formatter:on
+		}
+
+		private Map<String, DomainAssociation> doLocateAssociations(String[] attributeNames) throws Exception {
+			Type[] types = persister.getPropertyTypes();
+			Map<String, DomainAssociation> associationAttributes = new HashMap<>(16);
+			int span = attributeNames.length;
+
+			for (int i = 0; i < span; i++) {
+				int propertyIndex = metamodel.getPropertyIndex(attributeNames[i]);
+				// @formatter:off
+				associationAttributes.putAll(
+					individuallyLocateAssociations(
+						attributeNames[i],
+						propertyIndex,
+						types[propertyIndex],
+						metamodel.getPropertyNullability()));
 				// @formatter:on
 			}
 
 			return associationAttributes;
 		}
 
-		private List<String> individuallyLocateAssociations(String attributeName, Type type) throws Exception {
-			List<String> associationAttributes = new ArrayList<>(8);
+		private Map<String, DomainAssociation> individuallyLocateAssociations(String attributeName, int attributeIndex,
+				Type type, boolean[] nullabilities) throws Exception {
+			Map<String, DomainAssociation> associationAttributes = new HashMap<>(8);
 
 			if (type instanceof AssociationType) {
-				associationAttributes.add(attributeName);
+				// @formatter:off
+				associationAttributes.put(attributeName,
+						nullabilities[attributeIndex] ?
+							DomainAssociation.optional(attributeName) :
+								DomainAssociation.mandatory(attributeName));
 				return associationAttributes;
+				// @formatter:on
 			}
 
 			if (type instanceof ComponentType) {
@@ -186,18 +275,21 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				int span = subAttributes.length;
 
 				for (int i = 0; i < span; i++) {
+					int propertyIndex = componentType.getPropertyIndex(subAttributes[i]);
 					// @formatter:off
-					declare(subAttributes[i])
-							.second(subtypes[componentType.getPropertyIndex(subAttributes[i])])
-						.then(this::individuallyLocateAssociations)
-						.identical(associationAttributes::addAll);
+					associationAttributes.putAll(
+						individuallyLocateAssociations(
+							subAttributes[i],
+							propertyIndex,
+							subtypes[propertyIndex],
+							componentType.getPropertyNullability()));
 					// @formatter:on
 				}
 
 				return associationAttributes;
 			}
 
-			return Collections.emptyList();
+			return Collections.emptyMap();
 		}
 
 		@Override
@@ -312,7 +404,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				}
 				// this is how a CollectionPersister role is resolved by Hibernate
 				// see org.hibernate.cfg.annotations.CollectionBinder.bind()
-				String collectionRole = StringHelper.qualify(owningType.getName(), name);
+				String collectionRole = org.hibernate.internal.util.StringHelper.qualify(owningType.getName(), name);
 
 				return persister.getFactory().getMetamodel().collectionPersister(collectionRole).isLazy();
 			}
@@ -324,9 +416,18 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		public List<String> locateEnclosedAttributeNames() throws Exception {
 			// @formatter:off
 			return declare(getAttributeNames())
-					.then(this::addIdentifierAttributeNames)
+					.then(this::addEnclosedIdentifierAttributeName)
 					.then(Arrays::asList)
 					.get();
+			// @formatter:on
+		}
+
+		private String[] addEnclosedIdentifierAttributeName(String[] enclosedAttributeNames) throws Exception {
+			// @formatter:off
+			return declare(enclosedAttributeNames)
+					.second(CollectionHelper.toArray(metamodel.getIdentifierProperty().getName()))
+				.then((enclosedNonIdentifier, enclosedIdentifier) -> CollectionHelper.join(String.class, enclosedNonIdentifier, enclosedIdentifier))
+				.get();
 			// @formatter:on
 		}
 
@@ -439,7 +540,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			IdentifierProperty identifier = metamodel.getIdentifierProperty();
 
 			if (identifier.isVirtual()) {
-				return StringHelper.EMPTY_STRINGS;
+				return org.hibernate.internal.util.StringHelper.EMPTY_STRINGS;
 			}
 			// @formatter:off
 			return Utils
@@ -475,37 +576,113 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
-		public Set<String> locateAssociationAttributeNames() throws Exception {
+		public Map<String, ComponentPath> locateComponentPaths() throws Exception {
 			// @formatter:off
 			return declare(getDeclaredAttributeNames())
-					.then(this::joinWithParentEnclosedAttributeNames)
-					.then(this::doLocateAssocations)
-					.then(HashSet::new)
+						.then(this::doLocateComponentPaths)
+						.then(this::joinWithParentComponentPaths)
 					.get();
 			// @formatter:on
 		}
 
-		private List<String> doLocateAssocations(String[] attributeNames) throws Exception {
+		private Map<String, ComponentPath> doLocateComponentPaths(String[] attributeNames) throws Exception {
 			int span = attributeNames.length;
-			List<String> associations = new ArrayList<>();
+			Map<String, ComponentPath> paths = new HashMap<>();
+
+			for (int i = 0; i < span; i++) {
+				String attributeName = attributeNames[i];
+				Class<?> type = resourceType.getDeclaredField(attributeName).getType();
+
+				if (!DomainComponentType.class.isAssignableFrom(type)) {
+					continue;
+				}
+
+				List<Entry<String, ComponentPathImpl>> pathEntries = individuallyResolveComponentPath(
+						new ComponentPathImpl(), attributeName, type);
+
+				for (Entry<String, ComponentPathImpl> entry : pathEntries) {
+					paths.put(entry.getKey(), entry.getValue());
+				}
+			}
+
+			return paths;
+		}
+
+		private List<Map.Entry<String, ComponentPathImpl>> individuallyResolveComponentPath(
+				ComponentPathImpl currentPath, String attributeName, Class<?> attributeType) throws Exception {
+			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
+					.identical(self -> self.add(attributeName)).get();
+
+			if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
+				return List.of(Map.entry(attributeName, root));
+			}
+
+			List<Map.Entry<String, ComponentPathImpl>> paths = new ArrayList<>();
+			Field[] subFields = attributeType.getDeclaredFields();
+			int span = subFields.length;
+			String[] subAttributeNames = Stream.of(subFields).map(Field::getName).toArray(String[]::new);
+			Class<?>[] subAttributeTypes = Stream.of(subFields).map(Field::getType).toArray(Class[]::new);
+
+			for (int i = 0; i < span; i++) {
+				// @formatter:off
+				declare(new ComponentPathImpl(root))
+						.second(subAttributeNames[i])
+						.third(subAttributeTypes[i])
+					.then(this::individuallyResolveComponentPath)
+					.identical(paths::addAll);
+				// @formatter:on
+			}
+
+			return paths;
+		}
+
+		private Map<String, ComponentPath> joinWithParentComponentPaths(Map<String, ComponentPath> declaredPaths)
+				throws Exception {
+			// @formatter:off
+			return Utils.declare(locateParentGraph())
+						.then(DomainResourceGraph::getResourceType)
+						.then(metadatasMap::get)
+						.then(metadata -> metadata == null ? Collections.<String, ComponentPath>emptyMap() : metadata.getComponentPaths())
+						.then(parentComponentsPaths -> declare(declaredPaths).identical(self -> self.putAll(parentComponentsPaths)).get())
+						.get();
+			// @formatter:on
+		}
+
+		@Override
+		public Map<String, DomainAssociation> locateAssociations() throws Exception {
+			// @formatter:off
+			return declare(getDeclaredAttributeNames())
+					.then(this::joinWithParentEnclosedAttributeNames)
+					.then(this::doLocateAssocations)
+					.get();
+			// @formatter:on
+		}
+
+		private Map<String, DomainAssociation> doLocateAssocations(String[] attributeNames) throws Exception {
+			int span = attributeNames.length;
+			Map<String, DomainAssociation> associations = new HashMap<>();
 
 			for (int i = 0; i < span; i++) {
 				// @formatter:off
 				declare(attributeNames[i])
 						.second(attributeTypes.get(attributeNames[i]))
 					.then(this::individuallyLocateAssocations)
-					.identical(associations::addAll);
+					.identical(associations::putAll);
 				// @formatter:on
 			}
 
 			return associations;
 		}
 
-		private List<String> individuallyLocateAssocations(String attributeName, Class<?> owningType) throws Exception {
-			List<String> associations = new ArrayList<>();
+		private Map<String, DomainAssociation> individuallyLocateAssocations(String attributeName, Class<?> owningType)
+				throws Exception {
+			Map<String, DomainAssociation> associations = new HashMap<>();
 
 			if (DomainResource.class.isAssignableFrom(owningType)) {
-				associations.add(attributeName);
+				associations.put(attributeName,
+						owningType.getDeclaredField(attributeName).isAnnotationPresent(Nullable.class)
+								? DomainAssociation.optional(attributeName)
+								: DomainAssociation.mandatory(attributeName));
 				return associations;
 			}
 
@@ -521,14 +698,14 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					declare(subAttributes[i])
 							.second(subTypes[i])
 						.then(this::individuallyLocateAssocations)
-						.identical(associations::addAll);
+						.identical(associations::putAll);
 					// @formatter:on
 				}
 
 				return associations;
 			}
 
-			return Collections.emptyList();
+			return Collections.emptyMap();
 		}
 
 		@Override
@@ -642,18 +819,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.declare(locateParentGraph())
 					.then(DomainResourceGraph::getResourceType)
 					.then(metadatasMap::get)
-					.then(metadata -> {
-						if (metadata == null) {
-							// happens when the current node is the root
-							return Collections.<String, Class<?>>emptyMap();
-						}
-						
-						return metadata.getAttributeTypes();
-					})
-					.then(parentAttributeTypes -> {
-						typesMap.putAll(parentAttributeTypes);
-						return typesMap;
-					})
+					.then(metadata -> metadata == null ? Collections.<String, Class<?>>emptyMap():metadata.getAttributeTypes())
+					.then(parentAttributeTypes -> declare(typesMap).identical(self -> self.putAll(parentAttributeTypes)).get())
 					.get();
 			// @formatter:on
 		}
@@ -664,14 +831,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.declare(locateParentGraph())
 					.then(DomainResourceGraph::getResourceType)
 					.then(metadatasMap::get)
-					.then(metadata -> {
-						if (metadata == null) {
-							// happens when the current node is the root
-							return Collections.emptyList();
-						}
-						
-						return metadata.getAttributeNames();
-					})
+					.then(metadata -> metadata == null ? Collections.emptyList() : metadata.getAttributeNames() )
 					.then(List::stream)
 					.then(stream -> stream.toArray(String[]::new))
 					.then(parentAttributes -> CollectionHelper.join(String.class, declaredAttributes, parentAttributes))
@@ -685,14 +845,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.declare(locateParentGraph())
 					.then(DomainResourceGraph::getResourceType)
 					.then(metadatasMap::get)
-					.then(metadata -> {
-						if (metadata == null) {
-							// happens when the current node is the root
-							return Collections.emptyList();
-						}
-						
-						return metadata.getEnclosedAttributeNames();
-					})
+					.then(metadata -> metadata == null ? Collections.emptyList() : metadata.getEnclosedAttributeNames())
 					.then(List::stream)
 					.then(stream -> stream.toArray(String[]::new))
 					.then(parentAttributes -> CollectionHelper.join(String.class, declaredAttributes, parentAttributes))
@@ -720,13 +873,17 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\tassociationAttributeNames=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
+				+ "\tcomponentPaths=[\n"
+				+ "\t\t%s\n"
+				+ "\t],\n"
 				+ ")",
 				this.getClass().getSimpleName(), resourceType.getName(),
 				collectList(attributeNames, Function.identity()),
 				collectList(enclosedAttributeNames, Function.identity()),
 				collectList(nonLazyAttributeNames, Function.identity()),
 				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName()), "\n\t\t"),
-				collectList(associationAttributeNames.stream().collect(Collectors.toList()), Function.identity()));
+				collectMap(associationAttributeNames, entry -> entry.getKey(), "\n\t\t"),
+				collectMap(componentPaths, entry -> String.format("%s: %s", entry.getKey(), entry.getValue()), "\n\t\t"));
 		// @formatter:on
 	}
 
@@ -739,6 +896,94 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private <K, V> String collectMap(Map<K, V> map, Function<Map.Entry<K, V>, String> toString, CharSequence joiner) {
 		return map.size() == 0 ? "<<empty>>"
 				: map.entrySet().stream().map(toString).collect(Collectors.joining(joiner));
+	}
+
+	private class ComponentPathImpl implements ComponentPath {
+
+		private final Queue<String> path;
+
+		public ComponentPathImpl() {
+			path = new ArrayDeque<>();
+		}
+
+		public ComponentPathImpl(ComponentPathImpl parent) {
+			this();
+			path.addAll(parent.path);
+		}
+
+		@Override
+		public void add(String component) {
+			path.add(component);
+		}
+
+		@Override
+		public String toString() {
+			return path.stream().collect(Collectors.joining(StringHelper.DOT));
+		}
+
+	}
+
+	protected interface DomainAssociation {
+
+		String getName();
+
+		public static DomainAssociation optional(String name) {
+			return new OptionalAssociation(name);
+		}
+
+		public static DomainAssociation mandatory(String name) {
+			return new MandatoryAssociation(name);
+		}
+
+		public abstract class AbstractAssociation implements DomainAssociation {
+
+			private final String name;
+
+			public AbstractAssociation(String name) {
+				this.name = Objects.requireNonNull(name);
+			}
+
+			@Override
+			public String getName() {
+				return name;
+			}
+
+			@Override
+			public int hashCode() {
+				return name.hashCode();
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				if (this == obj) {
+					return true;
+				}
+
+				if (obj == null) {
+					return false;
+				}
+
+				return name.equals(((DomainAssociation) obj).getName());
+			}
+
+		}
+
+		public class OptionalAssociation extends AbstractAssociation {
+
+			public OptionalAssociation(String name) {
+				super(name);
+			}
+
+		}
+
+		public class MandatoryAssociation extends AbstractAssociation {
+
+			public MandatoryAssociation(String name) {
+				super(name);
+			}
+
+		}
+
 	}
 
 }

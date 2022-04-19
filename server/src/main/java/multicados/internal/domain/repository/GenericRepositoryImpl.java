@@ -35,13 +35,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
-import multicados.domain.entity.PermanentEntity_;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.PermanentResource;
-import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.Utils;
 
@@ -103,9 +101,9 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return interfaces.stream().filter(FIXED_SPECIFICATIONS::containsKey).collect(Collectors.toSet());
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	private static final Map<Class, Specification> FIXED_SPECIFICATIONS = Map.of(PermanentResource.class,
-			(root, query, builder) -> builder.equal(root.get(PermanentEntity_.active), Boolean.TRUE));
+			(root, query, builder) -> builder.equal(root.get(PermanentResource.ACTIVE), Boolean.TRUE));
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Specification chainFixedSpecifications(List<Class<?>> interfaces) {
@@ -348,15 +346,10 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return findById(type, id, DEFAULT_LOCK_MODE, session);
 	}
 
-	private static <D extends DomainResource> Specification<D> hasId(Class<D> type, Serializable id) {
-		return (root, query, builder) -> builder.equal(root.get(
-				HibernateHelper.getEntityPersister(type).getEntityMetamodel().getIdentifierProperty().getName()), id);
-	}
-
 	@Override
 	public <D extends DomainResource> Optional<D> findById(Class<D> type, Serializable id, LockModeType lockMode,
 			SharedSessionContract session) throws Exception {
-		return findOne(type, hasId(type, id), lockMode, session);
+		return findOne(type, SpecificationHelper.hasId(type, id), lockMode, session);
 	}
 
 	@Override
@@ -368,7 +361,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findById(Class<D> type, Serializable id,
 			Selector<D, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception {
-		return findOne(type, selector, hasId(type, id), session);
+		return findOne(type, selector, SpecificationHelper.hasId(type, id), session);
 	}
 
 	@Override

@@ -18,7 +18,7 @@ import org.hibernate.tuple.entity.EntityTuplizer;
 import org.hibernate.type.ComponentType;
 import org.springframework.util.Assert;
 
-import multicados.domain.AbstractEntity;
+import multicados.internal.domain.Entity;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.Utils;
@@ -27,7 +27,7 @@ import multicados.internal.helper.Utils;
  * @author Ngoc Huy
  *
  */
-public class DomainEntityTuplizer<I extends Serializable, E extends AbstractEntity<I>>
+public class DomainEntityTuplizer<I extends Serializable, E extends Entity<I>>
 		extends AbstractDomainResourceTuplizer<E> {
 
 	private static final String NULL_ACCESSOR_TEMPLATE = String.format("Unable to locate %s with property name [%s]",
@@ -40,9 +40,9 @@ public class DomainEntityTuplizer<I extends Serializable, E extends AbstractEnti
 		super(resourceType);
 		// @formatter:off
 		this.accessors = Utils.declare(metadata.getEnclosedAttributeNames())
-				.second(sfi)
-				.third(resourceType)
-				.triInverse()
+					.second(sfi)
+					.third(resourceType)
+					.triInverse()
 				.then(this::mapToAccessors)
 				.then(Collections::unmodifiableMap)
 				.get();

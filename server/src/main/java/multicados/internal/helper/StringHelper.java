@@ -18,6 +18,7 @@ public class StringHelper extends StringUtils {
 	public static final String COMMON_JOINER = ", ";
 	public static final String EMPTY_STRING = "";
 	public static final String SPACE = " ";
+	public static final String DOT = ".";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
 	public static String join(CharSequence joinner, Object... elements) {

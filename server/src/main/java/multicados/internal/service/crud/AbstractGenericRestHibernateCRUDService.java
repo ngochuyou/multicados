@@ -23,16 +23,16 @@ import multicados.internal.service.crud.event.ServiceEventListenerGroups;
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibernateCRUDService<TUPLE> {
+public abstract class AbstractGenericRestHibernateCRUDService<TUPLE> implements GenericRestHibernateCRUDService<TUPLE> {
 
-	private static final Logger logger = LoggerFactory.getLogger(AbstractGenericCRUDService.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractGenericRestHibernateCRUDService.class);
 
 	private final DomainResourceBuilderFactory builderFactory;
 	private final DomainResourceValidatorFactory validatorFactory;
 
 	private final ServiceEventListenerGroups eventListenerGroups;
 
-	public AbstractGenericCRUDService(DomainResourceContext resourceContext,
+	public AbstractGenericRestHibernateCRUDService(DomainResourceContext resourceContext,
 			DomainResourceBuilderFactory builderFactory, DomainResourceValidatorFactory validatorFactory) throws Exception {
 		this.builderFactory = builderFactory;
 		this.validatorFactory = validatorFactory;
@@ -41,7 +41,7 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 
 	@Override
 	public <E extends DomainResource> ServiceResult create(Serializable id, E resource, Class<E> type,
-			Session entityManager, boolean flushOnFinish) {
+			Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Creating a resource of type %s with identifier %s", type.getName(), id));
 		}
@@ -49,7 +49,7 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 		try {
 			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
 
-			resource = resourceBuilder.buildInsertion(id, resource, entityManager);
+			resource = resourceBuilder.buildInsertion(id, resource, session);
 
 			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
 			Validation validation = validator.isSatisfiedBy(id, resource);
@@ -58,10 +58,10 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 				return ServiceResult.bad(validation);
 			}
 
-			entityManager.persist(resource);
+			session.persist(resource);
 			eventListenerGroups.firePostPersist(type, resource);
 
-			return ServiceResult.success(entityManager, flushOnFinish);
+			return ServiceResult.success(session, flushOnFinish);
 		} catch (Exception any) {
 			return ServiceResult.failed(any);
 		}
@@ -69,17 +69,17 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 
 	@Override
 	public <E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
-			Session entityManager, boolean flushOnFinish) {
+			Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Updating a resource of type %s with identifier %s", type.getName(), id));
 		}
 
 		try {
-			E persistence = entityManager.find(type, id);
+			E persistence = session.find(type, id);
 
 			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
 
-			model = resourceBuilder.buildUpdate(id, model, persistence, entityManager);
+			model = resourceBuilder.buildUpdate(id, model, persistence, session);
 
 			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
 			Validation validation = validator.isSatisfiedBy(id, model);
@@ -88,9 +88,9 @@ public abstract class AbstractGenericCRUDService<TUPLE> implements GenericHibern
 				return ServiceResult.bad(validation);
 			}
 
-			entityManager.merge(model);
+			session.merge(model);
 
-			return ServiceResult.success(entityManager, flushOnFinish);
+			return ServiceResult.success(session, flushOnFinish);
 		} catch (Exception any) {
 			return ServiceResult.failed(any);
 		}

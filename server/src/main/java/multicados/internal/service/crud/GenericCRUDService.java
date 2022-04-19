@@ -10,6 +10,7 @@ import java.util.List;
 import javax.persistence.EntityManager;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.service.Service;
@@ -36,10 +37,25 @@ public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Ser
 	<E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type, EM entityManager,
 			boolean flushOnFinish);
 
+	/* ==================== */
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties, Pageable pageable,
 			CRUDCredential credential, EM entityManager) throws Exception;
 
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
 			CRUDCredential credential, EM entityManager) throws Exception;
 
+	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
+			Specification<E> specification, Pageable pageable, CRUDCredential credential, EM entityManager)
+			throws Exception;
+
+	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
+			Specification<E> specification, CRUDCredential credential, EM entityManager) throws Exception;
+
+	/* ==================== */
+	<E extends DomainResource> TUPLE readOne(Class<E> type, Collection<String> properties,
+			Specification<E> specification, CRUDCredential credential, EM entityManager) throws Exception;
+
+	/* ==================== */
+	<E extends DomainResource> TUPLE readById(Class<E> type, Serializable id, Collection<String> properties,
+			CRUDCredential credential, EM entityManager) throws Exception;
 }

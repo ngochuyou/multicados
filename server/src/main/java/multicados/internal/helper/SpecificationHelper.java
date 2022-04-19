@@ -3,9 +3,11 @@
  */
 package multicados.internal.helper;
 
+import java.io.Serializable;
+
 import org.springframework.data.jpa.domain.Specification;
 
-import multicados.internal.domain.NamedResource;
+import multicados.internal.domain.DomainResource;
 
 /**
  * @author Ngoc Huy
@@ -21,8 +23,9 @@ public class SpecificationHelper {
 		return EMPTY;
 	}
 
-	public static <T extends NamedResource> Specification<T> hasName(T namedResource) {
-		return (root, query, builder) -> builder.equal(root.get("name"), namedResource.getName());
+	public static <D extends DomainResource> Specification<D> hasId(Class<D> type, Serializable id) {
+		return (root, query, builder) -> builder.equal(root.get(
+				HibernateHelper.getEntityPersister(type).getEntityMetamodel().getIdentifierProperty().getName()), id);
 	}
 
 }

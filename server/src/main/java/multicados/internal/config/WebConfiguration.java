@@ -37,7 +37,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import multicados.application.BootEntry;
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResourceContext;
@@ -49,7 +48,7 @@ import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.CredentialFactory;
-import multicados.internal.service.crud.GenericHibernateCRUDService;
+import multicados.internal.service.crud.GenericRestHibernateCRUDService;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
@@ -94,7 +93,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 	@EventListener(ApplicationReadyEvent.class)
 	private void doWhenReady() throws IllegalAccessException {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.info("Invoking application-ready event");
 
@@ -125,7 +124,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 	@SuppressWarnings("unchecked")
 	private List<BeanDefinition> doSort(Map<Class<? extends ContextBuilder>, Integer> buildersOrder,
 			Set<BeanDefinition> beanDefs) {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.trace("Sorting {}(s)", ContextBuilder.class.getSimpleName());
 
@@ -154,7 +153,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 
 	@SuppressWarnings("unchecked")
 	private Map<Class<? extends ContextBuilder>, Integer> resolveBuildersOrder(Set<BeanDefinition> beanDefs) {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.trace("Resolving builders order", ContextBuilder.class.getSimpleName());
 		// @formatter:off
@@ -166,7 +165,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 				CredentialFactory.class,
 				DomainResourceBuilderFactory.class,
 				ReadSecurityManager.class,
-				GenericHibernateCRUDService.class,
+				GenericRestHibernateCRUDService.class,
 				DatabaseInitializer.class
 			);
 		int size = builderTypes.size();
@@ -201,14 +200,14 @@ public class WebConfiguration implements WebMvcConfigurer {
 	}
 
 	private void logContextBuilders(List<BeanDefinition> beanDefs) {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.debug("{}(s): {}", ContextBuilder.class.getSimpleName(),
 				StringHelper.join(BeanDefinition::getBeanClassName, beanDefs.toArray(BeanDefinition[]::new)));
 	}
 
 	private Set<BeanDefinition> scan() {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.trace("Scanning for {}(s)", ContextBuilder.class.getSimpleName());
 
@@ -220,7 +219,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 	}
 
 	private void summaryContextBuilders(List<Class<ContextBuilder>> buildersTypes) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.trace("Doing summaries on {}(s)", ContextBuilder.class.getSimpleName());
 
@@ -233,7 +232,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 	private List<Class<ContextBuilder>> registerContextBuilders(List<BeanDefinition> beanDefs)
 			throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
 			ClassNotFoundException {
-		final Logger logger = LoggerFactory.getLogger(BootEntry.class);
+		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.trace("Registering {}(s)", ContextBuilder.class.getSimpleName());
 
