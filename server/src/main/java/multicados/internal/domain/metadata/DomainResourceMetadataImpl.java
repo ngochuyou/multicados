@@ -130,6 +130,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		return componentPaths;
 	}
 
+	@Override
+	public boolean isComponent(String attributeName) {
+		return componentPaths.containsKey(attributeName);
+	}
+
 	private interface Builder<D extends DomainResource> {
 
 		List<String> locateAttributeNames() throws Exception;
@@ -203,12 +208,14 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				ComponentPathImpl currentPath, String attributeName, Type type) throws Exception {
 			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
 					.identical(self -> self.add(attributeName)).get();
+			List<Map.Entry<String, ComponentPathImpl>> paths = declare(
+					new ArrayList<Map.Entry<String, ComponentPathImpl>>())
+							.identical(self -> self.add(Map.entry(attributeName, root))).get();
 
 			if (!(type instanceof ComponentType)) {
-				return List.of(Map.entry(attributeName, root));
+				return paths;
 			}
 
-			List<Map.Entry<String, ComponentPathImpl>> paths = new ArrayList<>();
 			ComponentType componentType = (ComponentType) type;
 			int span = componentType.getPropertyNames().length;
 
@@ -612,12 +619,14 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				ComponentPathImpl currentPath, String attributeName, Class<?> attributeType) throws Exception {
 			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
 					.identical(self -> self.add(attributeName)).get();
+			List<Map.Entry<String, ComponentPathImpl>> paths = declare(
+					new ArrayList<Map.Entry<String, ComponentPathImpl>>())
+							.identical(self -> self.add(Map.entry(attributeName, root))).get();
 
 			if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
-				return List.of(Map.entry(attributeName, root));
+				return paths;
 			}
 
-			List<Map.Entry<String, ComponentPathImpl>> paths = new ArrayList<>();
 			Field[] subFields = attributeType.getDeclaredFields();
 			int span = subFields.length;
 			String[] subAttributeNames = Stream.of(subFields).map(Field::getName).toArray(String[]::new);
@@ -914,6 +923,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		@Override
 		public void add(String component) {
 			path.add(component);
+		}
+
+		@Override
+		public Queue<String> getComponents() {
+			return path;
 		}
 
 		@Override

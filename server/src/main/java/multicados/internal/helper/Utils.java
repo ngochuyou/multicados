@@ -266,4 +266,23 @@ public class Utils {
 
 	}
 
+	public class Wrapper<T> {
+
+		private T value;
+
+		public Wrapper(T value) {
+			this.value = value;
+		}
+
+		public Wrapper<T> set(T value) {
+			this.value = value;
+			return this;
+		}
+		
+		public T get() {
+			return value;
+		}
+		
+	}
+
 }

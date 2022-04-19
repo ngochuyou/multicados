@@ -30,6 +30,8 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 
 	boolean isAssociationOptional(String associationName);
 
+	boolean isComponent(String attributeName);
+	
 	Map<String, ComponentPath> getComponentPaths();
 
 }

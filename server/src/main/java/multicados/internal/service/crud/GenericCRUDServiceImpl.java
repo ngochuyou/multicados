@@ -4,18 +4,22 @@
 package multicados.internal.service.crud;
 
 import java.io.Serializable;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiFunction;
+import java.util.Queue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import javax.persistence.Tuple;
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Root;
 
@@ -36,11 +40,10 @@ import multicados.internal.domain.repository.Selector;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
-import multicados.internal.security.CredentialException;
+import multicados.internal.helper.Utils;
 import multicados.internal.service.crud.rest.RestQuery;
 import multicados.internal.service.crud.security.CRUDCredential;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
-import multicados.internal.service.crud.security.read.UnknownAttributesException;
 
 /**
  * @author Ngoc Huy
@@ -67,8 +70,10 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 	}
 
 	private Map<Class<? extends DomainResource>, Function<List<String>, Selector<? extends DomainResource, Tuple>>> resolveSelectorsMap(
-			DomainResourceContext resourceContext) {
-		logger.trace("Resolving selectors map");
+			DomainResourceContext resourceContext) throws Exception {
+		logger.debug("Resolving selectors map");
+
+		Map<Class<? extends DomainResource>, Function<List<String>, Selector<? extends DomainResource, Tuple>>> selectorsMap = new HashMap<>();
 
 		for (Class<DomainResource> type : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
@@ -80,20 +85,97 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			}
 
 			List<String> attributes = metadata.getAttributeNames();
-			Map<String, ComponentPath> componentPaths = metadata.getComponentPaths();
-			Map<String, BiFunction<String, Root<? extends DomainResource>, Path<?>>> pathResolvers = new HashMap<>();
+			Map<String, Function<Root<? extends DomainResource>, Path<?>>> pathResolvers = new HashMap<>();
 
 			for (String attribute : attributes) {
-				if (!componentPaths.containsKey(attribute)) {
-					pathResolvers.put(attribute, (name, root) -> root.get(name));
+				if (metadata.isComponent(attribute)) {
+					// @formatter:off
+					pathResolvers.put(attribute,
+							Utils.declare(metadata)
+									.second(attribute)
+									.third(metadata.getComponentPaths().get(attribute))
+								.then(this::makeComponentPathResolver)
+								.get());
 					continue;
+					// @formatter:on
 				}
 
-				
+				if (metadata.isAssociation(attribute)) {
+					// @formatter:off
+					pathResolvers.put(attribute,
+							metadata.isAssociationOptional(attribute)
+								? root -> root.join(attribute, JoinType.LEFT)
+								: root -> root.join(attribute));
+					continue;
+					// @formatter:on
+				}
+
+				pathResolvers.put(attribute, root -> root.get(attribute));
 			}
+
+			selectorsMap.put(type,
+					(checkedAttributes) -> (root, query, builder) -> checkedAttributes.stream()
+							.map(checkedAttribute -> pathResolvers.get(checkedAttribute).apply(root))
+							.collect(Collectors.toList()));
 		}
 
-		return Map.of();
+		return selectorsMap;
+	}
+
+	private Function<Root<? extends DomainResource>, Path<?>> makeComponentPathResolver(
+	// @formatter:off
+			DomainResourceMetadata<? extends DomainResource> metadata,
+			String attributeName,
+			ComponentPath componentPath) {
+		List<Function<Path<?>, Path<?>>> pathNodes = makePathProducers(metadata, attributeName, componentPath);
+		// this produces a chain of functions, eventually invoke the final product (a function chain) with the root arg
+		return (root) -> pathNodes.stream().reduce(
+				(leadingFunction, followingFunction) ->
+					(currentPath) -> followingFunction.apply(leadingFunction.apply(currentPath)))
+				.get().apply(root);
+		// @formatter:on
+	}
+
+	@SuppressWarnings("rawtypes")
+	private List<Function<Path<?>, Path<?>>> makePathProducers(
+			DomainResourceMetadata<? extends DomainResource> metadata, String attributeName,
+			ComponentPath componentPath) {
+		Queue<String> path = componentPath.getComponents();
+		List<Function<Path<?>, Path<?>>> pathNodes = new ArrayList<>();
+
+		if (metadata.isAssociation(attributeName)) {
+			Queue<String> copiedPath = new ArrayDeque<>(path);
+
+			pathNodes.add(new Function<String, Function<Path<?>, Path<?>>>() {
+				@Override
+				public Function<Path<?>, Path<?>> apply(String name) {
+					return root -> ((Root) root).join(name);
+				}
+			}.apply(copiedPath.poll()));
+
+			while (copiedPath.size() > 1) {
+				pathNodes.add(new Function<String, Function<Path<?>, Path<?>>>() {
+					@Override
+					public Function<Path<?>, Path<?>> apply(String name) {
+						return root -> ((Join) root).join(name);
+					}
+				}.apply(copiedPath.poll()));
+			}
+
+			String lastNode = copiedPath.poll();
+			// @formatter:off
+			pathNodes.add((root) -> metadata.isAssociationOptional(lastNode)
+							? ((Join) root).join(lastNode, JoinType.LEFT)
+							: ((Join) root).join(lastNode));
+			return pathNodes;
+			// @formatter:on
+		}
+
+		for (String node : path) {
+			pathNodes.add((root) -> root.get(node));
+		}
+
+		return pathNodes;
 	}
 
 	private <E extends DomainResource> List<Map<String, Object>> resolveRows(Class<E> type, List<Tuple> tuples,
@@ -193,17 +275,25 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		return resolveRows(type, List.of(optionalTuple.get()), checkedProperties).get(0);
 	}
 
+	@SuppressWarnings("unchecked")
+	private <D extends DomainResource> Selector<D, Tuple> getSelector(Class<D> resourceType,
+			List<String> checkedAttributes) {
+		return (Selector<D, Tuple>) selectorsMap.get(resourceType).apply(checkedAttributes);
+	}
+
 	@Override
 	public <D extends DomainResource> List<Map<String, Object>> readAll(
 	// @formatter:off
 			RestQuery<D> restQuery,
 			CRUDCredential credential,
-			Session session) throws CredentialException, UnknownAttributesException {
+			Session session) throws Exception {
 		// @formatter:on
 		Class<D> resourceType = restQuery.getResourceType();
-		List<String> checkedColumns = readSecurityManager.check(resourceType, restQuery.getColumns(), credential);
+		List<String> checkedAttributes = readSecurityManager.check(resourceType, restQuery.getColumns(), credential);
+		List<Tuple> tuples = genericRepository.findAll(resourceType, getSelector(resourceType, checkedAttributes),
+				restQuery.getPageable(), session);
 
-		return null;
+		return resolveRows(resourceType, tuples, checkedAttributes);
 	}
 
 }

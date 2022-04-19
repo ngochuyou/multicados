@@ -4,6 +4,7 @@
 package multicados.domain;
 
 import multicados.domain.entity.Role;
+import multicados.domain.entity.entities.Personnel;
 import multicados.domain.entity.entities.Province;
 import multicados.domain.entity.entities.Province_;
 import multicados.internal.service.crud.security.CRUDCredential;
@@ -29,6 +30,10 @@ public class ReadSecurityContributorImpl implements ReadSecurityContributor {
 					.publish()
 			.credentials(make(Role.HEAD.toString()))
 				.publish();
+		
+		builder.type(Personnel.class)
+			.credentials(make(Role.HEAD.toString()))
+			.publish();
 		// @formatter:on
 	}
 

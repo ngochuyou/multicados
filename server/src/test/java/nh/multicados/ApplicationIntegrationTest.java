@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
 
+import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -17,18 +18,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import multicados.domain.entity.AuditInformations_;
 import multicados.domain.entity.Role;
-import multicados.domain.entity.entities.Province;
-import multicados.domain.entity.entities.Province_;
+import multicados.domain.entity.entities.Personnel;
+import multicados.domain.entity.entities.Personnel_;
 import multicados.internal.config.WebConfiguration;
 import multicados.internal.helper.HibernateHelper;
-import multicados.internal.service.crud.GenericCRUDServiceImpl;
+import multicados.internal.service.crud.rest.RestQuery;
+import multicados.internal.service.crud.rest.RestQueryFulfiller;
 import multicados.internal.service.crud.security.CRUDCredentialImpl;
 
 /**
@@ -45,19 +46,42 @@ public class ApplicationIntegrationTest {
 	private static final Logger logger = LoggerFactory.getLogger(ApplicationIntegrationTest.class);
 
 	@Autowired
-	private GenericCRUDServiceImpl crudService;
+	private RestQueryFulfiller<Map<String, Object>, Session> fulfiller;
 
 	@Test
 	@Transactional
 	public void test() throws Exception {
-		Pageable page = PageRequest.of(0, 50, Sort.by(Province_.ID).descending());
-		List<Map<String, Object>> rows = crudService.readAll(Province.class,
-				List.of(Province_.ID, Province_.NAME, Province_.ACTIVE),
-				(root, query, builder) -> builder.and(builder.like(root.get(Province_.name), "%Ha%"),
-						builder.greaterThan(root.get(Province_.id), 20)),
-				page, new CRUDCredentialImpl(Role.CUSTOMER.toString()), HibernateHelper.getCurrentSession());
+		RestQuery<Personnel> query = new RestQuery<Personnel>() {
 
-		for (Map<String, Object> row : rows) {
+			@Override
+			public Class<Personnel> getResourceType() {
+				return Personnel.class;
+			}
+
+			@Override
+			public boolean isEmpty() {
+				return false;
+			}
+
+			@Override
+			public List<String> getColumns() {
+				return List.of(Personnel_.ID, AuditInformations_.CREATED_TIMESTAMP,
+						AuditInformations_.UPDATED_TIMESTAMP, AuditInformations_.CREATOR, AuditInformations_.UPDATER);
+			}
+
+			@Override
+			public List<RestQuery<?>> getAssociations() {
+				return null;
+			}
+
+			@Override
+			public Pageable getPageable() {
+				return Pageable.ofSize(10);
+			}
+		};
+
+		for (Map<String, Object> row : fulfiller.readAll(query, new CRUDCredentialImpl(Role.HEAD.toString()),
+				HibernateHelper.getCurrentSession())) {
 			logger.info(row.entrySet().stream().map(Map.Entry::getValue).map(Object::toString)
 					.collect(Collectors.joining("\t")));
 		}

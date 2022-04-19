@@ -19,6 +19,6 @@ import multicados.internal.service.crud.security.read.UnknownAttributesException
 public interface RestQueryFulfiller<TUPLE, EM extends EntityManager> {
 
 	<D extends DomainResource> List<TUPLE> readAll(RestQuery<D> restQuery, CRUDCredential credential, EM entityManager)
-			throws CredentialException, UnknownAttributesException;
+			throws CredentialException, UnknownAttributesException, Exception;
 
 }
