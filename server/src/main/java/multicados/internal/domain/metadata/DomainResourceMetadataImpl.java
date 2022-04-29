@@ -11,6 +11,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -60,7 +62,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final List<String> nonLazyAttributeNames;
 	private final Map<String, Class<?>> attributeTypes;
 
-	private final Map<String, DomainAssociation> associationAttributeNames;
+	private final Map<String, DomainAssociation> associationAttributes;
 	private final Map<String, ComponentPath> componentPaths;
 
 	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
@@ -78,8 +80,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
 		nonLazyAttributeNames = unmodifiableList(builder.locateNonLazyAttributeNames());
 		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
-		associationAttributeNames = Collections.unmodifiableMap(builder.locateAssociations());
-		componentPaths = Collections.unmodifiableMap(builder.locateComponentPaths());
+		associationAttributes = Collections.unmodifiableMap(builder.locateAssociations());
+		componentPaths = Collections.unmodifiableMap(builder.resolveComponentPaths());
 	}
 
 	@Override
@@ -109,7 +111,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	@Override
 	public boolean isAssociation(String attributeName) {
-		return associationAttributeNames.containsKey(attributeName);
+		return associationAttributes.containsKey(attributeName);
 	}
 
 	/**
@@ -117,7 +119,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	 */
 	@Override
 	public boolean isAssociationOptional(String associationName) {
-		return OptionalAssociation.class.isAssignableFrom(associationAttributeNames.get(associationName).getClass());
+		return OptionalAssociation.class.isAssignableFrom(associationAttributes.get(associationName).getClass());
 	}
 
 	@Override
@@ -128,6 +130,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	@Override
 	public Map<String, ComponentPath> getComponentPaths() {
 		return componentPaths;
+	}
+
+	@Override
+	public multicados.internal.domain.metadata.AssociationType getAssociationType(String attributeName) {
+		return associationAttributes.get(attributeName).getType();
 	}
 
 	@Override
@@ -147,7 +154,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		Map<String, DomainAssociation> locateAssociations() throws Exception;
 
-		Map<String, ComponentPath> locateComponentPaths() throws Exception;
+		Map<String, ComponentPath> resolveComponentPaths() throws Exception;
 
 	}
 
@@ -170,7 +177,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
-		public Map<String, ComponentPath> locateComponentPaths() throws Exception {
+		public Map<String, ComponentPath> resolveComponentPaths() throws Exception {
 			// @formatter:off
 			return declare(getAttributeNames())
 					.then(this::addEnclosedIdentifierAttributeName)
@@ -261,16 +268,25 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			return associationAttributes;
 		}
 
+		private multicados.internal.domain.metadata.AssociationType resolveAssociationType(AssociationType type) {
+			return type instanceof CollectionType ? multicados.internal.domain.metadata.AssociationType.COLLECTION
+					: type instanceof EntityType ? multicados.internal.domain.metadata.AssociationType.ENTITY
+							: Objects.requireNonNull(null,
+									String.format("Unknown association type [%s]", type.getName()));
+		}
+
 		private Map<String, DomainAssociation> individuallyLocateAssociations(String attributeName, int attributeIndex,
 				Type type, boolean[] nullabilities) throws Exception {
 			Map<String, DomainAssociation> associationAttributes = new HashMap<>(8);
 
 			if (type instanceof AssociationType) {
+				multicados.internal.domain.metadata.AssociationType associationType = resolveAssociationType(
+						(AssociationType) type);
 				// @formatter:off
 				associationAttributes.put(attributeName,
 						nullabilities[attributeIndex] ?
-							DomainAssociation.optional(attributeName) :
-								DomainAssociation.mandatory(attributeName));
+							DomainAssociation.optional(attributeName, associationType) :
+								DomainAssociation.mandatory(attributeName, associationType));
 				return associationAttributes;
 				// @formatter:on
 			}
@@ -515,7 +531,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		private String[] unwrapComponentsAttributes(String[] attributeNames) {
-			List<String> wrappedAttributes = new ArrayList<>(0);
+			List<String> unwrappedAttributes = new ArrayList<>(0);
 			Type attributeType;
 
 			for (String attributeName : attributeNames) {
@@ -528,11 +544,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				ComponentType componentType = (ComponentType) attributeType;
 
 				for (String componentAttributeName : componentType.getPropertyNames()) {
-					wrappedAttributes.add(componentAttributeName);
+					unwrappedAttributes.add(componentAttributeName);
 				}
 			}
 
-			return CollectionHelper.join(String.class, attributeNames, wrappedAttributes.toArray(String[]::new));
+			return CollectionHelper.join(String.class, attributeNames, unwrappedAttributes.toArray(String[]::new));
 		}
 
 		private Type resolveAttributeType(String attributeName) {
@@ -583,7 +599,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
-		public Map<String, ComponentPath> locateComponentPaths() throws Exception {
+		public Map<String, ComponentPath> resolveComponentPaths() throws Exception {
 			// @formatter:off
 			return declare(getDeclaredAttributeNames())
 						.then(this::doLocateComponentPaths)
@@ -683,20 +699,12 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			return associations;
 		}
 
-		private Map<String, DomainAssociation> individuallyLocateAssocations(String attributeName, Class<?> owningType)
-				throws Exception {
+		private Map<String, DomainAssociation> individuallyLocateAssocations(String attributeName,
+				Class<?> attributeType) throws Exception {
 			Map<String, DomainAssociation> associations = new HashMap<>();
 
-			if (DomainResource.class.isAssignableFrom(owningType)) {
-				associations.put(attributeName,
-						owningType.getDeclaredField(attributeName).isAnnotationPresent(Nullable.class)
-								? DomainAssociation.optional(attributeName)
-								: DomainAssociation.mandatory(attributeName));
-				return associations;
-			}
-
-			if (DomainComponentType.class.isAssignableFrom(owningType)) {
-				Field[] subFields = Stream.of(owningType.getDeclaredFields())
+			if (DomainComponentType.class.isAssignableFrom(attributeType)) {
+				Field[] subFields = Stream.of(attributeType.getDeclaredFields())
 						.filter(field -> !Modifier.isStatic(field.getModifiers())).toArray(Field[]::new);
 				String[] subAttributes = Stream.of(subFields).map(Field::getName).toArray(String[]::new);
 				Class<?>[] subTypes = Stream.of(subFields).map(Field::getType).toArray(Class[]::new);
@@ -712,6 +720,30 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				}
 
 				return associations;
+			}
+
+			BiFunction<String, multicados.internal.domain.metadata.AssociationType, DomainAssociation> resolver = resourceType
+					.getDeclaredField(attributeName).isAnnotationPresent(Nullable.class)
+							? (attributName, associationType) -> DomainAssociation.optional(attributeName,
+									associationType)
+							: (attributName, associationType) -> DomainAssociation.mandatory(attributeName,
+									associationType);
+
+			if (DomainResource.class.isAssignableFrom(attributeType)) {
+				associations.put(attributeName,
+						resolver.apply(attributeName, multicados.internal.domain.metadata.AssociationType.ENTITY));
+				return associations;
+			}
+
+			if (Collection.class.isAssignableFrom(attributeType)) {
+				if (DomainResource.class.isAssignableFrom(
+						Class.forName(TypeHelper.getGenericType(resourceType.getField(attributeName)).getTypeName()))) {
+					// logically should never throw NoSuchFieldException
+					// or else there's a fraud
+					associations.put(attributeName, resolver.apply(attributeName,
+							multicados.internal.domain.metadata.AssociationType.COLLECTION));
+					return associations;
+				}
 			}
 
 			return Collections.emptyMap();
@@ -879,7 +911,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\tattributeTypes=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
-				+ "\tassociationAttributeNames=[\n"
+				+ "\tassociationAttributes=[\n"
 				+ "\t\t%s\n"
 				+ "\t],\n"
 				+ "\tcomponentPaths=[\n"
@@ -891,7 +923,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				collectList(enclosedAttributeNames, Function.identity()),
 				collectList(nonLazyAttributeNames, Function.identity()),
 				collectMap(attributeTypes, entry -> String.format("%s: %s", entry.getKey(), entry.getValue().getName()), "\n\t\t"),
-				collectMap(associationAttributeNames, entry -> entry.getKey(), "\n\t\t"),
+				collectMap(associationAttributes, entry -> String.format("%s|%s", entry.getKey(), entry.getValue().getType()), "\n\t\t"),
 				collectMap(componentPaths, entry -> String.format("%s: %s", entry.getKey(), entry.getValue()), "\n\t\t"));
 		// @formatter:on
 	}
@@ -941,20 +973,31 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		String getName();
 
-		public static DomainAssociation optional(String name) {
-			return new OptionalAssociation(name);
+		multicados.internal.domain.metadata.AssociationType getType();
+
+		public static DomainAssociation optional(String name,
+				multicados.internal.domain.metadata.AssociationType type) {
+			return new OptionalAssociation(name, type);
 		}
 
-		public static DomainAssociation mandatory(String name) {
-			return new MandatoryAssociation(name);
+		public static DomainAssociation mandatory(String name,
+				multicados.internal.domain.metadata.AssociationType type) {
+			return new MandatoryAssociation(name, type);
 		}
 
 		public abstract class AbstractAssociation implements DomainAssociation {
 
 			private final String name;
+			private final multicados.internal.domain.metadata.AssociationType type;
 
-			public AbstractAssociation(String name) {
+			public AbstractAssociation(String name, multicados.internal.domain.metadata.AssociationType type) {
 				this.name = Objects.requireNonNull(name);
+				this.type = type;
+			}
+
+			@Override
+			public multicados.internal.domain.metadata.AssociationType getType() {
+				return type;
 			}
 
 			@Override
@@ -984,16 +1027,16 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 		public class OptionalAssociation extends AbstractAssociation {
 
-			public OptionalAssociation(String name) {
-				super(name);
+			public OptionalAssociation(String name, multicados.internal.domain.metadata.AssociationType type) {
+				super(name, type);
 			}
 
 		}
 
 		public class MandatoryAssociation extends AbstractAssociation {
 
-			public MandatoryAssociation(String name) {
-				super(name);
+			public MandatoryAssociation(String name, multicados.internal.domain.metadata.AssociationType type) {
+				super(name, type);
 			}
 
 		}

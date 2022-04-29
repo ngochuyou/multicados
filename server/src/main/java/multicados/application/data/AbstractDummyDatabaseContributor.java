@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.hibernate.Session;
+import org.hibernate.tuple.IdentifierProperty;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 
@@ -25,8 +26,12 @@ import multicados.domain.AbstractEntity;
 import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.metadata.AssociationType;
+import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.domain.tuplizer.TuplizerException;
+import multicados.internal.helper.HibernateHelper;
+import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.service.ServiceResult;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
@@ -58,8 +63,18 @@ public abstract class AbstractDummyDatabaseContributor {
 				List.class);
 	}
 
-	private <E extends DomainResource> List<E> toInstances(List<Map<String, Object>> objMaps, Class<E> entityType) {
-		DomainResourceTuplizer<E> tuplizer = resourceContext.getTuplizer(entityType);
+	@SuppressWarnings("unchecked")
+	private Object checkType(Class<?> expecting, Object value) throws Exception {
+		if (expecting.isAssignableFrom(value.getClass())) {
+			return value;
+		}
+
+		return TypeHelper.cast((Class<Object>) value.getClass(), (Class<Object>) expecting, value);
+	}
+
+	private <E extends DomainResource> List<E> toInstances(List<Map<String, Object>> objMaps, Class<E> type)
+			throws Exception {
+		DomainResourceTuplizer<E> tuplizer = resourceContext.getTuplizer(type);
 		int batchSize = objMaps.size();
 		List<E> instances = IntStream.range(0, batchSize).mapToObj(index -> {
 			try {
@@ -69,20 +84,49 @@ public abstract class AbstractDummyDatabaseContributor {
 				return null;
 			}
 		}).filter(Objects::nonNull).collect(Collectors.toList());
+		DomainResourceMetadata<E> metadata = resourceContext.getMetadata(type);
 
 		return IntStream.range(0, batchSize).mapToObj(index -> {
 			Map<String, Object> state = objMaps.get(index);
 
 			for (Map.Entry<String, Object> entry : state.entrySet()) {
 				try {
-					tuplizer.setProperty(instances.get(index), entry.getKey(), entry.getValue());
-				} catch (TuplizerException e) {
-					e.printStackTrace();
+					String attributeName = entry.getKey();
+					Object value = resolveValue(attributeName, entry.getValue(), metadata);
+
+					tuplizer.setProperty(instances.get(index), attributeName, value);
+				} catch (Exception any) {
+					any.printStackTrace();
 				}
 			}
 
 			return instances.get(index);
 		}).collect(Collectors.toList());
+	}
+
+	@SuppressWarnings("unchecked")
+	private Object resolveValue(String attributeName, Object value,
+			DomainResourceMetadata<? extends DomainResource> metadata) throws Exception {
+		if (metadata.isAssociation(attributeName)
+				&& metadata.getAssociationType(attributeName) == AssociationType.ENTITY) {
+			Class<? extends DomainResource> associationJavaType = (Class<? extends DomainResource>) metadata
+					.getAttributeType(attributeName);
+			DomainResourceTuplizer<? extends DomainResource> associationTuplizer = resourceContext
+					.getTuplizer((Class<? extends DomainResource>) associationJavaType);
+			Object associationValue = associationTuplizer.instantiate();
+			IdentifierProperty identifierProperty = HibernateHelper.getEntityPersister(associationJavaType)
+					.getEntityMetamodel().getIdentifierProperty();
+
+			associationTuplizer.setProperty(associationValue, identifierProperty.getName(),
+					checkType((Class<Object>) identifierProperty.getType().getReturnedClass(), value));
+			return associationValue;
+		}
+
+		if (!metadata.getAttributeType(attributeName).equals(value.getClass())) {
+			return checkType((Class<Object>) metadata.getAttributeType(attributeName), value);
+		}
+
+		return value;
 	}
 
 	private String getPath(String filename) {

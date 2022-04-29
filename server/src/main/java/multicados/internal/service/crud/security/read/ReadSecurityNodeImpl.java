@@ -33,6 +33,7 @@ import multicados.internal.service.crud.security.SecuredAttribute;
 public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractReadSecurityNode<D> {
 
 	private final Map<String, Set<String>> authorizedAttributes;
+	private final Map<String, List<String>> nonAssociationAttributes;
 	private final Map<String, String> aliasesByOrigins;
 	private final Map<String, String> originsByAliases;
 
@@ -49,21 +50,32 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.declare(attributes)
 				.then(this::sort)
 				.get();
+		DomainResourceMetadata<D> metadata = getMetadata();
 		
-		this.authorizedAttributes = Utils
+		authorizedAttributes = Utils
 				.declare(sortedAttributes)
 					.second(type)
 				.then(this::getPublicAttributes)
 				.then(this::seal)
 				.then(Collections::unmodifiableMap)
 				.get();
-		this.aliasesByOrigins = Utils
+		nonAssociationAttributes = authorizedAttributes
+				.entrySet()
+				.stream()
+				.map(entry -> Map.entry(
+						entry.getKey(),
+						entry.getValue()
+							.stream()
+							.filter(attribute -> !metadata.isAssociation(attribute))
+							.collect(Collectors.toList())))
+				.collect(CollectionHelper.toMap());
+		aliasesByOrigins = Utils
 				.declare(sortedAttributes)
 					.second(modelContext.getMetadata(type))
 				.then(this::getAlias)
 				.then(Collections::unmodifiableMap)
 				.get();
-		this.originsByAliases = Utils
+		originsByAliases = Utils
 				.declare(aliasesByOrigins)
 				.then(CollectionHelper::inverse)
 				.then(Collections::unmodifiableMap)
@@ -74,7 +86,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	@Override
 	public Map<String, String> translate(Collection<String> attributes) {
 		return attributes.stream().map(attr -> Map.entry(attr, aliasesByOrigins.get(attr)))
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+				.collect(CollectionHelper.toMap());
 	}
 
 	private Map<String, String> getAlias(List<SecuredAttribute<D>> attributes, DomainResourceMetadata<D> metadata) {
@@ -148,6 +160,11 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	@Override
 	protected Set<String> getAuthorizedAttributes(String credentialValue) {
 		return authorizedAttributes.get(credentialValue);
+	}
+
+	@Override
+	protected List<String> getNonAssociationAttributes(String credentialValue) {
+		return nonAssociationAttributes.get(credentialValue);
 	}
 
 	@Override

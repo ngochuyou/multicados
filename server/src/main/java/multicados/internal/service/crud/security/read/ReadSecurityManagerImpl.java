@@ -49,7 +49,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes;
 
 	public ReadSecurityManagerImpl(DomainResourceContext resourceContext) throws Exception {
-		ReadFailureExceptionHandler exceptionThrower = resolveFailureExceptionHandler();
+		ReadFailureExceptionHandler exceptionThrower = resolveFailureHandler();
 		// @formatter:off
 		securityNodes = Utils
 			.declare(scanForContributors())
@@ -158,7 +158,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		return configuredNodes;
 	}
 
-	private ReadFailureExceptionHandler resolveFailureExceptionHandler() {
+	private ReadFailureExceptionHandler resolveFailureHandler() {
 		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
 
 		logger.debug("Resolving {}", ReadFailureExceptionHandler.class.getName());

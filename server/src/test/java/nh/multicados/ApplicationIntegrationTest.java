@@ -5,32 +5,34 @@ package nh.multicados;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Map.Entry;
 
 import javax.transaction.Transactional;
 
-import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import multicados.domain.entity.AuditInformations_;
 import multicados.domain.entity.Role;
-import multicados.domain.entity.entities.Personnel;
-import multicados.domain.entity.entities.Personnel_;
+import multicados.domain.entity.entities.District;
+import multicados.domain.entity.entities.District_;
+import multicados.domain.entity.entities.Province;
+import multicados.domain.entity.entities.Province_;
 import multicados.internal.config.WebConfiguration;
 import multicados.internal.helper.HibernateHelper;
+import multicados.internal.security.CredentialException;
+import multicados.internal.service.crud.GenericCRUDServiceImpl;
 import multicados.internal.service.crud.rest.RestQuery;
-import multicados.internal.service.crud.rest.RestQueryFulfiller;
 import multicados.internal.service.crud.security.CRUDCredentialImpl;
+import multicados.internal.service.crud.security.read.UnknownAttributesException;
 
 /**
  * @author Ngoc Huy
@@ -43,47 +45,89 @@ import multicados.internal.service.crud.security.CRUDCredentialImpl;
 @AutoConfigureMockMvc
 public class ApplicationIntegrationTest {
 
-	private static final Logger logger = LoggerFactory.getLogger(ApplicationIntegrationTest.class);
-
 	@Autowired
-	private RestQueryFulfiller<Map<String, Object>, Session> fulfiller;
+	private GenericCRUDServiceImpl genericCRUDServiceImpl;
 
-	@Test
+	@SuppressWarnings("unchecked")
 	@Transactional
-	public void test() throws Exception {
-		RestQuery<Personnel> query = new RestQuery<Personnel>() {
+	@Test
+	public void test() throws CredentialException, UnknownAttributesException, Exception {
+		Map<String, Object> row = genericCRUDServiceImpl.read(new RestQuery<District>() {
 
 			@Override
-			public Class<Personnel> getResourceType() {
-				return Personnel.class;
+			public Class<District> getResourceType() {
+				return District.class;
 			}
 
 			@Override
-			public boolean isEmpty() {
-				return false;
+			public List<String> getProperties() {
+				return List.of(District_.ID, District_.NAME, District_.ACTIVE);
 			}
 
 			@Override
-			public List<String> getColumns() {
-				return List.of(Personnel_.ID, AuditInformations_.CREATED_TIMESTAMP,
-						AuditInformations_.UPDATED_TIMESTAMP, AuditInformations_.CREATOR, AuditInformations_.UPDATER);
+			public List<RestQuery<?>> getQueries() {
+				return List.of(new RestQuery<Province>() {
+
+					@Override
+					public Class<Province> getResourceType() {
+						return Province.class;
+					}
+
+					@Override
+					public String getName() {
+						return District_.PROVINCE;
+					}
+
+					@Override
+					public List<String> getProperties() {
+						return List.of(Province_.ID, Province_.NAME, Province_.ACTIVE);
+					}
+
+					@Override
+					public List<RestQuery<?>> getQueries() {
+						return null;
+					}
+
+					@Override
+					public Specification<Province> getSpecification() {
+						return null;
+					}
+
+					@Override
+					public Pageable getPageable() {
+						return PageRequest.ofSize(5);
+					}
+				});
 			}
 
 			@Override
-			public List<RestQuery<?>> getAssociations() {
+			public Specification<District> getSpecification() {
 				return null;
 			}
 
 			@Override
 			public Pageable getPageable() {
-				return Pageable.ofSize(10);
+				return null;
 			}
-		};
 
-		for (Map<String, Object> row : fulfiller.readAll(query, new CRUDCredentialImpl(Role.HEAD.toString()),
-				HibernateHelper.getCurrentSession())) {
-			logger.info(row.entrySet().stream().map(Map.Entry::getValue).map(Object::toString)
-					.collect(Collectors.joining("\t")));
+			@Override
+			public String getName() {
+				return null;
+			}
+
+		}, new CRUDCredentialImpl(Role.HEAD.toString()), HibernateHelper.getCurrentSession());
+
+		for (Entry<String, Object> entry : row.entrySet()) {
+			Object value = entry.getValue();
+
+			if (!Map.class.isAssignableFrom(value.getClass())) {
+				System.out.println(String.format("%s:\t%s", entry.getKey(), value));
+				continue;
+			}
+
+			for (Entry<String, Object> innerEntry : ((Map<String, Object>) value).entrySet()) {
+				System.out.println(String.format("\t\t%s:\t%s", innerEntry.getKey(), innerEntry.getValue()));
+			}
 		}
 	}
 

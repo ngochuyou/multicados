@@ -4,11 +4,13 @@
 package multicados.internal.helper;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +21,10 @@ import java.util.stream.Stream;
 public class CollectionHelper {
 
 	private CollectionHelper() {}
+
+	public static <K, V> Collector<Map.Entry<K, V>, ?, Map<K, V>> toMap() {
+		return Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue);
+	}
 
 	public static boolean isEmpty(Collection<?> collection) {
 		return collection == null || collection.isEmpty();
@@ -42,25 +48,35 @@ public class CollectionHelper {
 		return strings;
 	}
 
-	public static <K, V, C extends Collection<V>> Map<K, C> group(Collection<V> collections, Function<V, K> keyProducer,
+	public static <K, V, C extends Collection<V>> Map<K, C> group(Collection<V> collection, Function<V, K> keyProducer,
 			Supplier<C> collectionSupplier) {
 		Map<K, C> result = new HashMap<>();
 
-		collections.stream().forEach(value -> {
+		for (V value : collection) {
 			K key = keyProducer.apply(value);
 
-			if (result.get(key) == null) {
-				C collection = collectionSupplier.get();
+			if (!result.containsKey(key)) {
+				C group = collectionSupplier.get();
 
-				collection.add(value);
-				result.put(key, collection);
-				return;
+				group.add(value);
+				result.put(key, group);
+				continue;
 			}
 
 			result.get(key).add(value);
-		});
+		}
 
 		return result;
+	}
+
+	public static Type getGenericType(Collection<?> collection) {
+		for (Object o : collection) {
+			if (o != null) {
+				return o.getClass();
+			}
+		}
+
+		return null;
 	}
 
 }

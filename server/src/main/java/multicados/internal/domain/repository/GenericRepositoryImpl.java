@@ -52,6 +52,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	private static final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
+	private static final Pageable SINGLE_ROW_PAGEABLE = Pageable.ofSize(1);
 	private static final LockModeType DEFAULT_LOCK_MODE = LockModeType.NONE;
 
 	private final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications;
@@ -380,6 +381,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doFilter)
 				.second(session)
 			.then(this::createHQL)
+				.second(SINGLE_ROW_PAGEABLE)
+			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
 			.identical(this::log)
@@ -408,8 +411,10 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doFilter)
 				.second(session)
 			.then(this::createHQL)
+				.second(SINGLE_ROW_PAGEABLE)
+			.then(this::doPaging)
 				.second(lockMode)
-			.then(this::doLocking)
+				.then(this::doLocking)
 			.identical(this::log)
 			.then(Query::getResultStream)
 			.then(Stream::findFirst)

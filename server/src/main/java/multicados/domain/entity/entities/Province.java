@@ -3,12 +3,16 @@
  */
 package multicados.domain.entity.entities;
 
+import java.util.List;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
 import multicados.domain.entity.PermanentEntity;
@@ -29,6 +33,9 @@ public class Province extends PermanentEntity<Integer> implements NamedResource 
 	@Column(nullable = false)
 	private String name;
 
+	@OneToMany(mappedBy = District_.PROVINCE, fetch = FetchType.EAGER)
+	private List<District> districts;
+
 	@Override
 	public Integer getId() {
 		return id;
@@ -47,6 +54,14 @@ public class Province extends PermanentEntity<Integer> implements NamedResource 
 	@Override
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public List<District> getDistricts() {
+		return districts;
+	}
+
+	public void setDistricts(List<District> districts) {
+		this.districts = districts;
 	}
 
 	public static final String $index = "id, active";

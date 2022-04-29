@@ -8,6 +8,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import org.hibernate.internal.util.collections.CollectionHelper;
+
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.security.CredentialException;
@@ -20,7 +22,6 @@ import multicados.internal.service.crud.security.CRUDCredential;
 public abstract class AbstractReadSecurityNode<D extends DomainResource> implements ReadSecurityNode<D> {
 
 	private final DomainResourceMetadata<D> metadata;
-
 	private final ReadFailureExceptionHandler exceptionHandler;
 
 	public AbstractReadSecurityNode(DomainResourceMetadata<D> metadata, ReadFailureExceptionHandler exceptionHandler) {
@@ -34,7 +35,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 		String credentialValue = credential.evaluate();
 		Set<String> authorizedAttributesByCredential = getAuthorizedAttributes(credentialValue);
 
-		if (authorizedAttributesByCredential == null) {
+		if (CollectionHelper.isEmpty(authorizedAttributesByCredential)) {
 			exceptionHandler.doOnUnauthorizedCredential(metadata.getResourceType(), credentialValue);
 		}
 
@@ -45,7 +46,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 
 			if (!authorizedAttributesByCredential.contains(actualAttributeName)) {
 				return exceptionHandler.doOnInvalidAttributes(metadata.getResourceType(), requestedAttributes,
-						authorizedAttributesByCredential);
+						getNonAssociationAttributes(credentialValue));
 			}
 
 			checkedAttributes.add(actualAttributeName);
@@ -57,6 +58,8 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 	protected abstract String getActualAttributeName(String requestedName);
 
 	protected abstract Set<String> getAuthorizedAttributes(String credentialValue);
+
+	protected abstract List<String> getNonAssociationAttributes(String credentialValue);
 
 	protected DomainResourceMetadata<D> getMetadata() {
 		return metadata;

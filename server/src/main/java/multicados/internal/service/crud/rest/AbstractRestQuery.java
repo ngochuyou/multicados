@@ -10,17 +10,13 @@ import multicados.internal.domain.DomainResource;
 /**
  * @author Ngoc Huy
  *
- */
-/**
- * @author Ngoc Huy
- *
  * @param <D>
  */
 public abstract class AbstractRestQuery<D extends DomainResource> implements RestQuery<D> {
 
 	private final Class<D> resourceType;
-	
-	private List<String> columns;
+
+	private List<String> properties;
 
 	public AbstractRestQuery(Class<D> resourceType) {
 		this.resourceType = resourceType;
@@ -30,12 +26,13 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 		return resourceType;
 	}
 
-	public List<String> getColumns() {
-		return columns;
+	@Override
+	public List<String> getProperties() {
+		return properties;
 	}
 
-	public void setColumns(List<String> columns) {
-		this.columns = columns;
+	public void setProperties(List<String> properties) {
+		this.properties = properties;
 	}
 
 }

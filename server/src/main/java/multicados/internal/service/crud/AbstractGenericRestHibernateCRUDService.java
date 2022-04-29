@@ -58,9 +58,9 @@ public abstract class AbstractGenericRestHibernateCRUDService<TUPLE> implements 
 				return ServiceResult.bad(validation);
 			}
 
-			session.persist(resource);
+			session.save(resource);
 			eventListenerGroups.firePostPersist(type, resource);
-
+			
 			return ServiceResult.success(session, flushOnFinish);
 		} catch (Exception any) {
 			return ServiceResult.failed(any);

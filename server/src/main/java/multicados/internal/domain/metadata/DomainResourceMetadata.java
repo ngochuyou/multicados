@@ -34,4 +34,6 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 	
 	Map<String, ComponentPath> getComponentPaths();
 
+	AssociationType getAssociationType(String attributeName);
+	
 }

@@ -34,6 +34,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -246,6 +248,11 @@ public class WebConfiguration implements WebMvcConfigurer {
 		}
 
 		return buildersTypes;
+	}
+	
+	@InitBinder
+	public void domainRestQueryBinder(WebDataBinder binder) {
+		
 	}
 
 }

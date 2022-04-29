@@ -9,6 +9,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
+import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
@@ -31,6 +32,7 @@ public class District extends PermanentEntity<Integer> implements NamedResource 
 	private String name;
 
 	@ManyToOne(optional = false)
+	@JoinColumn(name = District_.PROVINCE, referencedColumnName = Province_.ID)
 	private Province province;
 
 	@Override

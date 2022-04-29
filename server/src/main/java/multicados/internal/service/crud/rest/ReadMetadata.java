@@ -5,27 +5,27 @@ package multicados.internal.service.crud.rest;
 
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import multicados.internal.domain.DomainResource;
+import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface RestQuery<D extends DomainResource> {
+public interface ReadMetadata<D extends DomainResource> {
 
 	Class<D> getResourceType();
 	
-	String getName();
+	List<String> getAttributes();
 
-	List<String> getProperties();
+	List<ReadMetadata<?>> getMetadatas();
 
-	List<RestQuery<?>> getQueries();
-
+	CRUDCredential getCredential();
+	
 	Specification<D> getSpecification();
 	
-	Pageable getPageable();
+	String getName();
 
 }
