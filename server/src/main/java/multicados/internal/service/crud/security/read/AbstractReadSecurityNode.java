@@ -34,22 +34,29 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 			throws CredentialException, UnknownAttributesException {
 		String credentialValue = credential.evaluate();
 		Set<String> authorizedAttributesByCredential = getAuthorizedAttributes(credentialValue);
+		int authorizedAttributesSpan = authorizedAttributesByCredential.size();
 
 		if (CollectionHelper.isEmpty(authorizedAttributesByCredential)) {
 			exceptionHandler.doOnUnauthorizedCredential(metadata.getResourceType(), credentialValue);
 		}
 
-		List<String> checkedAttributes = new ArrayList<>();
+		List<String> checkedAttributes = new ArrayList<>(authorizedAttributesSpan);
+		List<String> unauthorziedAttributes = new ArrayList<>(authorizedAttributesSpan);
 
 		for (String requestedAttribute : requestedAttributes) {
 			String actualAttributeName = getActualAttributeName(requestedAttribute);
 
 			if (!authorizedAttributesByCredential.contains(actualAttributeName)) {
-				return exceptionHandler.doOnInvalidAttributes(metadata.getResourceType(), requestedAttributes,
-						getNonAssociationAttributes(credentialValue));
+				unauthorziedAttributes.add(actualAttributeName);
+				continue;
 			}
 
 			checkedAttributes.add(actualAttributeName);
+		}
+
+		if (!unauthorziedAttributes.isEmpty()) {
+			exceptionHandler.doOnUnauthorizedAttribute(metadata.getResourceType(), credentialValue,
+					unauthorziedAttributes);
 		}
 
 		return checkedAttributes;

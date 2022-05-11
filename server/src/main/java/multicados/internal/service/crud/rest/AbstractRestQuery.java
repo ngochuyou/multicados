@@ -5,6 +5,8 @@ package multicados.internal.service.crud.rest;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+
 import multicados.internal.domain.DomainResource;
 
 /**
@@ -16,7 +18,10 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 
 	private final Class<D> resourceType;
 
-	private List<String> properties;
+	private List<String> attributes;
+	private Pageable pageable;
+
+	private String name;
 
 	public AbstractRestQuery(Class<D> resourceType) {
 		this.resourceType = resourceType;
@@ -27,12 +32,33 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 	}
 
 	@Override
-	public List<String> getProperties() {
-		return properties;
+	public List<String> getAttributes() {
+		return attributes;
 	}
 
-	public void setProperties(List<String> properties) {
-		this.properties = properties;
+	@Override
+	public void setAttributes(List<String> attributes) {
+		this.attributes = attributes;
+	}
+
+	@Override
+	public Pageable getPageable() {
+		return pageable;
+	}
+
+	@Override
+	public void setPageable(Pageable pageable) {
+		this.pageable = pageable;
+	}
+
+	@Override
+	public String getName() {
+		return name;
+	}
+
+	@Override
+	public void setName(String name) {
+		this.name = name;
 	}
 
 }

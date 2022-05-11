@@ -98,7 +98,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	private Set<Class<?>> filterOutNonTargetedTypes(Set<Class<?>> interfaces) {
 		logger.trace("Filtering fixed interfaces");
-
 		return interfaces.stream().filter(FIXED_SPECIFICATIONS::containsKey).collect(Collectors.toSet());
 	}
 

@@ -34,7 +34,6 @@ public class Category extends PermanentEntity<BigInteger>
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.TABLE, generator = SHARED_TABLE_GENERATOR)
-
 	@TableGenerator(name = SHARED_TABLE_GENERATOR, initialValue = Base32.CROCKFORD_10A
 			- 1, allocationSize = 1, table = Common.SHARED_TABLE_GENERATOR_TABLENAME)
 	@Column(updatable = false)

@@ -21,6 +21,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
+import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
@@ -77,7 +78,7 @@ public abstract class AbstractGraphWalkerFactory {
 			For anno = walkerClass.getDeclaredAnnotation(For.class);
 
 			if (anno == null) {
-				throw new IllegalArgumentException(For.MISSING_MESSAGE);
+				throw new IllegalArgumentException(For.Message.getMissingMessage(walkerClass));
 			}
 
 			GraphWalker walker = TypeHelper.constructFromNonArgs(walkerClass);
@@ -229,7 +230,7 @@ public abstract class AbstractGraphWalkerFactory {
 						entry.getValue().stream()
 							.reduce((product, walker) -> product.and(walker))
 							.get()))
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+				.collect(CollectionHelper.toMap());
 		// @formatter:on
 	}
 

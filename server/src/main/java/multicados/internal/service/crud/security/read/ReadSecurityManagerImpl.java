@@ -168,15 +168,15 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 		try {
 			// @formatter:off
-			ExceptionThrowingStrategy strategy = Optional.ofNullable(configuredStrategy)
+			ExceptionHandlingStrategy strategy = Optional.ofNullable(configuredStrategy)
 					.map(String::toUpperCase)
 					.map(String::trim)
-					.map(ExceptionThrowingStrategy::valueOf)
-					.orElse(ExceptionThrowingStrategy.USE_REGISTERED_ATTRIBUTES);
+					.map(ExceptionHandlingStrategy::valueOf)
+					.orElse(ExceptionHandlingStrategy.IGNORE);
 			// @formatter:on
-			if (strategy.equals(ExceptionThrowingStrategy.USE_REGISTERED_ATTRIBUTES)) {
-				logger.debug("Using {} for read failure", UseRegisteredAttributesStrategy.class.getName());
-				return new UseRegisteredAttributesStrategy();
+			if (strategy.equals(ExceptionHandlingStrategy.IGNORE)) {
+				logger.debug("Using {} for read failure", IgnoreStrategy.class.getName());
+				return new IgnoreStrategy();
 			}
 
 			logger.debug("Using {} for read failure", ThrowExceptionStrategy.class.getName());
@@ -184,7 +184,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		} catch (IllegalArgumentException iae) {
 			throw new IllegalArgumentException(
 					String.format("Unknown read failure exception throwing strategy of [%s], expected one of %s",
-							configuredStrategy, Stream.of(ExceptionThrowingStrategy.values()).map(Object::toString)
+							configuredStrategy, Stream.of(ExceptionHandlingStrategy.values()).map(Object::toString)
 									.collect(Collectors.joining(StringHelper.COMMON_JOINER))));
 		}
 	}
@@ -630,8 +630,8 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	}
 
-	private enum ExceptionThrowingStrategy {
-		USE_REGISTERED_ATTRIBUTES, THROW_EXCEPTION
+	private enum ExceptionHandlingStrategy {
+		IGNORE, THROW_EXCEPTION
 	}
 
 	private abstract class AbstractReadFailureExceptionHandler implements ReadFailureExceptionHandler {
@@ -643,27 +643,25 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	}
 
-	private class UseRegisteredAttributesStrategy extends AbstractReadFailureExceptionHandler {
+	private class IgnoreStrategy extends AbstractReadFailureExceptionHandler {
 
-		private UseRegisteredAttributesStrategy() {}
+		private IgnoreStrategy() {}
 
 		@Override
-		public List<String> doOnInvalidAttributes(Class<?> resourceType, Collection<String> requestedAttributes,
-				Collection<String> authorizedAttributes) {
-			return new ArrayList<>(authorizedAttributes);
-		}
+		public void doOnUnauthorizedAttribute(Class<?> resourceType, String credential,
+				List<String> unauthorizedAttributeNames) throws UnknownAttributesException {}
 
 	}
 
 	private class ThrowExceptionStrategy extends AbstractReadFailureExceptionHandler {
 
-		private ThrowExceptionStrategy() {};
+		private ThrowExceptionStrategy() {}
 
 		@Override
-		public List<String> doOnInvalidAttributes(Class<?> resourceType, Collection<String> requestedAttributes,
-				Collection<String> authorizedAttributes) throws UnknownAttributesException {
-			throw new UnknownAttributesException(requestedAttributes, resourceType.getName());
-		}
+		public void doOnUnauthorizedAttribute(Class<?> resourceType, String credential,
+				List<String> unauthorizedAttributeNames) throws UnknownAttributesException {
+			throw new UnknownAttributesException(unauthorizedAttributeNames, resourceType.getName());
+		};
 
 	}
 

@@ -3,7 +3,15 @@
  */
 package multicados.internal.helper;
 
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import multicados.internal.context.Loggable;
 import multicados.internal.helper.FunctionHelper.HandledBiConsumer;
@@ -278,11 +286,127 @@ public class Utils {
 			this.value = value;
 			return this;
 		}
-		
+
 		public T get() {
 			return value;
 		}
-		
+
+	}
+
+	public static class Entry<K, V> implements Map.Entry<K, V> {
+
+		private K key;
+		private V value;
+
+		public Entry(K key, V value) {
+			super();
+			this.key = key;
+			this.value = value;
+		}
+
+		public static <K, V> Entry<K, V> entry(K key, V val) {
+			return new Entry<>(key, val);
+		}
+
+		public static <K, V> Entry<K, V> uncheckedEntry(K key, V val) {
+			return new Entry<>(key, val);
+		}
+
+		public K getKey() {
+			return key;
+		}
+
+		public void setKey(K key) {
+			this.key = key;
+		}
+
+		public V getValue() {
+			return value;
+		}
+
+		public V setValue(V value) {
+			V oldVal = this.value;
+
+			this.value = value;
+
+			return oldVal;
+		}
+
+		public <T> T map(BiFunction<K, V, T> mapper) {
+			return mapper.apply(key, value);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(key, value);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Entry<?, ?> other = (Entry<?, ?>) obj;
+			return Objects.equals(key, other.key) && Objects.equals(value, other.value);
+		}
+
+	}
+
+	public static abstract class LazyLoader<V, L> {
+
+		protected static final Logger logger = LoggerFactory.getLogger(Utils.LazyLoader.class);
+
+		protected V value;
+
+		protected L loader;
+
+		protected void log() {
+			logger.debug("Invoking lazy loader first time ever");
+		}
+
+	}
+
+	public static class LazySupplier<V> extends LazyLoader<V, Supplier<V>> {
+
+		public LazySupplier(Supplier<V> supplier) {
+			this.loader = new Supplier<>() {
+				@Override
+				public V get() {
+					log();
+					LazySupplier.this.value = supplier.get();
+					LazySupplier.this.loader = () -> LazySupplier.this.value;
+					return LazySupplier.this.value;
+				}
+			};
+		}
+
+		public V get() {
+			return loader.get();
+		}
+
+	}
+
+	public class LazyFunction<V, T> extends LazyLoader<V, Function<T, V>> {
+
+		public LazyFunction(Function<T, V> producer) {
+			this.loader = new Function<>() {
+				@Override
+				public V apply(T arg) {
+					log();
+					LazyFunction.this.value = producer.apply(arg);
+					LazyFunction.this.loader = (nextArg) -> LazyFunction.this.value;
+					return LazyFunction.this.value;
+				}
+			};
+		}
+
+		public V get(T arg) {
+			return this.loader.apply(arg);
+		}
+
 	}
 
 }

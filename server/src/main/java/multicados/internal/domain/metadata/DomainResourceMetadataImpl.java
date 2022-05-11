@@ -958,7 +958,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		}
 
 		@Override
-		public Queue<String> getComponents() {
+		public Queue<String> getNodeNames() {
 			return path;
 		}
 

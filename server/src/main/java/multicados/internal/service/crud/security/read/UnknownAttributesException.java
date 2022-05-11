@@ -16,7 +16,7 @@ public class UnknownAttributesException extends Exception {
 	private static final long serialVersionUID = 1L;
 
 	private static final String UNKNOWN_RESOURCE = "unknown resource";
-	private static final String MESSAGE_TEMPLATE = "One or many of requested attributes %s in resource %s is/are unknown";
+	private static final String MESSAGE_TEMPLATE = "One or many of requested attributes %s in resource %s is/are unauthorized";
 
 	private final String message;
 

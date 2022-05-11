@@ -9,6 +9,6 @@ public interface ComponentPath {
 
 	void add(String component);
 
-	Queue<String> getComponents();
+	Queue<String> getNodeNames();
 	
 }

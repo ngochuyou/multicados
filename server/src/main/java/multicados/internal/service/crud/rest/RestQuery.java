@@ -17,15 +17,19 @@ import multicados.internal.domain.DomainResource;
 public interface RestQuery<D extends DomainResource> {
 
 	Class<D> getResourceType();
-	
-	String getName();
 
-	List<String> getProperties();
+	List<String> getAttributes();
 
-	List<RestQuery<?>> getQueries();
+	void setAttributes(List<String> attributes);
 
 	Specification<D> getSpecification();
-	
+
 	Pageable getPageable();
 
+	void setPageable(Pageable pageable);
+
+	String getName();
+	
+	void setName(String name);
+	
 }
