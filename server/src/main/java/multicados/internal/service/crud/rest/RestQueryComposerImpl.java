@@ -137,7 +137,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		@SuppressWarnings("rawtypes")
 		List[] associationQueries = resolveAssociationQueries(restQuery, credential, isQueryBatched);
 
-		restQuery.setName(associatingName);
+		restQuery.setAssociationName(associatingName);
 		restQuery.setAttributes(checkedAttributes);
 
 		if (isQueryBatched) {

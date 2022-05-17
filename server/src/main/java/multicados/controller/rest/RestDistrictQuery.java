@@ -8,17 +8,20 @@ import org.springframework.data.jpa.domain.Specification;
 import multicados.domain.entity.entities.District;
 import multicados.internal.domain.For;
 import multicados.internal.service.crud.rest.AbstractRestQuery;
+import multicados.internal.service.crud.rest.filter.Filters.StringFilter;
 
 /**
  * @author Ngoc Huy
  *
  */
 @For(District.class)
-public class DistrictRestQuery extends AbstractRestQuery<District> {
+public class RestDistrictQuery extends AbstractRestQuery<District> {
 
-	private ProvinceRestQuery province;
+	private RestProvinceQuery province;
 
-	public DistrictRestQuery() {
+	private StringFilter name;
+
+	public RestDistrictQuery() {
 		super(District.class);
 	}
 
@@ -27,12 +30,20 @@ public class DistrictRestQuery extends AbstractRestQuery<District> {
 		return null;
 	}
 
-	public ProvinceRestQuery getProvince() {
+	public RestProvinceQuery getProvince() {
 		return province;
 	}
 
-	public void setProvince(ProvinceRestQuery province) {
+	public void setProvince(RestProvinceQuery province) {
 		this.province = province;
+	}
+
+	public StringFilter getName() {
+		return name;
+	}
+
+	public void setName(StringFilter name) {
+		this.name = name;
 	}
 
 }

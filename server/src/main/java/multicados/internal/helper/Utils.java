@@ -409,4 +409,11 @@ public class Utils {
 
 	}
 
+	@FunctionalInterface
+	public interface TriFunction<FIRST, SECOND, THIRD, RETURN> {
+
+		RETURN apply(FIRST f, SECOND s, THIRD t);
+
+	}
+
 }

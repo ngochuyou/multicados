@@ -9,6 +9,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 
+import multicados.internal.helper.StringHelper;
+
 /**
  * @author Ngoc Huy
  *
@@ -19,14 +21,15 @@ public @interface For {
 
 	Class<? extends DomainResource> value();
 
-	public abstract class Message {
+	public interface Message {
 
 		public static String getMissingMessage(Class<?> type) {
 			return getMissingMessage(type.getName());
 		}
 
 		public static String getMissingMessage(Field field) {
-			return getMissingMessage(String.format("%s.%s", field.getDeclaringClass().getName(), field.getName()));
+			return getMissingMessage(
+					StringHelper.join(StringHelper.DOT, field.getDeclaringClass().getName(), field.getName()));
 		}
 
 		private static String getMissingMessage(String trailingInfo) {

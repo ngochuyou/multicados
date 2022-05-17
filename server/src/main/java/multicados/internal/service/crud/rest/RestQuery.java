@@ -28,8 +28,8 @@ public interface RestQuery<D extends DomainResource> {
 
 	void setPageable(Pageable pageable);
 
-	String getName();
+	String getAssociationName();
 	
-	void setName(String name);
+	void setAssociationName(String name);
 	
 }

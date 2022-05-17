@@ -28,12 +28,14 @@ public interface DomainResourceMetadata<T extends DomainResource> {
 
 	boolean isAssociation(String attributeName);
 
+	AssociationType getAssociationType(String attributeName);
+
 	boolean isAssociationOptional(String associationName);
 
+	boolean isAssociationInComponent(String associationName);
+
 	boolean isComponent(String attributeName);
-	
+
 	Map<String, ComponentPath> getComponentPaths();
 
-	AssociationType getAssociationType(String attributeName);
-	
 }

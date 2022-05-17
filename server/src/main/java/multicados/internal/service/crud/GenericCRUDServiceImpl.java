@@ -4,7 +4,6 @@
 package multicados.internal.service.crud;
 
 import java.io.Serializable;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -12,8 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -23,9 +20,7 @@ import javax.persistence.Tuple;
 import javax.persistence.TupleElement;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.From;
 import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Selection;
 
@@ -37,16 +32,14 @@ import org.springframework.data.jpa.domain.Specification;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
-import multicados.internal.domain.metadata.ComponentPath;
-import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.repository.Selector;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
+import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.LazySupplier;
 import multicados.internal.service.crud.rest.ComposedNonBatchingRestQuery;
@@ -65,13 +58,12 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 
 	private static final Logger logger = LoggerFactory.getLogger(GenericCRUDServiceImpl.class);
 
-//	private final DomainResourceContext resourceContext;
-
-	private final ReadSecurityManager readSecurityManager;
 	private final GenericRepository genericRepository;
-	private final RestQueryComposer restQueryComposer;
+	private final ReadSecurityManager readSecurityManager;
 
-	private final Map<Class<? extends DomainResource>, BiFunction<Path<?>, List<String>, Selector<?, Tuple>>> selectorsMap;
+	private final RestQueryComposer restQueryComposer;
+	private final SelectorsProvider selectorsProvider;
+
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 
 	public GenericCRUDServiceImpl(DomainResourceContext resourceContext, DomainResourceBuilderFactory builderFactory,
@@ -80,131 +72,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		super(resourceContext, builderFactory, validatorFactory);
 		this.readSecurityManager = readSecurityManager;
 		this.genericRepository = genericRepository;
-		selectorsMap = Collections.unmodifiableMap(resolveSelectorsMap(resourceContext));
 		restQueryComposer = new RestQueryComposerImpl(resourceContext, readSecurityManager);
-	}
-
-	private Map<Class<? extends DomainResource>, BiFunction<Path<?>, List<String>, Selector<?, Tuple>>> resolveSelectorsMap(
-			DomainResourceContext resourceContext) throws Exception {
-		logger.debug("Resolving selectors map");
-
-		Map<Class<? extends DomainResource>, BiFunction<Path<?>, List<String>, Selector<?, Tuple>>> selectorsMap = new HashMap<>();
-
-		for (Class<DomainResource> type : resourceContext.getResourceGraph()
-				.collect(DomainResourceGraphCollectors.toTypesSet())) {
-			DomainResourceMetadata<DomainResource> metadata = resourceContext.getMetadata(type);
-
-			if (metadata == null) {
-				logger.trace("Skipping type {}", type.getName());
-				continue;
-			}
-
-			List<String> attributes = metadata.getAttributeNames();
-			Map<String, Function<Path<?>, Path<?>>> pathProducers = new HashMap<>();
-
-			for (String attribute : attributes) {
-				if (metadata.isComponent(attribute)) {
-					// @formatter:off
-					pathProducers.put(attribute,
-							Utils.declare(metadata)
-									.second(attribute)
-									.third(metadata.getComponentPaths().get(attribute))
-								.then(this::resolveComponentPathProducers)
-								.get());
-					continue;
-					// @formatter:on
-				}
-
-				if (metadata.isAssociation(attribute)) {
-					// @formatter:off
-					pathProducers.put(attribute,
-							metadata.isAssociationOptional(attribute)
-								? path -> ((From<?, ?>) path).join(attribute, JoinType.LEFT)
-								: path -> ((From<?, ?>) path).join(attribute));
-					continue;
-					// @formatter:on
-				}
-
-				pathProducers.put(attribute, path -> path.get(attribute));
-			}
-
-			selectorsMap
-					.put(type,
-							(joiningPath, checkedAttributes) -> (joiningPath == null
-									? (root, query, builder) -> checkedAttributes.stream()
-											.map(checkedAttribute -> pathProducers.get(checkedAttribute).apply(root))
-											.collect(Collectors.toList())
-									: (root, query, builder) -> checkedAttributes.stream().map(
-											checkedAttribute -> pathProducers.get(checkedAttribute).apply(joiningPath))
-											.collect(Collectors.toList())));
-		}
-
-		return selectorsMap;
-	}
-
-	private Function<Path<?>, Path<?>> resolveComponentPathProducers(
-	// @formatter:off
-			DomainResourceMetadata<? extends DomainResource> metadata,
-			String attributeName,
-			ComponentPath componentPath) {
-		List<Function<Path<?>, Path<?>>> pathNodes = individuallyResolveComponentPathProducers(metadata, attributeName, componentPath);
-		// this produces a chain of functions, eventually invoke the final product (a function chain) with the root arg
-		Function<Path<?>, Path<?>> resolver = pathNodes.stream().reduce(
-				(leadingFunction, followingFunction) ->
-					(currentPath) -> followingFunction.apply(leadingFunction.apply(currentPath)))
-				.get();
-		return path -> resolver.apply(path);
-		// @formatter:on
-	}
-
-	@SuppressWarnings("rawtypes")
-	private List<Function<Path<?>, Path<?>>> individuallyResolveComponentPathProducers(
-			DomainResourceMetadata<? extends DomainResource> metadata, String attributeName,
-			ComponentPath componentPath) {
-		Queue<String> nodeNames = componentPath.getNodeNames();
-
-		if (metadata.isAssociation(attributeName)) {
-			List<Function<Path<?>, Path<?>>> pathNodes = new ArrayList<>();
-			Queue<String> copiedNodeNames = new ArrayDeque<>(nodeNames);
-
-			pathNodes.add((metadata.isAssociationOptional(attributeName)
-					? new Function<String, Function<Path<?>, Path<?>>>() {
-						@Override
-						public Function<Path<?>, Path<?>> apply(String nodeName) {
-							return path -> ((From<?, ?>) path).join(nodeName, JoinType.LEFT);
-						}
-					}
-					: new Function<String, Function<Path<?>, Path<?>>>() {
-						@Override
-						public Function<Path<?>, Path<?>> apply(String nodeName) {
-							return path -> ((From<?, ?>) path).join(nodeName);
-						}
-					}).apply(copiedNodeNames.poll()));
-
-			while (copiedNodeNames.size() > 1) {
-				pathNodes.add(new Function<String, Function<Path<?>, Path<?>>>() {
-					@Override
-					public Function<Path<?>, Path<?>> apply(String name) {
-						return join -> ((Join) join).join(name);
-					}
-				}.apply(copiedNodeNames.poll()));
-			}
-
-			String lastNode = copiedNodeNames.poll();
-			// @formatter:off
-			pathNodes.add(path -> metadata.isAssociationOptional(lastNode)
-							? ((Join) path).join(lastNode, JoinType.LEFT)
-							: ((Join) path).join(lastNode));
-			return pathNodes;
-			// @formatter:on
-		}
-
-		return nodeNames.stream().map(nodeName -> new Function<Path<?>, Path<?>>() {
-			@Override
-			public Path<?> apply(Path<?> path) {
-				return path.get(nodeName);
-			}
-		}).collect(Collectors.toList());
+		selectorsProvider = new SelectorsProvider(resourceContext);
 	}
 
 	private <E extends DomainResource> List<Map<String, Object>> resolveRows(Class<E> type, List<Tuple> tuples,
@@ -347,6 +216,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private final List<ComposedRestQuery<?>> batchingQueries;
 		private final LazySupplier<Map<String, String>> translatedAttributesLoader;
 
+		private final Map<String, Join<?, ?>> joinsCache = new HashMap<>();
+
 		private final Pageable pageable;
 
 		public RestQueryProcessingUnit(ComposedRestQuery<D> query, CRUDCredential credential) {
@@ -354,6 +225,12 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			this.credential = credential;
 
 			resourceType = query.getResourceType();
+
+			if (logger.isDebugEnabled()) {
+				logger.debug("Processing {}<{}>", ComposedRestQuery.class.getSimpleName(),
+						resourceType.getSimpleName());
+			}
+
 			attributes = query.getAttributes();
 			nonBatchingQueries = query.getNonBatchingAssociationQueries();
 			batchingQueries = query.getBatchingAssociationQueries();
@@ -362,31 +239,55 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			pageable = Optional.ofNullable(query.getPageable()).orElse(DEFAULT_PAGEABLE);
 		}
 
-		@SuppressWarnings("unchecked")
 		private Selector<D, Tuple> resolveSelections() {
+			Map<String, Function<Path<?>, Path<?>>> selectionProducers = selectorsProvider
+					.getSelectionProducers(resourceType);
+			List<Selection<?>> selections = new ArrayList<>();
+
 			return (root, cq, builder) -> {
-				List<Selection<?>> selections = new ArrayList<>(
-						((Selector<D, Tuple>) selectorsMap.get(resourceType).apply(null, query.getAttributes()))
-								.select(root, cq, builder));
+				for (String attribute : attributes) {
+					selections.add(selectionProducers.get(attribute).apply(root));
+				}
 
 				for (ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
-					selections.addAll(resolveJoinedSelections(root.join(nonBatchingQuery.getName()), cq, builder,
-							nonBatchingQuery));
+					String joinName = nonBatchingQuery.getAssociationName();
+					Join<?, ?> join = (Join<?, ?>) selectionProducers.get(joinName).apply(root);
+
+					joinsCache.put(joinName, join);
+					selections.addAll(resolveJoinedSelections(joinName, join, cq, builder, nonBatchingQuery));
 				}
 
 				return selections;
 			};
 		}
 
-		private List<Selection<?>> resolveJoinedSelections(Join<?, ?> join, CriteriaQuery<Tuple> cq,
-				CriteriaBuilder builder, ComposedRestQuery<?> composedQuery) {
-			List<Selection<?>> selections = new ArrayList<>(
-					((Selector<?, Tuple>) selectorsMap.get(composedQuery.getResourceType()).apply(join,
-							composedQuery.getAttributes())).select(null, cq, builder));
+		private List<Selection<?>> resolveJoinedSelections(
+		// @formatter:off
+				String joinRole,
+				Join<?, ?> join,
+				CriteriaQuery<Tuple> cq,
+				CriteriaBuilder builder,
+				ComposedRestQuery<?> composedQuery) {
+			// @formatter:on
+			Map<String, Function<Path<?>, Path<?>>> joinedSelectionProducers = selectorsProvider
+					.getSelectionProducers(composedQuery.getResourceType());
+			List<String> joinedAttributes = composedQuery.getAttributes();
+			List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries = composedQuery
+					.getNonBatchingAssociationQueries();
+			List<Selection<?>> selections = new ArrayList<>(joinedAttributes.size() + joinedNonBatchingQueries.size());
 
-			for (ComposedRestQuery<?> nonBatchingAssociationQuery : composedQuery.getNonBatchingAssociationQueries()) {
-				selections.addAll(resolveJoinedSelections(join.join(nonBatchingAssociationQuery.getName()), cq, builder,
-						nonBatchingAssociationQuery));
+			for (String joinedAttribute : joinedAttributes) {
+				selections.add(joinedSelectionProducers.get(joinedAttribute).apply(join));
+			}
+
+			for (ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
+				String nextJoinName = nonBatchingAssociationQuery.getAssociationName();
+				String nextJoinRole = StringHelper.join(StringHelper.DOT, joinRole, nextJoinName);
+				Join<?, ?> nextJoin = join.join(nextJoinName);
+
+				joinsCache.put(nextJoinRole, nextJoin);
+				selections.addAll(
+						resolveJoinedSelections(nextJoinRole, nextJoin, cq, builder, nonBatchingAssociationQuery));
 			}
 
 			return selections;
@@ -424,7 +325,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Map<String, String> translatedAttributes = translatedAttributesLoader.get();
 
 			for (ComposedRestQuery<?> batchingQuery : batchingQueries) {
-				record.put(translatedAttributes.get(batchingQuery.getName()),
+				record.put(translatedAttributes.get(batchingQuery.getAssociationName()),
 						readAll(batchingQuery, credential, session));
 			}
 
@@ -451,7 +352,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			for (ComposedNonBatchingRestQuery<?> composedNonBatchingRestQuery : composedQuery
 					.getNonBatchingAssociationQueries()) {
 				// @formatter:off
-				produce.put(translatedAttributes.get(composedNonBatchingRestQuery.getName()),
+				produce.put(translatedAttributes.get(composedNonBatchingRestQuery.getAssociationName()),
 						transformRow(
 								composedNonBatchingRestQuery,
 								credential,
@@ -471,9 +372,9 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 						.second(Stream
 								.of(composedQuery.getAttributes().stream(),
 										composedQuery.getNonBatchingAssociationQueries().stream()
-												.map(ComposedRestQuery::getName),
+												.map(ComposedRestQuery::getAssociationName),
 										composedQuery.getBatchingAssociationQueries().stream()
-												.map(ComposedRestQuery::getName))
+												.map(ComposedRestQuery::getAssociationName))
 								.flatMap(Function.identity()).collect(Collectors.toList()))
 						.then(readSecurityManager::translate).get();
 			} catch (Exception any) {

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import multicados.internal.domain.DomainResourceGraph.AbstractCollector;
 
@@ -28,12 +29,12 @@ public class DomainResourceGraphCollectors {
 
 	@SuppressWarnings("rawtypes")
 	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, Set<DomainResourceGraph>> toGraphsSet() {
-		return new AbstractCollector<>(HashSet::new, graph -> graph) {};
+		return new AbstractCollector<>(HashSet::new, Function.identity()) {};
 	}
 
 	@SuppressWarnings("rawtypes")
 	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, List<DomainResourceGraph>> toGraphsList() {
-		return new AbstractCollector<>(ArrayList::new, graph -> graph) {};
+		return new AbstractCollector<>(ArrayList::new, Function.identity()) {};
 	}
 
 }

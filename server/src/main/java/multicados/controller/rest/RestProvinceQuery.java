@@ -14,9 +14,9 @@ import multicados.internal.service.crud.rest.AbstractRestQuery;
  *
  */
 @For(Province.class)
-public class ProvinceRestQuery extends AbstractRestQuery<Province> {
+public class RestProvinceQuery extends AbstractRestQuery<Province> {
 
-	public ProvinceRestQuery() {
+	public RestProvinceQuery() {
 		super(Province.class);
 	}
 

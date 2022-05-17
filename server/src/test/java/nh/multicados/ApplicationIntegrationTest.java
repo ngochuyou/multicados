@@ -3,10 +3,9 @@
  */
 package nh.multicados;
 
-import java.util.List;
-import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import javax.transaction.Transactional;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
@@ -16,18 +15,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import multicados.controller.rest.DistrictRestQuery;
-import multicados.controller.rest.ProvinceRestQuery;
-import multicados.domain.entity.Role;
-import multicados.domain.entity.entities.District_;
-import multicados.domain.entity.entities.Province_;
 import multicados.internal.config.WebConfiguration;
-import multicados.internal.helper.HibernateHelper;
-import multicados.internal.security.CredentialException;
-import multicados.internal.service.crud.GenericCRUDServiceImpl;
-import multicados.internal.service.crud.security.CRUDCredentialImpl;
-import multicados.internal.service.crud.security.read.UnknownAttributesException;
 
 /**
  * @author Ngoc Huy
@@ -41,38 +33,18 @@ import multicados.internal.service.crud.security.read.UnknownAttributesException
 public class ApplicationIntegrationTest {
 
 	@Autowired
-	private GenericCRUDServiceImpl genericCRUDServiceImpl;
+	private MockMvc mockMvc;
 
-	@Transactional
 	@Test
-	public void test() throws CredentialException, UnknownAttributesException, Exception {
-		DistrictRestQuery restQuery = new DistrictRestQuery();
-
-		restQuery.setAttributes(List.of(District_.ID, District_.NAME, District_.ACTIVE));
-
-		ProvinceRestQuery provinceRestQuery = new ProvinceRestQuery();
-
-		provinceRestQuery.setAttributes(List.of(Province_.ID, District_.NAME));
-		restQuery.setProvince(provinceRestQuery);
-
-		List<Map<String, Object>> map = genericCRUDServiceImpl.readAll(restQuery,
-				new CRUDCredentialImpl(Role.HEAD.toString()), HibernateHelper.getCurrentSession());
-		map.get(0);
-		return;
-//
-//			for (Entry<String, Object> entry : row.entrySet()) {
-//				Object value = entry.getValue();
-//
-//				if (!Map.class.isAssignableFrom(value.getClass())) {
-//					System.out.println(String.format("%s:\t%s", entry.getKey(), value));
-//					continue;
-//				}
-//
-//				for (Entry<String, Object> innerEntry : ((Map<String, Object>) value).entrySet()) {
-//					System.out.println(String.format("\t\t%s:\t%s", innerEntry.getKey(), innerEntry.getValue()));
-//				}
-//			}
-//		}
+	public void test() throws Exception {
+		// @formatter:off
+		MvcResult result = mockMvc
+				.perform(MockMvcRequestBuilders
+						.get("/rest/district?attributes=id,name,active&province.attributes=id,name&name.like=abc"))
+				.andReturn();
+		// @formatter:on
+		assertTrue(result.getResponse().getStatus() == HttpServletResponse.SC_OK);
+		System.out.println(result.getResponse().getContentAsString());
 	}
 
 }

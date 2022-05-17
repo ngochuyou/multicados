@@ -21,7 +21,7 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 	private List<String> attributes;
 	private Pageable pageable;
 
-	private String name;
+	private String associationName;
 
 	public AbstractRestQuery(Class<D> resourceType) {
 		this.resourceType = resourceType;
@@ -52,13 +52,13 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 	}
 
 	@Override
-	public String getName() {
-		return name;
+	public String getAssociationName() {
+		return associationName;
 	}
 
 	@Override
-	public void setName(String name) {
-		this.name = name;
+	public void setAssociationName(String associationName) {
+		this.associationName = associationName;
 	}
 
 }

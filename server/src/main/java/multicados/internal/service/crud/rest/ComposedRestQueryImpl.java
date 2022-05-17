@@ -60,12 +60,12 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 	}
 
 	@Override
-	public String getName() {
-		return delegatedQuery.getName();
+	public String getAssociationName() {
+		return delegatedQuery.getAssociationName();
 	}
 
 	@Override
-	public void setName(String name) {
+	public void setAssociationName(String name) {
 		throw new UnsupportedOperationException();
 	}
 

@@ -40,18 +40,18 @@ public abstract class AbstractGenericRestHibernateCRUDService<TUPLE> implements 
 	}
 
 	@Override
-	public <E extends DomainResource> ServiceResult create(Serializable id, E resource, Class<E> type,
+	public <T extends DomainResource> ServiceResult create(Serializable id, T resource, Class<T> type,
 			Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Creating a resource of type %s with identifier %s", type.getName(), id));
 		}
 
 		try {
-			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
+			DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
 			resource = resourceBuilder.buildInsertion(id, resource, session);
 
-			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
+			DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
 			Validation validation = validator.isSatisfiedBy(id, resource);
 
 			if (!validation.isOk()) {
@@ -68,20 +68,20 @@ public abstract class AbstractGenericRestHibernateCRUDService<TUPLE> implements 
 	}
 
 	@Override
-	public <E extends DomainResource> ServiceResult update(Serializable id, E model, Class<E> type,
+	public <T extends DomainResource> ServiceResult update(Serializable id, T model, Class<T> type,
 			Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Updating a resource of type %s with identifier %s", type.getName(), id));
 		}
 
 		try {
-			E persistence = session.find(type, id);
+			T persistence = session.find(type, id);
 
-			DomainResourceBuilder<E> resourceBuilder = builderFactory.getBuilder(type);
+			DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
 			model = resourceBuilder.buildUpdate(id, model, persistence, session);
 
-			DomainResourceValidator<E> validator = validatorFactory.getValidator(type);
+			DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
 			Validation validation = validator.isSatisfiedBy(id, model);
 
 			if (!validation.isOk()) {
