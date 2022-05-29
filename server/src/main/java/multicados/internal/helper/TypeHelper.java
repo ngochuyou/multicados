@@ -9,9 +9,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 import java.util.function.BiFunction;
@@ -45,6 +47,18 @@ public class TypeHelper {
 		}
 
 		return stack;
+	}
+	
+	public static <T> Queue<Class<? super T>> getClassQueue(Class<T> clazz) {
+		Queue<Class<? super T>> queue = new ArrayDeque<>();
+		Class<? super T> superClass = clazz;
+
+		while (superClass != null && !superClass.equals(Object.class)) {
+			queue.add(superClass);
+			superClass = (Class<? super T>) superClass.getSuperclass();
+		}
+
+		return queue;
 	}
 
 	public static boolean isImplementedFrom(Class<?> type, Class<?> superType) {

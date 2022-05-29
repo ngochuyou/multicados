@@ -21,8 +21,8 @@ public class StringHelper extends StringUtils {
 	public static final String DOT = ".";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
-	public static String join(CharSequence joinner, Object... elements) {
-		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(COMMON_JOINER));
+	public static String join(CharSequence joiner, Object... elements) {
+		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(joiner));
 	}
 
 	public static String join(Object... elements) {

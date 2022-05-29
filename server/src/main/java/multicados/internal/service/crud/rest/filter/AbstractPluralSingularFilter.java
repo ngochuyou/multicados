@@ -3,21 +3,32 @@
  */
 package multicados.internal.service.crud.rest.filter;
 
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.Path;
+import javax.persistence.criteria.Predicate;
+
+import multicados.internal.helper.Utils.TriFunction;
+
 /**
  * @author Ngoc Huy
  *
  */
 public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filter.Plural<T>, Filter.Singular<T> {
 
-	private AbstractSingular<T> singular = new AbstractSingular<T>() {};
-	private AbstractPlural<T> plural = new AbstractPlural<T>() {};
+	private AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
+	private AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
 
 	public T getEqual() {
 		return singular.equal;
 	}
 
 	public void setEqual(T equal) {
-		singular.equal = equal;
+		singular.setEqual(equal);
 	}
 
 	public T getNot() {
@@ -25,7 +36,7 @@ public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filt
 	}
 
 	public void setNot(T not) {
-		singular.not = not;
+		singular.setNot(not);
 	}
 
 	public String getLike() {
@@ -33,7 +44,7 @@ public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filt
 	}
 
 	public void setLike(String like) {
-		singular.like = like;
+		singular.setLike(like);
 	}
 
 	public T[] getIn() {
@@ -41,15 +52,21 @@ public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filt
 	}
 
 	public void setIn(T[] in) {
-		plural.in = in;
+		plural.setIn(in);
 	}
 
 	public T[] getNi() {
 		return plural.ni;
 	}
 
-	public void setNotIn(T[] notIn) {
-		plural.ni = notIn;
+	public void setNi(T[] notIn) {
+		plural.setNi(notIn);
+	}
+
+	@Override
+	public List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
+		return Stream.of(singular.getExpressionProducers().stream(), plural.getExpressionProducers().stream())
+				.flatMap(Function.identity()).collect(Collectors.toList());
 	}
 
 }

@@ -4,7 +4,6 @@
 package multicados.internal.service.crud.rest.filter;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -16,7 +15,7 @@ import java.time.ZonedDateTime;
  */
 public interface Filters {
 
-	public class BooleanFilter extends AbstractPluralSingularFilter<Boolean> {
+	public class BooleanFilter extends AbstractSingularFilter<Boolean> {
 	};
 
 	public class StringFilter extends AbstractPluralSingularFilter<String> {
@@ -37,7 +36,7 @@ public interface Filters {
 	public class EnumFilter<E extends Enum<?>> extends AbstractPluralSingularFilter<E> {
 	};
 
-	public class BigIntegerFilter extends AbstractFilter<BigInteger> {
+	public class BigIntegerFilter extends AbstractFilter<BigDecimal> {
 	};
 
 	public class BigDecimalFilter extends AbstractFilter<BigDecimal> {

@@ -40,7 +40,7 @@ public class ApplicationIntegrationTest {
 		// @formatter:off
 		MvcResult result = mockMvc
 				.perform(MockMvcRequestBuilders
-						.get("/rest/district?attributes=id,name,active&province.attributes=id,name&name.like=abc"))
+						.get("/rest/district?attributes=id,name,active&province.attributes=id,name&province.name.like=ha"))
 				.andReturn();
 		// @formatter:on
 		assertTrue(result.getResponse().getStatus() == HttpServletResponse.SC_OK);

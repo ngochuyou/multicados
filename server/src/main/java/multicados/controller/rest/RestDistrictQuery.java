@@ -3,8 +3,6 @@
  */
 package multicados.controller.rest;
 
-import org.springframework.data.jpa.domain.Specification;
-
 import multicados.domain.entity.entities.District;
 import multicados.internal.domain.For;
 import multicados.internal.service.crud.rest.AbstractRestQuery;
@@ -23,11 +21,6 @@ public class RestDistrictQuery extends AbstractRestQuery<District> {
 
 	public RestDistrictQuery() {
 		super(District.class);
-	}
-
-	@Override
-	public Specification<District> getSpecification() {
-		return null;
 	}
 
 	public RestProvinceQuery getProvince() {

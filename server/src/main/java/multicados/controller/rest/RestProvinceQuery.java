@@ -3,11 +3,10 @@
  */
 package multicados.controller.rest;
 
-import org.springframework.data.jpa.domain.Specification;
-
 import multicados.domain.entity.entities.Province;
 import multicados.internal.domain.For;
 import multicados.internal.service.crud.rest.AbstractRestQuery;
+import multicados.internal.service.crud.rest.filter.Filters.StringFilter;
 
 /**
  * @author Ngoc Huy
@@ -16,13 +15,18 @@ import multicados.internal.service.crud.rest.AbstractRestQuery;
 @For(Province.class)
 public class RestProvinceQuery extends AbstractRestQuery<Province> {
 
+	private StringFilter name;
+
 	public RestProvinceQuery() {
 		super(Province.class);
 	}
 
-	@Override
-	public Specification<Province> getSpecification() {
-		return null;
+	public StringFilter getName() {
+		return name;
+	}
+
+	public void setName(StringFilter name) {
+		this.name = name;
 	}
 
 }

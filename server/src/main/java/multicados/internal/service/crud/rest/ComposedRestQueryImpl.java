@@ -4,11 +4,13 @@
 package multicados.internal.service.crud.rest;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 
 import multicados.internal.domain.DomainResource;
+import multicados.internal.service.crud.rest.AbstractRestQuery.PageableImpl;
+import multicados.internal.service.crud.rest.filter.Filter;
 
 /**
  * @author Ngoc Huy
@@ -20,13 +22,15 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 
 	private final List<ComposedNonBatchingRestQuery<?>> nonBatchingAssociationQueries;
 	private final List<ComposedRestQuery<?>> batchingAssociationQueries;
+	private final Map<String, Filter<?>> filtersMap;
 
 	public ComposedRestQueryImpl(RestQuery<D> delegatedQuery,
 			List<ComposedNonBatchingRestQuery<?>> nonBatchingAssociationQueries,
-			List<ComposedRestQuery<?>> batchingAssociationQueries) {
+			List<ComposedRestQuery<?>> batchingAssociationQueries, Map<String, Filter<?>> filtersMap) {
 		this.delegatedQuery = delegatedQuery;
 		this.nonBatchingAssociationQueries = nonBatchingAssociationQueries;
 		this.batchingAssociationQueries = batchingAssociationQueries;
+		this.filtersMap = filtersMap;
 	}
 
 	@Override
@@ -45,17 +49,12 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 	}
 
 	@Override
-	public Specification<D> getSpecification() {
-		return delegatedQuery.getSpecification();
+	public PageableImpl getPage() {
+		return delegatedQuery.getPage();
 	}
 
 	@Override
-	public Pageable getPageable() {
-		return delegatedQuery.getPageable();
-	}
-
-	@Override
-	public void setPageable(Pageable pageable) {
+	public void setPage(Pageable pageable) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -77,6 +76,11 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 	@Override
 	public List<ComposedNonBatchingRestQuery<?>> getNonBatchingAssociationQueries() {
 		return nonBatchingAssociationQueries;
+	}
+
+	@Override
+	public Map<String, Filter<?>> getFilters() {
+		return filtersMap;
 	}
 
 }

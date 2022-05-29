@@ -47,7 +47,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 			String actualAttributeName = getActualAttributeName(requestedAttribute);
 
 			if (!authorizedAttributesByCredential.contains(actualAttributeName)) {
-				unauthorziedAttributes.add(actualAttributeName);
+				unauthorziedAttributes.add(requestedAttribute);
 				continue;
 			}
 

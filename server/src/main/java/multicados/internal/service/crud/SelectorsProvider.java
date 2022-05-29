@@ -140,6 +140,7 @@ public class SelectorsProvider {
 			pathNodes.add(metadata.isAssociationOptional(lastNode)
 					? (path) -> ((Join) path).join(lastNode, JoinType.LEFT)
 					: (path) -> ((Join) path).join(lastNode));
+			
 			return pathNodes;
 			// @formatter:on
 		}

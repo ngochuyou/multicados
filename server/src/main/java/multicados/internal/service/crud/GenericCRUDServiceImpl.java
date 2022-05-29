@@ -10,8 +10,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -20,8 +22,10 @@ import javax.persistence.Tuple;
 import javax.persistence.TupleElement;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.From;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Path;
+import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Selection;
 
 import org.hibernate.Session;
@@ -42,11 +46,13 @@ import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.LazySupplier;
+import multicados.internal.helper.Utils.TriFunction;
 import multicados.internal.service.crud.rest.ComposedNonBatchingRestQuery;
 import multicados.internal.service.crud.rest.ComposedRestQuery;
 import multicados.internal.service.crud.rest.RestQuery;
 import multicados.internal.service.crud.rest.RestQueryComposer;
 import multicados.internal.service.crud.rest.RestQueryComposerImpl;
+import multicados.internal.service.crud.rest.filter.Filter;
 import multicados.internal.service.crud.security.CRUDCredential;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
@@ -216,9 +222,11 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private final List<ComposedRestQuery<?>> batchingQueries;
 		private final LazySupplier<Map<String, String>> translatedAttributesLoader;
 
-		private final Map<String, Join<?, ?>> joinsCache = new HashMap<>();
+		private final Map<String, From<?, ?>> fromsCache = new HashMap<>();
 
 		private final Pageable pageable;
+
+		private static final String ROOT_KEY_IN_CACHE = null;
 
 		public RestQueryProcessingUnit(ComposedRestQuery<D> query, CRUDCredential credential) {
 			this.query = query;
@@ -236,7 +244,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			batchingQueries = query.getBatchingAssociationQueries();
 			translatedAttributesLoader = new LazySupplier<>(() -> translateAttributes(query, credential));
 
-			pageable = Optional.ofNullable(query.getPageable()).orElse(DEFAULT_PAGEABLE);
+			pageable = Optional.<Pageable>ofNullable(query.getPage()).orElse(DEFAULT_PAGEABLE);
 		}
 
 		private Selector<D, Tuple> resolveSelections() {
@@ -245,6 +253,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			List<Selection<?>> selections = new ArrayList<>();
 
 			return (root, cq, builder) -> {
+				fromsCache.put(ROOT_KEY_IN_CACHE, root);
+
 				for (String attribute : attributes) {
 					selections.add(selectionProducers.get(attribute).apply(root));
 				}
@@ -253,7 +263,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 					String joinName = nonBatchingQuery.getAssociationName();
 					Join<?, ?> join = (Join<?, ?>) selectionProducers.get(joinName).apply(root);
 
-					joinsCache.put(joinName, join);
+					fromsCache.put(joinName, join);
 					selections.addAll(resolveJoinedSelections(joinName, join, cq, builder, nonBatchingQuery));
 				}
 
@@ -282,10 +292,10 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 
 			for (ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
 				String nextJoinName = nonBatchingAssociationQuery.getAssociationName();
-				String nextJoinRole = StringHelper.join(StringHelper.DOT, joinRole, nextJoinName);
+				String nextJoinRole = resolveJoinRole(joinRole, nextJoinName);
 				Join<?, ?> nextJoin = join.join(nextJoinName);
 
-				joinsCache.put(nextJoinRole, nextJoin);
+				fromsCache.put(nextJoinRole, nextJoin);
 				selections.addAll(
 						resolveJoinedSelections(nextJoinRole, nextJoin, cq, builder, nonBatchingAssociationQuery));
 			}
@@ -293,12 +303,99 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			return selections;
 		}
 
+		private String resolveJoinRole(String joinRole, String nextJoinName) {
+			return joinRole != null ? StringHelper.join(StringHelper.DOT, joinRole, nextJoinName) : nextJoinName;
+		}
+
+		private Specification<D> resolveSpecification() {
+			return (root, cq, builder) -> Optional.ofNullable(resolvePredicates(root, cq, builder, null, query))
+					.orElse(builder.conjunction());
+		}
+
+		private Predicate resolvePredicates(
+		// @formatter:off
+				From<?, ?> from, CriteriaQuery<?> criteriaQuery, CriteriaBuilder criteriaBuilder,
+				String joinRole, ComposedRestQuery<?> composedQuery) {
+			// @formatter:on
+			Map<String, Filter<?>> filters = composedQuery.getFilters();
+			List<Predicate> predicates = new ArrayList<>();
+			Specification<D> specification = new Supplier<Specification<D>>() {
+
+				@Override
+				public Specification<D> get() {
+					if (filters.isEmpty()) {
+						return null;
+					}
+
+					return (root, cq, builder) -> {
+						List<Predicate> predicates = new ArrayList<>();
+
+						for (Entry<String, Filter<?>> filterEntry : filters.entrySet()) {
+							Predicate filterPredicate = extractFilterPredicate(from, builder, filterEntry.getKey(),
+									filterEntry.getValue());
+
+							if (filterPredicate == null) {
+								continue;
+							}
+
+							predicates.add(filterPredicate);
+						}
+
+						return builder.and(predicates.toArray(Predicate[]::new));
+					};
+				}
+			}.get();
+
+			if (specification != null) {
+				predicates.add(specification.toPredicate(null, criteriaQuery, criteriaBuilder));
+			}
+
+			for (ComposedRestQuery<?> nonBatchingQuery : composedQuery.getNonBatchingAssociationQueries()) {
+				String nextJoinRole = resolveJoinRole(joinRole, nonBatchingQuery.getAssociationName());
+				// @formatter:off
+				Predicate associationPredicate = resolvePredicates(
+						fromsCache.containsKey(nextJoinRole) ? fromsCache.get(nextJoinRole)
+								: from.join(composedQuery.getAssociationName()),
+						criteriaQuery,
+						criteriaBuilder,
+						nextJoinRole,
+						nonBatchingQuery);
+				// @formatter:on
+				if (associationPredicate == null) {
+					continue;
+				}
+
+				predicates.add(associationPredicate);
+			}
+
+			return predicates.isEmpty() ? null : criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+		}
+
+		private Predicate extractFilterPredicate(From<?, ?> from, CriteriaBuilder builder, String attributeName,
+				Filter<?> filter) {
+			List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter
+					.getExpressionProducers();
+
+			if (expressionProducers.isEmpty()) {
+				return builder.conjunction();
+			}
+
+			Predicate predicate = expressionProducers.get(0).apply(attributeName, from, builder);
+			int size = expressionProducers.size();
+
+			for (int i = 1; i < size; i++) {
+				predicate = builder.or(predicate, expressionProducers.get(i).apply(attributeName, from, builder));
+			}
+
+			return predicate;
+		}
+
 		private List<Map<String, Object>> doReadAll(Session session) throws Exception {
 			// @formatter:off
 			List<Tuple> tuples = genericRepository.findAll(
 					resourceType,
 					resolveSelections(),
-					query.getSpecification(),
+					resolveSpecification(),
 					pageable,
 					session);
 			// @formatter:on
@@ -314,7 +411,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Optional<Tuple> optionalTuple = genericRepository.findOne(
 					resourceType,
 					resolveSelections(),
-					query.getSpecification(),
+					resolveSpecification(),
 					session);
 			// @formatter:on
 			if (optionalTuple.isEmpty()) {
@@ -366,6 +463,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		}
 
 		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery, CRUDCredential credential) {
+			// should never be throwing exceptions
 			// @formatter:off
 			try {
 				return Utils.declare(composedQuery.getResourceType())
@@ -412,7 +510,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		}
 
 		private int getActualIndex(int i) {
-			return i + composedQuery.getAssociatedPosition();
+			return composedQuery.getAssociatedPosition() + i;
 		}
 
 		@Override
