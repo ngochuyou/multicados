@@ -6,6 +6,7 @@ package multicados.internal.config;
 import static multicados.internal.helper.Utils.declare;
 
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,12 +33,19 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
+import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.web.bind.WebDataBinder;
-import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.context.ContextManager;
@@ -61,15 +69,15 @@ import multicados.internal.service.crud.security.read.ReadSecurityManager;
 @Configuration
 @EnableTransactionManagement
 @EnableWebMvc
+@EnableSpringDataWebSupport
 public class WebConfiguration implements WebMvcConfigurer {
 
 	private static final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 	@Bean
-	public FactoryBean<SessionFactory> sessionFactory(DataSource dataSource) {
+	public FactoryBean<SessionFactory> sessionFactory(DataSource dataSource, Environment env) {
 		logger.info("Creating {} bean", LocalSessionFactoryBean.class.getName());
 
-		Environment env = ContextManager.getBean(Environment.class);
 		LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
 
 		sessionFactory.setDataSource(dataSource);
@@ -91,6 +99,34 @@ public class WebConfiguration implements WebMvcConfigurer {
 		sessionFactory.setHibernateProperties(properties);
 
 		return sessionFactory;
+	}
+
+	@Bean
+	public TransactionManager transactionManager(SessionFactory sessionFactory) {
+		return new HibernateTransactionManager(sessionFactory);
+	}
+
+	@Bean
+	public MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter() {
+		MappingJackson2HttpMessageConverter jsonConverter = new MappingJackson2HttpMessageConverter();
+
+		jsonConverter.setDefaultCharset(StandardCharsets.UTF_8);
+
+		return jsonConverter;
+	}
+
+	@Override
+	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+		Hibernate5Module h5module = new Hibernate5Module();
+
+		h5module.disable(Hibernate5Module.Feature.FORCE_LAZY_LOADING);
+
+		for (HttpMessageConverter<?> mc : converters) {
+			if (mc instanceof MappingJackson2HttpMessageConverter
+					|| mc instanceof MappingJackson2XmlHttpMessageConverter) {
+				((AbstractJackson2HttpMessageConverter) mc).getObjectMapper().registerModule(h5module);
+			}
+		}
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
@@ -248,11 +284,6 @@ public class WebConfiguration implements WebMvcConfigurer {
 		}
 
 		return buildersTypes;
-	}
-	
-	@InitBinder
-	public void domainRestQueryBinder(WebDataBinder binder) {
-		
 	}
 
 }

@@ -6,10 +6,7 @@ package multicados.internal.service.crud.rest;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.data.domain.Pageable;
-
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.crud.rest.AbstractRestQuery.PageableImpl;
 import multicados.internal.service.crud.rest.filter.Filter;
 
 /**
@@ -49,12 +46,12 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 	}
 
 	@Override
-	public PageableImpl getPage() {
+	public DelegatedPageable getPage() {
 		return delegatedQuery.getPage();
 	}
 
 	@Override
-	public void setPage(Pageable pageable) {
+	public void setPage(DelegatedPageable pageable) {
 		throw new UnsupportedOperationException();
 	}
 

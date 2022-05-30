@@ -3,7 +3,6 @@
  */
 package multicados.controller.controllers;
 
-import org.hibernate.Session;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,12 +28,9 @@ public class RestDistrictController {
 	@Transactional
 	public ResponseEntity<?> getDistrict(RestDistrictQuery query) throws Exception {
 		GenericCRUDServiceImpl crudService = ContextManager.getBean(GenericCRUDServiceImpl.class);
-		Session currentSession = HibernateHelper.getCurrentSession();
-		
-		currentSession.beginTransaction();
-		
+
 		return ResponseEntity.ok(crudService.readAll(query, new CRUDCredentialImpl(Role.HEAD.toString()),
-				currentSession));
+				HibernateHelper.getCurrentSession()));
 	}
 
 }

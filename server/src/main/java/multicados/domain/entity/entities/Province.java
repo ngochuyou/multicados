@@ -7,7 +7,6 @@ import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -33,7 +32,7 @@ public class Province extends PermanentEntity<Integer> implements NamedResource 
 	@Column(nullable = false)
 	private String name;
 
-	@OneToMany(mappedBy = District_.PROVINCE, fetch = FetchType.EAGER)
+	@OneToMany(mappedBy = District_.PROVINCE)
 	private List<District> districts;
 
 	@Override

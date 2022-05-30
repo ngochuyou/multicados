@@ -3,6 +3,7 @@
  */
 package multicados.internal.helper;
 
+import java.util.Collection;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,6 +28,10 @@ public class StringHelper extends StringUtils {
 
 	public static String join(Object... elements) {
 		return join(COMMON_JOINER, elements);
+	}
+	
+	public static String join(Collection<?> elements) {
+		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(COMMON_JOINER));
 	}
 
 	public static <T> String join(Function<T, String> stringGetter, T[] elements) {

@@ -47,7 +47,7 @@ public abstract class AbstractRangedFilter<T> extends AbstractFilterImplementor<
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void addProducer() {
-		expressionProducers.add((attributeName, path, builder) -> builder.between((Expression) path.get(attributeName),
+		expressionProducers.add((path, builder) -> builder.between((Expression) path,
 				(Expression) builder.literal(from), (Expression) builder.literal(to)));
 	}
 

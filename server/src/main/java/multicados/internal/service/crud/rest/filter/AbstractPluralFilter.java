@@ -3,7 +3,10 @@
  */
 package multicados.internal.service.crud.rest.filter;
 
+import java.util.Collection;
 import java.util.List;
+
+import javax.persistence.criteria.Path;
 
 import multicados.internal.service.crud.rest.filter.Filter.AbstractFilterImplementor;
 import multicados.internal.service.crud.rest.filter.Filter.Plural;
@@ -21,20 +24,21 @@ public abstract class AbstractPluralFilter<T> extends AbstractFilterImplementor<
 		return in;
 	}
 
+	@SuppressWarnings("unchecked")
 	public void setIn(T[] in) {
 		this.in = in;
-		expressionProducers
-				.add((attributeName, path, builder) -> builder.in(path.get(attributeName)).value(List.of(in)));
+		expressionProducers.add((path, builder) -> builder.in((Path<Collection<?>>) path).value(List.of(in)));
 	}
 
 	public T[] getNi() {
 		return ni;
 	}
 
+	@SuppressWarnings("unchecked")
 	public void setNi(T[] notIn) {
 		this.ni = notIn;
-		expressionProducers.add(
-				(attributeName, path, builder) -> builder.not(builder.in(path.get(attributeName)).value(List.of(ni))));
+		expressionProducers
+				.add((path, builder) -> builder.not(builder.in((Path<Collection<?>>) path).value(List.of(ni))));
 	}
 
 }

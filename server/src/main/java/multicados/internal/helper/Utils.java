@@ -48,7 +48,7 @@ public class Utils {
 		return new TriDeclaration<>(one, two, three);
 	}
 
-	public static <FIRST> Declaration<FIRST> delcare() {
+	public static <FIRST> Declaration<FIRST> declare() {
 		return new Declaration<>(null);
 	}
 

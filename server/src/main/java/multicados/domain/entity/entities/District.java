@@ -5,6 +5,7 @@ package multicados.domain.entity.entities;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -31,7 +32,7 @@ public class District extends PermanentEntity<Integer> implements NamedResource 
 	@Column(nullable = false)
 	private String name;
 
-	@ManyToOne(optional = false)
+	@ManyToOne(optional = false, fetch = FetchType.LAZY)
 	@JoinColumn(name = District_.PROVINCE, referencedColumnName = Province_.ID)
 	private Province province;
 

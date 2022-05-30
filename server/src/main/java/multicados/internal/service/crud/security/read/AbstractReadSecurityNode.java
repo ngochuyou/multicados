@@ -39,6 +39,10 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 		if (CollectionHelper.isEmpty(authorizedAttributesByCredential)) {
 			exceptionHandler.doOnUnauthorizedCredential(metadata.getResourceType(), credentialValue);
 		}
+		
+		if (CollectionHelper.isEmpty(requestedAttributes)) {
+			requestedAttributes = giveSomeAttributes(authorizedAttributesByCredential);
+		}
 
 		List<String> checkedAttributes = new ArrayList<>(authorizedAttributesSpan);
 		List<String> unauthorziedAttributes = new ArrayList<>(authorizedAttributesSpan);
@@ -60,6 +64,10 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 		}
 
 		return checkedAttributes;
+	}
+	
+	private List<String> giveSomeAttributes(Set<String> authorizedAttributesByCredential) {
+		return metadata.getNonLazyAttributeNames().stream().filter(authorizedAttributesByCredential::contains).toList();
 	}
 
 	protected abstract String getActualAttributeName(String requestedName);

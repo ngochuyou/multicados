@@ -4,6 +4,7 @@
 package multicados.internal.service.crud.security.read;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +13,6 @@ import java.util.stream.Collectors;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
-import multicados.internal.helper.CollectionHelper;
 
 /**
  * @author Ngoc Huy
@@ -37,8 +37,13 @@ public class DefaultReadSecurityNode<D extends DomainResource> extends AbstractR
 
 	@Override
 	public Map<String, String> translate(Collection<String> attributes) {
-		return attributes.stream().map(attributeName -> Map.entry(attributeName, attributeName))
-				.collect(CollectionHelper.toMap());
+		Map<String, String> translatedAttributes = new HashMap<>(attributes.size(), 1.5f);
+
+		for (String attribute : attributes) {
+			translatedAttributes.put(attribute, attribute);
+		}
+
+		return translatedAttributes;
 	}
 
 	@Override

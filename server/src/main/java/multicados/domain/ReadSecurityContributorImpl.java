@@ -24,16 +24,14 @@ public class ReadSecurityContributorImpl implements ReadSecurityContributor {
 		builder
 			.type(Province.class)
 			.credentials(make(Role.CUSTOMER.toString()))
-				.attributes(Province_.ACTIVE)
-					.mask()
-				.others()
-					.publish()
+				.attributes(Province_.ACTIVE).mask()
+				.others().publish()
 			.credentials(make(Role.HEAD.toString()))
 				.publish();
-		
-		builder.type(Personnel.class)
-			.credentials(make(Role.HEAD.toString()))
-			.publish();
+
+		builder
+			.type(Personnel.class)
+			.credentials(make(Role.HEAD.toString())).publish();
 		// @formatter:on
 	}
 

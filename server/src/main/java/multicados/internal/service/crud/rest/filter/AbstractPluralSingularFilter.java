@@ -4,6 +4,7 @@
 package multicados.internal.service.crud.rest.filter;
 
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -12,16 +13,17 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 
-import multicados.internal.helper.Utils.TriFunction;
+import multicados.internal.service.crud.rest.filter.Filter.AbstractFilterImplementor;
 
 /**
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filter.Plural<T>, Filter.Singular<T> {
+public abstract class AbstractPluralSingularFilter<T> extends AbstractFilterImplementor<T>
+		implements Filter<T>, Filter.Plural<T>, Filter.Singular<T> {
 
-	private AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
-	private AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
+	protected AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
+	protected AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
 
 	public T getEqual() {
 		return singular.equal;
@@ -37,14 +39,6 @@ public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filt
 
 	public void setNot(T not) {
 		singular.setNot(not);
-	}
-
-	public String getLike() {
-		return singular.like;
-	}
-
-	public void setLike(String like) {
-		singular.setLike(like);
 	}
 
 	public T[] getIn() {
@@ -64,9 +58,14 @@ public abstract class AbstractPluralSingularFilter<T> implements Filter<T>, Filt
 	}
 
 	@Override
-	public List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
-		return Stream.of(singular.getExpressionProducers().stream(), plural.getExpressionProducers().stream())
-				.flatMap(Function.identity()).collect(Collectors.toList());
+	public List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
+		// @formatter:off
+		return Stream.of(
+					singular.expressionProducers.stream(),
+					plural.expressionProducers.stream())
+				.flatMap(Function.identity())
+				.collect(Collectors.toList());
+		// @formatter:on
 	}
 
 }

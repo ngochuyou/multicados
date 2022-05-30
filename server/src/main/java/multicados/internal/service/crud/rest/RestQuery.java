@@ -5,10 +5,7 @@ package multicados.internal.service.crud.rest;
 
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
-
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.crud.rest.AbstractRestQuery.PageableImpl;
 
 /**
  * @author Ngoc Huy
@@ -22,9 +19,9 @@ public interface RestQuery<D extends DomainResource> {
 
 	void setAttributes(List<String> attributes);
 
-	PageableImpl getPage();
+	DelegatedPageable getPage();
 
-	void setPage(Pageable pageable);
+	void setPage(DelegatedPageable pageable);
 
 	String getAssociationName();
 

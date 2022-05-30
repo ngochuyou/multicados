@@ -4,6 +4,7 @@
 package multicados.internal.service.crud.rest.filter;
 
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -12,13 +13,12 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 
-import multicados.internal.helper.Utils.TriFunction;
-
 /**
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractFilter<T> implements Filter<T>, Filter.Plural<T>, Filter.Singular<T>, Filter.Ranged<T> {
+public abstract class AbstractSingularRangedPluralFilter<T>
+		implements Filter<T>, Filter.Plural<T>, Filter.Singular<T>, Filter.Ranged<T> {
 
 	private AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
 	private AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
@@ -38,14 +38,6 @@ public abstract class AbstractFilter<T> implements Filter<T>, Filter.Plural<T>, 
 
 	public void setNot(T not) {
 		singular.setNot(not);
-	}
-
-	public String getLike() {
-		return singular.like;
-	}
-
-	public void setLike(String like) {
-		singular.setLike(like);
 	}
 
 	public T getFrom() {
@@ -81,11 +73,14 @@ public abstract class AbstractFilter<T> implements Filter<T>, Filter.Plural<T>, 
 	}
 
 	@Override
-	public List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
-		return Stream
-				.of(singular.getExpressionProducers().stream(), ranged.getExpressionProducers().stream(),
-						plural.getExpressionProducers().stream())
+	public List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
+		// @formatter:off
+		return Stream.of(
+						singular.expressionProducers.stream(),
+						ranged.expressionProducers.stream(),
+						plural.expressionProducers.stream())
 				.flatMap(Function.identity()).collect(Collectors.toList());
+		// @formatter:on
 	}
 
 }

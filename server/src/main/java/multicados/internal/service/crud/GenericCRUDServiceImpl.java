@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -46,7 +47,6 @@ import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.LazySupplier;
-import multicados.internal.helper.Utils.TriFunction;
 import multicados.internal.service.crud.rest.ComposedNonBatchingRestQuery;
 import multicados.internal.service.crud.rest.ComposedRestQuery;
 import multicados.internal.service.crud.rest.RestQuery;
@@ -187,7 +187,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 	@Override
 	public <D extends DomainResource> List<Map<String, Object>> readAll(RestQuery<D> restQuery,
 			CRUDCredential credential, Session entityManager) throws Exception {
-		return readAll(restQueryComposer.compose(restQuery, credential, false), credential, entityManager);
+		return readAll(restQueryComposer.compose(restQuery, credential, true), credential, entityManager);
 	}
 
 	private <D extends DomainResource> RestQueryProcessingUnit<D> createProcessingUnit(
@@ -331,9 +331,14 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 						List<Predicate> predicates = new ArrayList<>();
 
 						for (Entry<String, Filter<?>> filterEntry : filters.entrySet()) {
-							Predicate filterPredicate = extractFilterPredicate(from, builder, filterEntry.getKey(),
+							// @formatter:off
+							Predicate filterPredicate = extractFilterPredicate(
+									composedQuery.getResourceType(),
+									from,
+									builder,
+									filterEntry.getKey(),
 									filterEntry.getValue());
-
+							// @formatter:on
 							if (filterPredicate == null) {
 								continue;
 							}
@@ -371,20 +376,28 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			return predicates.isEmpty() ? null : criteriaBuilder.and(predicates.toArray(Predicate[]::new));
 		}
 
-		private Predicate extractFilterPredicate(From<?, ?> from, CriteriaBuilder builder, String attributeName,
+		private <E extends DomainResource> Predicate extractFilterPredicate(
+		// @formatter:off
+				Class<E> resourceType,
+				From<?, ?> from,
+				CriteriaBuilder builder,
+				String attributeName,
 				Filter<?> filter) {
-			List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter
-					.getExpressionProducers();
+			// @formatter:on
+			List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter.getExpressionProducers();
+			Map<String, Function<Path<?>, Path<?>>> selectionProducers = selectorsProvider
+					.getSelectionProducers(resourceType);
 
 			if (expressionProducers.isEmpty()) {
 				return builder.conjunction();
 			}
 
-			Predicate predicate = expressionProducers.get(0).apply(attributeName, from, builder);
+			Path<?> attributePath = selectionProducers.get(attributeName).apply(from);
+			Predicate predicate = expressionProducers.get(0).apply(attributePath, builder);
 			int size = expressionProducers.size();
 
 			for (int i = 1; i < size; i++) {
-				predicate = builder.or(predicate, expressionProducers.get(i).apply(attributeName, from, builder));
+				predicate = builder.or(predicate, expressionProducers.get(i).apply(attributePath, builder));
 			}
 
 			return predicate;
@@ -473,8 +486,10 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 												.map(ComposedRestQuery::getAssociationName),
 										composedQuery.getBatchingAssociationQueries().stream()
 												.map(ComposedRestQuery::getAssociationName))
-								.flatMap(Function.identity()).collect(Collectors.toList()))
-						.then(readSecurityManager::translate).get();
+								.flatMap(Function.identity())
+								.collect(Collectors.toList()))
+						.then(readSecurityManager::translate)
+						.get();
 			} catch (Exception any) {
 				any.printStackTrace();
 				return null;

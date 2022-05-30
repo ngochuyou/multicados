@@ -7,10 +7,12 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Set;
 
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -26,6 +28,7 @@ import multicados.internal.domain.metadata.AssociationType;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
+import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.service.crud.rest.filter.Filter;
@@ -207,20 +210,19 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	@Override
 	public <D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, CRUDCredential credential,
 			boolean isQueryBatched) throws Exception {
-		return compose(null, null, restQuery, credential, isQueryBatched);
+		return compose(null, restQuery, credential, isQueryBatched);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <D extends DomainResource> ComposedRestQuery<D> compose(String associatingName, Integer associatedPosition,
-			RestQuery<D> restQuery, CRUDCredential credential, boolean isQueryBatched) throws Exception {
+	private <D extends DomainResource> ComposedRestQuery<D> compose(Integer associatedPosition, RestQuery<D> restQuery,
+			CRUDCredential credential, boolean isQueryBatched) throws Exception {
 		Class<D> resourceType = restQuery.getResourceType();
 		List<String> checkedAttributes = readSecurityManager.check(resourceType, restQuery.getAttributes(), credential);
-		@SuppressWarnings("rawtypes")
-		List[] associationQueries = resolveAssociationQueries(restQuery, credential, isQueryBatched);
 
-		restQuery.setAssociationName(associatingName);
 		restQuery.setAttributes(checkedAttributes);
 
+		@SuppressWarnings("rawtypes")
+		List[] associationQueries = resolveAssociationQueries(restQuery, credential, isQueryBatched);
 		Map<String, Filter<?>> filters = resolveFilters(restQuery);
 
 		if (isQueryBatched) {
@@ -234,14 +236,14 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	private <D extends DomainResource> Map<String, Filter<?>> resolveFilters(RestQuery<D> restQuery) throws Exception {
 		Map<String, Filter<?>> filters = new HashMap<>();
 
-		for (Entry<String, Accessor> metadataEntry : filtersAccessors.get(restQuery.getResourceType()).entrySet()) {
-			Object filter = metadataEntry.getValue().get(restQuery);
+		for (Entry<String, Accessor> accessorEntry : filtersAccessors.get(restQuery.getResourceType()).entrySet()) {
+			Object filter = accessorEntry.getValue().get(restQuery);
 
 			if (filter == null) {
 				continue;
 			}
 
-			filters.put(metadataEntry.getKey(), (Filter<?>) filter);
+			filters.put(accessorEntry.getKey(), (Filter<?>) filter);
 		}
 
 		return filters;
@@ -253,45 +255,86 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		QueryMetadata queryMetadata = queryMetadatasMap.get(restQuery.getResourceType());
 		List<ComposedRestQuery<?>> nonBatchingQueries = new ArrayList<>();
 		int index = restQuery.getAttributes().size();
+		Set<String> owningQueryAttributes = new HashSet<>(restQuery.getAttributes());
+		Set<String> collidedAttributes = new HashSet<>(owningQueryAttributes.size());
 
-		for (Entry<String, RestQuery<?>> entry : locateAssociationQueryEntries(restQuery,
+		for (Entry<String, RestQuery<?>> queryEntry : locateAssociationQueryEntries(restQuery,
 				queryMetadata.getNonBatchingQueriesAccessors())) {
+			if (doCollide(owningQueryAttributes, queryEntry)) {
+				collidedAttributes.add(queryEntry.getKey());
+				continue;
+			}
+
 			ComposedNonBatchingRestQuery<?> composeAssociationQuery = (ComposedNonBatchingRestQuery<?>) individuallyComposeAssociationQuery(
-					restQuery, index, entry, credential, isQueryBatched);
+					restQuery, index, queryEntry, credential, isQueryBatched);
 
 			nonBatchingQueries.add(composeAssociationQuery);
 			index += composeAssociationQuery.getPropertySpan();
 		}
 
 		if (isQueryBatched) {
-			return new List[] { nonBatchingQueries, Collections.emptyList() };
+			return assertCollision(new List[] { nonBatchingQueries, Collections.emptyList() }, collidedAttributes);
 		}
-
+		// TODO: test this out
 		List<ComposedRestQuery<?>> batchingQueries = new ArrayList<>();
 
 		for (Entry<String, RestQuery<?>> entry : locateAssociationQueryEntries(restQuery,
 				queryMetadata.getBatchingQueriesAccessors())) {
+			if (doCollide(owningQueryAttributes, entry)) {
+				collidedAttributes.add(entry.getKey());
+				continue;
+			}
+
 			batchingQueries
-					.add(individuallyComposeAssociationQuery(restQuery, null, entry, credential, isQueryBatched));
+					.add(individuallyComposeAssociationQuery(restQuery, index, entry, credential, isQueryBatched));
+			index++;
 		}
 
-		return new List[] { nonBatchingQueries, batchingQueries };
+		return assertCollision(new List[] { nonBatchingQueries, batchingQueries }, collidedAttributes);
+	}
+
+	private boolean doCollide(Set<String> owningQueryAttributes, Entry<String, RestQuery<?>> queryEntry) {
+		return owningQueryAttributes.contains(queryEntry.getKey())
+				&& !CollectionHelper.isEmpty(queryEntry.getValue().getAttributes());
+	}
+
+	@SuppressWarnings("rawtypes")
+	private List[] assertCollision(List[] product, Set<String> colliedAttributes)
+			throws DuplicateRequestedAttributeException {
+		if (colliedAttributes.isEmpty()) {
+			return product;
+		}
+
+		throw new DuplicateRequestedAttributeException(colliedAttributes);
 	}
 
 	private boolean determineBatching(DomainResourceMetadata<?> associationOwnerMetadata, String associationName,
 			boolean isQueryBatched) {
 		return isQueryBatched
-				|| associationOwnerMetadata.getAssociationType(associationName) == AssociationType.COLLECTION;
+				&& associationOwnerMetadata.getAssociationType(associationName) == AssociationType.COLLECTION;
 	}
 
-	private ComposedRestQuery<?> individuallyComposeAssociationQuery(RestQuery<?> associationOwner,
-			Integer associatedPosition, Entry<String, RestQuery<?>> entry, CRUDCredential credential,
+	private ComposedRestQuery<?> individuallyComposeAssociationQuery(
+	// @formatter:off
+			RestQuery<?> associationOwner,
+			Integer associatedPosition,
+			Entry<String, RestQuery<?>> associationEntry,
+			CRUDCredential credential,
 			boolean isQueryBatched) throws Exception {
-		String associationName = entry.getKey();
-		RestQuery<?> associationQuery = entry.getValue();
-
-		return compose(associationName, associatedPosition, associationQuery, credential, determineBatching(
-				resourceContext.getMetadata(associationOwner.getResourceType()), associationName, isQueryBatched));
+		// @formatter:on
+		String associationName = associationEntry.getKey();
+		RestQuery<?> associationQuery = associationEntry.getValue();
+		// @formatter:off
+		return compose(
+				associatedPosition,
+				associationQuery,
+				credential,
+				determineBatching(
+						resourceContext.getMetadata(
+								associationOwner.getResourceType()),
+						associationName,
+						isQueryBatched));
+		// @formatter:on
 	}
 
 	private List<Entry<String, RestQuery<?>>> locateAssociationQueryEntries(RestQuery<?> owningQuery,
@@ -305,7 +348,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				continue;
 			}
 
-			queries.add(Map.entry(accessorEntry.getKey(), associationQuery));
+			queries.add(Map.entry(accessorEntry.getKey(), Utils.declare(associationQuery)
+					.identical(query -> query.setAssociationName(accessorEntry.getKey())).get()));
 		}
 
 		return queries;

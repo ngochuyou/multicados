@@ -5,12 +5,11 @@ package multicados.internal.service.crud.rest.filter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
-
-import multicados.internal.helper.Utils.TriFunction;
 
 /**
  * @author Ngoc Huy
@@ -18,17 +17,17 @@ import multicados.internal.helper.Utils.TriFunction;
  */
 public interface Filter<T> {
 
-	List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers();
+	List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers();
 
 	public static abstract class AbstractFilterImplementor<T> implements Filter<T> {
 
-		protected final List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> expressionProducers = new ArrayList<>(
+		protected final List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> expressionProducers = new ArrayList<>(
 				INIT_CAPACITY);
 
 		private static final int INIT_CAPACITY = 7;
 
 		@Override
-		public List<TriFunction<String, Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
+		public List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
 			return expressionProducers;
 		}
 
@@ -39,6 +38,10 @@ public interface Filter<T> {
 		T getEqual();
 
 		T getNot();
+
+	}
+
+	public interface Matchable extends Filter<String> {
 
 		String getLike();
 
