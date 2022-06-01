@@ -20,8 +20,8 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
-import multicados.internal.helper.FunctionHelper.HandledFunction;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -118,10 +118,10 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 		private static final Map<Class<? extends Serializable>, Class<? extends Serializable>> TYPE_KEY_RESOLVERS = Map
 				.of(String.class, String.class);
 
-		private static final Map<Class<? extends Serializable>, HandledFunction<Serializable, Serializable, Exception>> HANDLER_RESOLVERS;
+		private static final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> HANDLER_RESOLVERS;
 
 		static {
-			Map<Class<? extends Serializable>, HandledFunction<Serializable, Serializable, Exception>> handlerResolvers = new HashMap<>(
+			Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> handlerResolvers = new HashMap<>(
 					8);
 
 			handlerResolvers.put(String.class, id -> StringHelper.normalizeString((String) id));

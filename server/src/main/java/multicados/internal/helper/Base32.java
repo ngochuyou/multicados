@@ -58,7 +58,7 @@ public class Base32 {
 //	private final int[] parseTable;
 
 	// Constructor - Probably should be private but why restrict the user.
-	public Base32() {
+	private Base32() {
 		// Empty tables makes us match BigInteger format so no formatting/parsing is
 		// required.
 		formatTable = null;
@@ -66,7 +66,7 @@ public class Base32 {
 	}
 
 	// Constructor with character set and optional extras :).
-	protected Base32(String characterSet, String... extras) {
+	private Base32(String characterSet, String... extras) {
 		// Check the character set against the radix.
 		if (characterSet.length() != radix) {
 			throw new NumberFormatException("Invalid character set. Must be " + radix + " long");

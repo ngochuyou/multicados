@@ -40,12 +40,8 @@ public class CollectionHelper {
 				.toArray(size -> (T[]) Array.newInstance(type, size));
 	}
 
-	public static String[] toArray(String... strings) {
-		return strings;
-	}
-
-	public static Object[] toArray(Object... strings) {
-		return strings;
+	public static <T> T[] toArray(@SuppressWarnings("unchecked") T... elements) {
+		return elements;
 	}
 
 	public static <K, V, C extends Collection<V>> Map<K, C> group(Collection<V> collection, Function<V, K> keyProducer,

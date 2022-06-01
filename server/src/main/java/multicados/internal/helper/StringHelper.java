@@ -4,9 +4,10 @@
 package multicados.internal.helper;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.springframework.util.StringUtils;
 
@@ -20,22 +21,23 @@ public class StringHelper extends StringUtils {
 	public static final String EMPTY_STRING = "";
 	public static final String SPACE = " ";
 	public static final String DOT = ".";
+	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
-	public static String join(CharSequence joiner, Object... elements) {
-		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(joiner));
+	public static <T> String join(@SuppressWarnings("unchecked") T... elements) {
+		return join(List.of(elements));
 	}
 
-	public static String join(Object... elements) {
-		return join(COMMON_JOINER, elements);
-	}
-	
-	public static String join(Collection<?> elements) {
-		return Stream.of(elements).map(Object::toString).collect(Collectors.joining(COMMON_JOINER));
+	public static <T> String join(Collection<T> elements) {
+		return join((value) -> Optional.ofNullable(value).map(Object::toString).orElse(NULL), elements);
 	}
 
-	public static <T> String join(Function<T, String> stringGetter, T[] elements) {
-		return Stream.of(elements).map(stringGetter::apply).collect(Collectors.joining(COMMON_JOINER));
+	public static <T> String join(Function<T, String> stringGetter, Collection<T> elements) {
+		return join(COMMON_JOINER, stringGetter, elements);
+	}
+
+	public static <T> String join(CharSequence joiner, Function<T, String> stringGetter, Collection<T> elements) {
+		return elements.stream().map(stringGetter).collect(Collectors.joining(joiner));
 	}
 
 	public static final String WHITESPACE_CHARS = EMPTY_STRING + "\\u0009" // CHARACTER TABULATION

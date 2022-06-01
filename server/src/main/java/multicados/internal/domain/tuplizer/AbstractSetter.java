@@ -6,8 +6,8 @@ package multicados.internal.domain.tuplizer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-import multicados.internal.helper.FunctionHelper.HandledBiConsumer;
-import multicados.internal.helper.FunctionHelper.HandledBiFunction;
+import multicados.internal.helper.Utils.HandledBiConsumer;
+import multicados.internal.helper.Utils.HandledBiFunction;
 
 /**
  * @author Ngoc Huy
@@ -34,7 +34,7 @@ public abstract class AbstractSetter implements Setter {
 			isPrimitive = field.getType().isPrimitive();
 			invoker = (source, val) -> ((Field) getMember()).set(source, val);
 		}
-		
+
 		this.isPrimitive = isPrimitive;
 		this.invoker = invoker;
 	}

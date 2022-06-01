@@ -15,8 +15,8 @@ import java.util.function.Supplier;
 
 import org.springframework.util.Assert;
 
-import multicados.internal.helper.FunctionHelper.HandledConsumer;
 import multicados.internal.helper.TypeHelper;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -81,7 +81,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 	}
 
 	@Override
-	public void forEach(HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer)
+	public void forEach(Utils.HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer)
 			throws Exception {
 		consumer.accept(this);
 

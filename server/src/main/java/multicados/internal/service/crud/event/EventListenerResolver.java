@@ -22,8 +22,8 @@ import multicados.internal.context.ContextBuildListener;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.EncryptedIdentifierResource;
 import multicados.internal.helper.Base32;
-import multicados.internal.helper.FunctionHelper.HandledFunction;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.HandledFunction;
 
 /**
  * @author Ngoc Huy

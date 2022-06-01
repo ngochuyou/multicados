@@ -154,7 +154,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.second(cq -> cq.from(type))
 				.third(selector)
 			.identical(this::doSelect)
-				.useFirstTwo()
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -170,7 +169,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	private <D extends DomainResource, E> CriteriaQuery<E> doSelect(CriteriaQuery<E> cq, Root<D> root,
-			Selector<D, E> selector) {
+			Selector<D, E> selector) throws Exception {
 		return cq.multiselect(selector.select(root, cq, criteriaBuilder));
 	}
 
@@ -235,10 +234,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.second(cq -> cq.from(type))
 				.third(selector)
 			.identical(this::doSelect)
-				.useFirstTwo()
 				.third(specification)
 			.identical(this::doFilter)
-				.useFirstTwo()
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -325,7 +322,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.second(cq -> cq.from(type))
 				.third(spec)
 			.identical(this::doFilter)
-				.useFirstTwo()
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -405,7 +401,6 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.second(cq -> cq.from(type))
 				.third(selector)
 			.identical(this::doSelect)
-				.useFirstTwo()
 				.third(spec)
 			.then(this::doFilter)
 				.second(session)

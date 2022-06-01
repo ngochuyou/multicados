@@ -32,14 +32,14 @@ import multicados.internal.helper.Utils;
  * @author Ngoc Huy
  *
  */
-public class SelectorsProvider {
+public class SelectionProducersProvider {
 
-	private static final Logger logger = LoggerFactory.getLogger(SelectorsProvider.class);
+	private static final Logger logger = LoggerFactory.getLogger(SelectionProducersProvider.class);
 
 	private final Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers;
 
-	public SelectorsProvider(DomainResourceContext resourceContext) throws Exception {
-		logger.debug("Resolving selectors map");
+	public SelectionProducersProvider(DomainResourceContext resourceContext) throws Exception {
+		logger.debug("Resolving selection producers map");
 
 		Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers = new HashMap<>();
 

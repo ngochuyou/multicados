@@ -19,6 +19,6 @@ import multicados.internal.domain.DomainResource;
 @FunctionalInterface
 public interface Selector<T extends DomainResource, E> {
 
-	List<Selection<?>> select(Root<T> root, CriteriaQuery<E> query, CriteriaBuilder builder);
+	List<Selection<?>> select(Root<T> root, CriteriaQuery<E> query, CriteriaBuilder builder) throws Exception;
 
 }

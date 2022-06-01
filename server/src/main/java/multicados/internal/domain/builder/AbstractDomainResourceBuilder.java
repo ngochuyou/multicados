@@ -7,7 +7,6 @@ import java.io.Serializable;
 
 import javax.persistence.EntityManager;
 
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
@@ -20,12 +19,11 @@ import multicados.internal.helper.Utils.Access;
  */
 public abstract class AbstractDomainResourceBuilder<D extends DomainResource> implements DomainResourceBuilder<D> {
 
-	private final Access access = new Access() {};
+	private volatile Access access = new Access() {};
 
 	@Override
 	public <E extends D> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next) {
-		Assert.notNull(access, Access.CLOSED_MESSAGE);
-
+		Assert.notNull(access, Access.getClosingMessage(this));
 		return new CompositeDomainResourceBuilder<>(this, next);
 	}
 
@@ -68,10 +66,13 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 	}
 
 	@Override
-	public void doAfterContextBuild() {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
+	public synchronized void doAfterContextBuild() {
+		if (access == null) {
+			return;
+		}
 
-		logger.trace(Access.getClosingMessage(this));
+		LoggerFactory.getLogger(this.getClass()).trace(Access.getClosingMessage(this));
+		access = null;
 	}
 
 }

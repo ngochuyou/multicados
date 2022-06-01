@@ -14,12 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import multicados.internal.context.Loggable;
-import multicados.internal.helper.FunctionHelper.HandledBiConsumer;
-import multicados.internal.helper.FunctionHelper.HandledBiFunction;
-import multicados.internal.helper.FunctionHelper.HandledConsumer;
-import multicados.internal.helper.FunctionHelper.HandledFunction;
-import multicados.internal.helper.FunctionHelper.HandledTriConsumer;
-import multicados.internal.helper.FunctionHelper.HandledTriFunction;
 
 /**
  * @author Ngoc Huy
@@ -48,10 +42,6 @@ public class Utils {
 		return new TriDeclaration<>(one, two, three);
 	}
 
-	public static <FIRST> Declaration<FIRST> declare() {
-		return new Declaration<>(null);
-	}
-
 	private interface ArgumentContext {
 
 		<ARGUMENT> Declaration<ARGUMENT> use(int i);
@@ -68,7 +58,11 @@ public class Utils {
 				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
 				HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception;
 
-		Declaration<FIRST> identical(HandledConsumer<FIRST, Exception> consumer) throws Exception;
+		<SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg);
+
+		<SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc) throws Exception;
+
+		Utils.Declaration<FIRST> identical(Utils.HandledConsumer<FIRST, Exception> consumer) throws Exception;
 
 		<SECOND> BiDeclaration<FIRST, SECOND> second(SECOND second) throws Exception;
 
@@ -84,7 +78,15 @@ public class Utils {
 
 		BiDeclaration<FIRST, SECOND> identical(HandledBiConsumer<FIRST, SECOND, Exception> consumer) throws Exception;
 
+		<THIRD> TriDeclaration<FIRST, SECOND, THIRD> append(HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc)
+				throws Exception;
+
+		<THIRD> TriDeclaration<THIRD, FIRST, SECOND> prepend(HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc)
+				throws Exception;
+
 		<THIRD> TriDeclaration<FIRST, SECOND, THIRD> third(THIRD third) throws Exception;
+
+		BiDeclaration<SECOND, FIRST> biInverse();
 
 	}
 
@@ -98,11 +100,9 @@ public class Utils {
 
 		Declaration<THIRD> useThird();
 
-		BiDeclaration<FIRST, SECOND> useFirstTwo();
+		<NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond);
 
-		BiDeclaration<SECOND, THIRD> useLastTwo();
-
-		BiDeclaration<FIRST, THIRD> useFirstLast();
+		TriDeclaration<THIRD, SECOND, FIRST> triInverse();
 
 	}
 
@@ -115,19 +115,30 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Declaration<RETURN> then(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
+		public <RETURN> Declaration<RETURN> then(Utils.HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
 			return new Declaration<RETURN>(fnc.apply(firstArg));
 		}
 
 		@Override
 		public <NEXT_FIRST, SECOND> BiDeclaration<NEXT_FIRST, SECOND> flat(
-				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
-				HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception {
+				Utils.HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
+				Utils.HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception {
 			return declare(nextFirstArgProducer.apply(firstArg), secondArgProducer.apply(firstArg));
 		}
 
 		@Override
-		public Declaration<FIRST> identical(HandledConsumer<FIRST, Exception> consumer) throws Exception {
+		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg) {
+			return declare(secondArg, firstArg);
+		}
+
+		@Override
+		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc)
+				throws Exception {
+			return declare(fnc.apply(firstArg), firstArg);
+		}
+
+		@Override
+		public Declaration<FIRST> identical(Utils.HandledConsumer<FIRST, Exception> consumer) throws Exception {
 			consumer.accept(firstArg);
 			return this;
 		}
@@ -137,7 +148,7 @@ public class Utils {
 			return declare(firstArg, secondArg);
 		}
 
-		public <RETURN> BiDeclaration<FIRST, RETURN> second(HandledFunction<FIRST, RETURN, Exception> fnc)
+		public <RETURN> BiDeclaration<FIRST, RETURN> second(Utils.HandledFunction<FIRST, RETURN, Exception> fnc)
 				throws Exception {
 			return declare(firstArg, fnc.apply(firstArg));
 		}
@@ -160,7 +171,8 @@ public class Utils {
 
 	}
 
-	public static class BiDeclaration<FIRST, SECOND> extends Declaration<FIRST> implements BiArgument<FIRST, SECOND> {
+	public static class BiDeclaration<FIRST, SECOND> extends Utils.Declaration<FIRST>
+			implements BiArgument<FIRST, SECOND> {
 
 		protected SECOND secondArg;
 
@@ -170,13 +182,25 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Declaration<RETURN> then(HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
+		public <RETURN> Utils.Declaration<RETURN> then(Utils.HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
 				throws Exception {
 			return declare(fnc.apply(firstArg, secondArg));
 		}
 
 		@Override
-		public BiDeclaration<FIRST, SECOND> identical(HandledBiConsumer<FIRST, SECOND, Exception> consumer)
+		public <THIRD> TriDeclaration<FIRST, SECOND, THIRD> append(
+				HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
+			return declare(firstArg, secondArg, fnc.apply(firstArg, secondArg));
+		}
+
+		@Override
+		public <THIRD> TriDeclaration<THIRD, FIRST, SECOND> prepend(
+				HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
+			return declare(fnc.apply(firstArg, secondArg), firstArg, secondArg);
+		}
+
+		@Override
+		public BiDeclaration<FIRST, SECOND> identical(Utils.HandledBiConsumer<FIRST, SECOND, Exception> consumer)
 				throws Exception {
 			consumer.accept(firstArg, secondArg);
 			return this;
@@ -188,22 +212,22 @@ public class Utils {
 		}
 
 		public <THIRD> TriDeclaration<FIRST, SECOND, THIRD> third(
-				HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
+				Utils.HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
 			return declare(firstArg, secondArg, fnc.apply(firstArg, secondArg));
 		}
 
 		@Override
-		public Declaration<SECOND> useSecond() {
+		public Utils.Declaration<SECOND> useSecond() {
 			return declare(secondArg);
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
+		public <ARGUMENT> Utils.Declaration<ARGUMENT> use(int i) {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg)[i]);
 		}
 
-		public BiDeclaration<SECOND, FIRST> biInverse() throws Exception {
+		public BiDeclaration<SECOND, FIRST> biInverse() {
 			return new BiDeclaration<>(secondArg, firstArg);
 		}
 
@@ -220,8 +244,8 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Declaration<RETURN> then(HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
-				throws Exception {
+		public <RETURN> Utils.Declaration<RETURN> then(
+				Utils.HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc) throws Exception {
 			return declare(fnc.apply(firstArg, secondArg, thirdArg));
 		}
 
@@ -237,40 +261,35 @@ public class Utils {
 			return new Declaration<>(thirdArg);
 		}
 
-		@Override
-		public BiDeclaration<FIRST, SECOND> useFirstTwo() {
-			return declare(firstArg, secondArg);
-		}
-
-		@Override
-		public BiDeclaration<SECOND, THIRD> useLastTwo() {
-			return declare(secondArg, thirdArg);
-		}
-
-		@Override
-		public BiDeclaration<FIRST, THIRD> useFirstLast() {
-			return declare(firstArg, thirdArg);
-		}
-
 		@SuppressWarnings("unchecked")
 		@Override
 		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg, thirdArg)[i]);
 		}
 
-		public TriDeclaration<THIRD, SECOND, FIRST> triInverse() throws Exception {
+		public TriDeclaration<THIRD, SECOND, FIRST> triInverse() {
 			return new TriDeclaration<>(thirdArg, secondArg, firstArg);
+		}
+
+		@Override
+		public <NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond) {
+			return new TriDeclaration<>(firstArg, nextSecond, thirdArg);
 		}
 
 	}
 
+	private static final String CLOSED_ACCESS_MESSAGE_TEMPLATE = "Access to %s was closed";
+	private static final String CLOSING_ACCESS_MESSAGE_TEMPLATE = "Closing access to %s";
+
 	public interface Access {
 
 		public static String getClosingMessage(Loggable instance) {
-			return String.format("Closing access to %s", instance.getLoggableName());
+			return String.format(CLOSING_ACCESS_MESSAGE_TEMPLATE, instance.getLoggableName());
 		}
 
-		public static final String CLOSED_MESSAGE = "Access to this instance was closed";
+		public static String getClosedMessage(Loggable instance) {
+			return String.format(CLOSED_ACCESS_MESSAGE_TEMPLATE, instance.getLoggableName());
+		}
 
 	}
 
@@ -413,6 +432,59 @@ public class Utils {
 	public interface TriFunction<FIRST, SECOND, THIRD, RETURN> {
 
 		RETURN apply(FIRST f, SECOND s, THIRD t);
+
+	}
+
+	@FunctionalInterface
+	public interface HandledFunction<FIRST, RETURN, EXCEPTION extends Exception> {
+
+		RETURN apply(FIRST input) throws EXCEPTION;
+
+		static <F, E extends Exception> HandledFunction<F, F, E> identity() {
+			return first -> first;
+		}
+
+	}
+
+	@FunctionalInterface
+	public interface HandledSupplier<RETURN, EXCEPTION extends Exception> {
+
+		RETURN get() throws EXCEPTION;
+
+	}
+
+	@FunctionalInterface
+	public interface HandledTriConsumer<FIRST, SECOND, THIRD, EXCEPTION extends Exception> {
+
+		void accept(FIRST one, SECOND two, THIRD three) throws EXCEPTION;
+
+	}
+
+	@FunctionalInterface
+	public interface HandledBiConsumer<FIRST, SECOND, EXCEPTION extends Exception> {
+
+		void accept(FIRST one, SECOND two) throws EXCEPTION;
+
+	}
+
+	@FunctionalInterface
+	public interface HandledConsumer<FIRST, EXCEPTION extends Exception> {
+
+		void accept(FIRST input) throws EXCEPTION;
+
+	}
+
+	@FunctionalInterface
+	public interface HandledTriFunction<FIRST, SECOND, THIRD, RETURN, EXCEPTION extends Exception> {
+
+		RETURN apply(FIRST fisrt, SECOND second, THIRD third) throws EXCEPTION;
+
+	}
+
+	@FunctionalInterface
+	public interface HandledBiFunction<FIRST, SECOND, RETURN, EXCEPTION extends Exception> {
+
+		RETURN apply(FIRST fisrt, SECOND second) throws EXCEPTION;
 
 	}
 

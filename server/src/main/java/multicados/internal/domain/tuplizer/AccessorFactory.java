@@ -8,8 +8,8 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import multicados.internal.helper.FunctionHelper.HandledBiFunction;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils.HandledBiFunction;
 
 /**
  * @author Ngoc Huy

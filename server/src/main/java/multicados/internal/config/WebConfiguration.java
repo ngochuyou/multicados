@@ -241,7 +241,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
 		logger.debug("{}(s): {}", ContextBuilder.class.getSimpleName(),
-				StringHelper.join(BeanDefinition::getBeanClassName, beanDefs.toArray(BeanDefinition[]::new)));
+				StringHelper.join(BeanDefinition::getBeanClassName, beanDefs));
 	}
 
 	private Set<BeanDefinition> scan() {

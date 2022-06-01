@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import multicados.internal.context.Loggable;
-import multicados.internal.helper.FunctionHelper.HandledFunction;
 import multicados.internal.helper.Utils.Access;
 
 /**
@@ -113,7 +112,7 @@ public class TypeHelper {
 		private static final BiFunction<Class<?>, Integer, Integer> HASH_CODE_GENERATOR = (anyType,
 				salt) -> (PRIME * salt) + anyType.hashCode();
 
-		private Map<Integer, Map<Integer, HandledFunction<?, ?, Exception>>> convertersMap = new HashMap<>();
+		private Map<Integer, Map<Integer, Utils.HandledFunction<?, ?, Exception>>> convertersMap = new HashMap<>();
 
 		private volatile Access access = new Access() {};
 
@@ -127,7 +126,7 @@ public class TypeHelper {
 		}
 
 		@SuppressWarnings("unchecked")
-		private <A, B> HandledFunction<A, B, Exception> locate(Class<A> typeA, Class<B> typeB) {
+		private <A, B> Utils.HandledFunction<A, B, Exception> locate(Class<A> typeA, Class<B> typeB) {
 			int[] hashPair = hash(typeA, typeB);
 
 			if (!convertersMap.containsKey(hashPair[0])) {
@@ -138,24 +137,24 @@ public class TypeHelper {
 				return null;
 			}
 
-			return (HandledFunction<A, B, Exception>) convertersMap.get(hashPair[0]).get(hashPair[1]);
+			return (Utils.HandledFunction<A, B, Exception>) convertersMap.get(hashPair[0]).get(hashPair[1]);
 		}
 
 		private <A, B> void add(TypeGraphEntry<A, B> entry) {
-			Assert.notNull(access, Access.CLOSED_MESSAGE);
+			Assert.notNull(access, Access.getClosedMessage(this));
 			int[] hashPair = hash(entry.typeA, entry.typeB);
 
 			addBy(hashPair[0], hashPair[1], entry.toBFunction);
 			addBy(hashPair[1], hashPair[0], entry.toAFunction);
 		}
 
-		private void addBy(int aHash, int bHash, HandledFunction<?, ?, Exception> converter) {
+		private void addBy(int aHash, int bHash, Utils.HandledFunction<?, ?, Exception> converter) {
 			if (convertersMap.containsKey(aHash)) {
 				convertersMap.get(aHash).put(bHash, converter);
 				return;
 			}
 
-			Map<Integer, HandledFunction<?, ?, Exception>> descriptorsByA = new HashMap<>();
+			Map<Integer, Utils.HandledFunction<?, ?, Exception>> descriptorsByA = new HashMap<>();
 
 			descriptorsByA.put(bHash, converter);
 			convertersMap.put(aHash, descriptorsByA);
@@ -189,8 +188,8 @@ public class TypeHelper {
 
 		private Class<A> typeA;
 		private Class<B> typeB;
-		private HandledFunction<A, B, Exception> toBFunction;
-		private HandledFunction<B, A, Exception> toAFunction;
+		private Utils.HandledFunction<A, B, Exception> toBFunction;
+		private Utils.HandledFunction<B, A, Exception> toAFunction;
 
 		private TypeGraphEntry() {}
 
@@ -204,12 +203,12 @@ public class TypeHelper {
 			return this;
 		}
 
-		public TypeGraphEntry<A, B> toB(HandledFunction<A, B, Exception> toBFunction) {
+		public TypeGraphEntry<A, B> toB(Utils.HandledFunction<A, B, Exception> toBFunction) {
 			this.toBFunction = toBFunction;
 			return this;
 		}
 
-		public TypeGraphEntry<A, B> toA(HandledFunction<B, A, Exception> toAFunction) {
+		public TypeGraphEntry<A, B> toA(Utils.HandledFunction<B, A, Exception> toAFunction) {
 			this.toAFunction = toAFunction;
 			return this;
 		}

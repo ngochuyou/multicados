@@ -3,6 +3,8 @@
  */
 package multicados.internal.service.crud;
 
+import static multicados.internal.helper.Utils.declare;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,11 +12,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -22,14 +22,15 @@ import java.util.stream.Stream;
 import javax.persistence.Tuple;
 import javax.persistence.TupleElement;
 import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.From;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 
 import org.hibernate.Session;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +47,8 @@ import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.Entry;
+import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.helper.Utils.LazySupplier;
 import multicados.internal.service.crud.rest.ComposedNonBatchingRestQuery;
 import multicados.internal.service.crud.rest.ComposedRestQuery;
@@ -68,18 +71,29 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 	private final ReadSecurityManager readSecurityManager;
 
 	private final RestQueryComposer restQueryComposer;
-	private final SelectorsProvider selectorsProvider;
+	private final SelectionProducersProvider selectionProducersProvider;
+
+	private final CriteriaBuilder criteriaBuilder;
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 
-	public GenericCRUDServiceImpl(DomainResourceContext resourceContext, DomainResourceBuilderFactory builderFactory,
-			DomainResourceValidatorFactory validatorFactory, ReadSecurityManager readSecurityManager,
-			GenericRepository genericRepository) throws Exception {
+	public GenericCRUDServiceImpl(
+	// @formatter:off
+			DomainResourceContext resourceContext,
+			DomainResourceBuilderFactory builderFactory,
+			DomainResourceValidatorFactory validatorFactory,
+			ReadSecurityManager readSecurityManager,
+			GenericRepository genericRepository,
+			SessionFactoryImplementor sfi) throws Exception {
+		// @formatter:on
 		super(resourceContext, builderFactory, validatorFactory);
 		this.readSecurityManager = readSecurityManager;
 		this.genericRepository = genericRepository;
+
 		restQueryComposer = new RestQueryComposerImpl(resourceContext, readSecurityManager);
-		selectorsProvider = new SelectorsProvider(resourceContext);
+		selectionProducersProvider = new SelectionProducersProvider(resourceContext);
+
+		criteriaBuilder = sfi.getCriteriaBuilder();
 	}
 
 	private <E extends DomainResource> List<Map<String, Object>> resolveRows(Class<E> type, List<Tuple> tuples,
@@ -214,32 +228,31 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 	private class RestQueryProcessingUnit<D extends DomainResource> {
 
 		private final ComposedRestQuery<D> query;
-		private final CRUDCredential credential;
 
-		private final Class<D> resourceType;
-		private final List<String> attributes;
+		private final Class<D> rootResourceType;
+		private final List<String> basicAttributes;
 		private final List<ComposedNonBatchingRestQuery<?>> nonBatchingQueries;
 		private final List<ComposedRestQuery<?>> batchingQueries;
 		private final LazySupplier<Map<String, String>> translatedAttributesLoader;
+		private final Pageable pageable;
+		private final CRUDCredential credential;
 
 		private final Map<String, From<?, ?>> fromsCache = new HashMap<>();
 
-		private final Pageable pageable;
-
-		private static final String ROOT_KEY_IN_CACHE = null;
+		private static final String ROOT_KEY_IN_CACHE = "<ROOT>";
 
 		public RestQueryProcessingUnit(ComposedRestQuery<D> query, CRUDCredential credential) {
 			this.query = query;
 			this.credential = credential;
 
-			resourceType = query.getResourceType();
+			rootResourceType = query.getResourceType();
 
 			if (logger.isDebugEnabled()) {
 				logger.debug("Processing {}<{}>", ComposedRestQuery.class.getSimpleName(),
-						resourceType.getSimpleName());
+						rootResourceType.getSimpleName());
 			}
 
-			attributes = query.getAttributes();
+			basicAttributes = query.getAttributes();
 			nonBatchingQueries = query.getNonBatchingAssociationQueries();
 			batchingQueries = query.getBatchingAssociationQueries();
 			translatedAttributesLoader = new LazySupplier<>(() -> translateAttributes(query, credential));
@@ -247,157 +260,207 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			pageable = Optional.<Pageable>ofNullable(query.getPage()).orElse(DEFAULT_PAGEABLE);
 		}
 
-		private Selector<D, Tuple> resolveSelections() {
-			Map<String, Function<Path<?>, Path<?>>> selectionProducers = selectorsProvider
-					.getSelectionProducers(resourceType);
-			List<Selection<?>> selections = new ArrayList<>();
-
-			return (root, cq, builder) -> {
-				fromsCache.put(ROOT_KEY_IN_CACHE, root);
-
-				for (String attribute : attributes) {
-					selections.add(selectionProducers.get(attribute).apply(root));
-				}
-
-				for (ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
-					String joinName = nonBatchingQuery.getAssociationName();
-					Join<?, ?> join = (Join<?, ?>) selectionProducers.get(joinName).apply(root);
-
-					fromsCache.put(joinName, join);
-					selections.addAll(resolveJoinedSelections(joinName, join, cq, builder, nonBatchingQuery));
-				}
-
-				return selections;
-			};
+		private Selector<D, Tuple> resolveSelector() {
+			// @formatter:off
+			return (root, cq, builder) -> declare(root)
+					.second(ROOT_KEY_IN_CACHE)
+				.identical(this::cache)
+					.second(selectionProducersProvider.getSelectionProducers(rootResourceType))
+				.append(this::produceBasicSelections)
+				.then(this::addAssociationSelections)
+				.get();
+			// @formatter:on
 		}
 
-		private List<Selection<?>> resolveJoinedSelections(
-		// @formatter:off
-				String joinRole,
-				Join<?, ?> join,
-				CriteriaQuery<Tuple> cq,
-				CriteriaBuilder builder,
-				ComposedRestQuery<?> composedQuery) {
+		private <T extends DomainResource> List<Selection<?>> produceBasicSelections(Root<T> root,
+				Map<String, Function<Path<?>, Path<?>>> selectionProducers) {
+			// @formatter:off
+			return basicAttributes
+					.stream()
+					.map(selectionProducers::get)
+					.map(producer -> producer.apply(root))
+					.collect(Collectors.toList());
 			// @formatter:on
-			Map<String, Function<Path<?>, Path<?>>> joinedSelectionProducers = selectorsProvider
-					.getSelectionProducers(composedQuery.getResourceType());
-			List<String> joinedAttributes = composedQuery.getAttributes();
-			List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries = composedQuery
-					.getNonBatchingAssociationQueries();
+		}
+
+		// @formatter:off
+		private <T extends DomainResource> List<Selection<?>> addAssociationSelections(
+				Root<T> root,
+				Map<String, Function<Path<?>, Path<?>>> selectionProducers,
+				List<Selection<?>> basicSelections) throws Exception {
+			for (ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
+				declare(nonBatchingQuery.getAssociationName())
+						.flat(joinName -> (Join<?, ?>) selectionProducers.get(joinName).apply(root), HandledFunction.identity())
+					.identical(this::cache)
+						.third(nonBatchingQuery)
+					.then(this::resolveJoinedSelections)
+					.identical(basicSelections::addAll);
+			}
+
+			return basicSelections;
+		}
+		// @formatter:on
+		private void cache(From<?, ?> from, String key) {
+			fromsCache.put(key, from);
+		}
+
+		// @formatter:off
+		private List<Selection<?>> resolveJoinedSelections(
+				Join<?, ?> join,
+				String joinRole,
+				ComposedRestQuery<?> composedAssociationQuery) throws Exception {
+			return declare(join)
+						.second(composedAssociationQuery.getAttributes())
+						.third(composedAssociationQuery.getNonBatchingAssociationQueries())
+					.then(this::produceAssociationBasicSelections)
+						.second(composedAssociationQuery.getNonBatchingAssociationQueries())
+						.third(Utils.Entry.<Join<?, ?>, String>entry(join, joinRole))
+						.triInverse()
+					.then(this::addNestedAssociationSelections)
+					.get();
+		}
+		// @formatter:on
+		@SuppressWarnings("unchecked")
+		private List<Selection<?>> produceAssociationBasicSelections(Join<?, ?> join, List<String> joinedAttributes,
+				List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries) throws Exception {
 			List<Selection<?>> selections = new ArrayList<>(joinedAttributes.size() + joinedNonBatchingQueries.size());
-
+			// @formatter:off
 			for (String joinedAttribute : joinedAttributes) {
-				selections.add(joinedSelectionProducers.get(joinedAttribute).apply(join));
+				declare(join.getJavaType())
+					.then(type -> (Class<DomainResource>) type)
+					.then(selectionProducersProvider::getSelectionProducers)
+					.then(selectionsProducers -> selectionsProducers.get(joinedAttribute))
+					.then(producer -> producer.apply(join))
+					.identical(selections::add);
 			}
-
-			for (ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
-				String nextJoinName = nonBatchingAssociationQuery.getAssociationName();
-				String nextJoinRole = resolveJoinRole(joinRole, nextJoinName);
-				Join<?, ?> nextJoin = join.join(nextJoinName);
-
-				fromsCache.put(nextJoinRole, nextJoin);
-				selections.addAll(
-						resolveJoinedSelections(nextJoinRole, nextJoin, cq, builder, nonBatchingAssociationQuery));
-			}
-
+			// @formatter:on
 			return selections;
 		}
 
+		// @formatter:off
+		private List<Selection<?>> addNestedAssociationSelections(
+				Entry<Join<?, ?>, String> joinEntry,
+				List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries,
+				List<Selection<?>> associationBasicSelections) throws Exception {
+			for (ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
+				declare(nonBatchingAssociationQuery.getAssociationName())
+					.flat(
+						associationName -> joinEntry.getKey().join(associationName),
+						associationName -> resolveJoinRole(joinEntry.getValue(), associationName))
+					.identical(this::cache)
+						.third(nonBatchingAssociationQuery)
+					.then(this::resolveJoinedSelections)
+					.then(associationBasicSelections::addAll);
+			}
+			
+			return associationBasicSelections;
+		}
+		// @formatter:on
 		private String resolveJoinRole(String joinRole, String nextJoinName) {
 			return joinRole != null ? StringHelper.join(StringHelper.DOT, joinRole, nextJoinName) : nextJoinName;
 		}
 
 		private Specification<D> resolveSpecification() {
-			return (root, cq, builder) -> Optional.ofNullable(resolvePredicates(root, cq, builder, null, query))
-					.orElse(builder.conjunction());
+			return (root, cq, builder) -> {
+				try {
+					return Optional.ofNullable(resolvePredicates(root, null, query)).orElse(builder.conjunction());
+				} catch (Exception any) {
+					any.printStackTrace();
+					return null;
+				}
+			};
 		}
 
-		private Predicate resolvePredicates(
 		// @formatter:off
-				From<?, ?> from, CriteriaQuery<?> criteriaQuery, CriteriaBuilder criteriaBuilder,
-				String joinRole, ComposedRestQuery<?> composedQuery) {
-			// @formatter:on
-			Map<String, Filter<?>> filters = composedQuery.getFilters();
-			List<Predicate> predicates = new ArrayList<>();
-			Specification<D> specification = new Supplier<Specification<D>>() {
-
-				@Override
-				public Specification<D> get() {
-					if (filters.isEmpty()) {
-						return null;
-					}
-
-					return (root, cq, builder) -> {
-						List<Predicate> predicates = new ArrayList<>();
-
-						for (Entry<String, Filter<?>> filterEntry : filters.entrySet()) {
-							// @formatter:off
-							Predicate filterPredicate = extractFilterPredicate(
-									composedQuery.getResourceType(),
-									from,
-									builder,
-									filterEntry.getKey(),
-									filterEntry.getValue());
-							// @formatter:on
-							if (filterPredicate == null) {
-								continue;
-							}
-
-							predicates.add(filterPredicate);
-						}
-
-						return builder.and(predicates.toArray(Predicate[]::new));
-					};
-				}
-			}.get();
-
-			if (specification != null) {
-				predicates.add(specification.toPredicate(null, criteriaQuery, criteriaBuilder));
-			}
-
-			for (ComposedRestQuery<?> nonBatchingQuery : composedQuery.getNonBatchingAssociationQueries()) {
-				String nextJoinRole = resolveJoinRole(joinRole, nonBatchingQuery.getAssociationName());
-				// @formatter:off
+		private Predicate resolvePredicates(
+				From<?, ?> from,
+				String joinRole,
+				ComposedRestQuery<?> composedQuery) throws Exception {
+			return declare(composedQuery.getResourceType())
+						.second(from)
+						.third(composedQuery.getFilters())
+					.then(this::resolveBasicPredicates)
+						.second(composedQuery)
+						.third(Entry.<From<?, ?>, String>entry(from, joinRole))
+						.triInverse()
+					.then(this::addAssociationPredicates)
+					.then(predicates -> predicates.isEmpty() ? null : criteriaBuilder.and(predicates.toArray(Predicate[]::new)))
+					.get();
+		}
+		// @formatter:on
+		// @formatter:off
+		private <E extends DomainResource> List<Predicate> addAssociationPredicates(
+				Utils.Entry<From<?, ?>, String> fromEntry,
+				ComposedRestQuery<?> composedAssocationQuery,
+				List<Predicate> basicPredicates) throws Exception {
+			for (ComposedRestQuery<?> nonBatchingQuery : composedAssocationQuery.getNonBatchingAssociationQueries()) {
+				String nextJoinRole = resolveJoinRole(fromEntry.getValue(), nonBatchingQuery.getAssociationName());
 				Predicate associationPredicate = resolvePredicates(
 						fromsCache.containsKey(nextJoinRole) ? fromsCache.get(nextJoinRole)
-								: from.join(composedQuery.getAssociationName()),
-						criteriaQuery,
-						criteriaBuilder,
+								: fromEntry.getKey().join(composedAssocationQuery.getAssociationName()),
 						nextJoinRole,
 						nonBatchingQuery);
-				// @formatter:on
+				
 				if (associationPredicate == null) {
 					continue;
 				}
 
-				predicates.add(associationPredicate);
+				basicPredicates.add(associationPredicate);
+			}
+			
+			return basicPredicates;
+		}
+		// @formatter:on
+		// @formatter:off
+		private <E extends DomainResource> List<Predicate> resolveBasicPredicates(
+				Class<E> resourceType,
+				From<?, ?> from,
+				Map<String, Filter<?>> filters) {
+			// @formatter:on
+			if (filters.isEmpty()) {
+				return new ArrayList<>();
 			}
 
-			return predicates.isEmpty() ? null : criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+			List<Predicate> predicates = new ArrayList<>();
+
+			for (Map.Entry<String, Filter<?>> filterEntry : filters.entrySet()) {
+				// @formatter:off
+				Predicate filterPredicate = extractFilterPredicate(
+						resourceType,
+						from,
+						filterEntry.getKey(),
+						filterEntry.getValue());
+				// @formatter:on
+				if (filterPredicate == null) {
+					continue;
+				}
+
+				predicates.add(filterPredicate);
+			}
+
+			return predicates;
 		}
 
 		private <E extends DomainResource> Predicate extractFilterPredicate(
 		// @formatter:off
 				Class<E> resourceType,
 				From<?, ?> from,
-				CriteriaBuilder builder,
 				String attributeName,
 				Filter<?> filter) {
 			// @formatter:on
 			List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter.getExpressionProducers();
-			Map<String, Function<Path<?>, Path<?>>> selectionProducers = selectorsProvider
-					.getSelectionProducers(resourceType);
-
-			if (expressionProducers.isEmpty()) {
-				return builder.conjunction();
-			}
-
-			Path<?> attributePath = selectionProducers.get(attributeName).apply(from);
-			Predicate predicate = expressionProducers.get(0).apply(attributePath, builder);
+			// @formatter:off
+			Path<?> attributePath = selectionProducersProvider
+					.getSelectionProducers(resourceType)
+					.get(attributeName)
+					.apply(from);
+			// @formatter:on
+			Predicate predicate = expressionProducers.get(0).apply(attributePath, criteriaBuilder);
 			int size = expressionProducers.size();
 
 			for (int i = 1; i < size; i++) {
-				predicate = builder.or(predicate, expressionProducers.get(i).apply(attributePath, builder));
+				predicate = criteriaBuilder.or(predicate,
+						expressionProducers.get(i).apply(attributePath, criteriaBuilder));
 			}
 
 			return predicate;
@@ -406,8 +469,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private List<Map<String, Object>> doReadAll(Session session) throws Exception {
 			// @formatter:off
 			List<Tuple> tuples = genericRepository.findAll(
-					resourceType,
-					resolveSelections(),
+					rootResourceType,
+					resolveSelector(),
 					resolveSpecification(),
 					pageable,
 					session);
@@ -422,8 +485,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private Map<String, Object> doRead(Session session) throws Exception {
 			// @formatter:off
 			Optional<Tuple> optionalTuple = genericRepository.findOne(
-					resourceType,
-					resolveSelections(),
+					rootResourceType,
+					resolveSelector(),
 					resolveSpecification(),
 					session);
 			// @formatter:on
@@ -447,22 +510,28 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		}
 
 		private Map<String, Object> transformRow(Tuple tuple) {
-			return transformRow(query, credential, attributes, translatedAttributesLoader.get(), tuple);
+			return transformRow(query, credential, basicAttributes, translatedAttributesLoader.get(), tuple);
 		}
 
-		private Map<String, Object> transformRow(ComposedRestQuery<?> composedQuery, CRUDCredential credential,
-				List<String> attributes, Map<String, String> translatedAttributes, Tuple tuple) {
-			Map<String, Object> produce = new HashMap<>(translatedAttributes.size(), 1f);
+		private Map<String, Object> transformRow(
+		// @formatter:off
+				ComposedRestQuery<?> composedQuery,
+				CRUDCredential credential,
+				List<String> attributes,
+				Map<String, String> translatedAttributes,
+				Tuple tuple) {
+			// @formatter:on
+			Map<String, Object> record = new HashMap<>(translatedAttributes.size(), 1f);
 			int basicAttributesSpan = attributes.size();
 
 			for (int i = 0; i < basicAttributesSpan; i++) {
-				produce.put(translatedAttributes.get(attributes.get(i)), tuple.get(i));
+				record.put(translatedAttributes.get(attributes.get(i)), tuple.get(i));
 			}
 
 			for (ComposedNonBatchingRestQuery<?> composedNonBatchingRestQuery : composedQuery
 					.getNonBatchingAssociationQueries()) {
 				// @formatter:off
-				produce.put(translatedAttributes.get(composedNonBatchingRestQuery.getAssociationName()),
+				record.put(translatedAttributes.get(composedNonBatchingRestQuery.getAssociationName()),
 						transformRow(
 								composedNonBatchingRestQuery,
 								credential,
@@ -472,7 +541,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 				// @formatter:on
 			}
 
-			return produce;
+			return record;
 		}
 
 		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery, CRUDCredential credential) {

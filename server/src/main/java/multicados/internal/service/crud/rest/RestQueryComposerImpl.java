@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 
@@ -214,22 +215,22 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <D extends DomainResource> ComposedRestQuery<D> compose(Integer associatedPosition, RestQuery<D> restQuery,
+	private <D extends DomainResource> ComposedRestQuery<D> compose(Integer associatedPosition, RestQuery<D> owningQuery,
 			CRUDCredential credential, boolean isQueryBatched) throws Exception {
-		Class<D> resourceType = restQuery.getResourceType();
-		List<String> checkedAttributes = readSecurityManager.check(resourceType, restQuery.getAttributes(), credential);
+		Class<D> resourceType = owningQuery.getResourceType();
+		List<String> checkedAttributes = readSecurityManager.check(resourceType, owningQuery.getAttributes(), credential);
 
-		restQuery.setAttributes(checkedAttributes);
+		owningQuery.setAttributes(checkedAttributes);
 
 		@SuppressWarnings("rawtypes")
-		List[] associationQueries = resolveAssociationQueries(restQuery, credential, isQueryBatched);
-		Map<String, Filter<?>> filters = resolveFilters(restQuery);
+		List[] associationQueries = resolveAssociationQueries(owningQuery, credential, isQueryBatched);
+		Map<String, Filter<?>> filters = resolveFilters(owningQuery);
 
 		if (isQueryBatched) {
-			return new ComposedRestQueryImpl<>(restQuery, associationQueries[0], associationQueries[1], filters);
+			return new ComposedRestQueryImpl<>(owningQuery, associationQueries[0], associationQueries[1], filters);
 		}
 
-		return new ComposedNonBatchingRestQueryImpl<>(restQuery, associationQueries[0], associationQueries[1], filters,
+		return new ComposedNonBatchingRestQueryImpl<>(owningQuery, associationQueries[0], associationQueries[1], filters,
 				associatedPosition);
 	}
 
@@ -237,28 +238,29 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		Map<String, Filter<?>> filters = new HashMap<>();
 
 		for (Entry<String, Accessor> accessorEntry : filtersAccessors.get(restQuery.getResourceType()).entrySet()) {
-			Object filter = accessorEntry.getValue().get(restQuery);
+			Filter<?> filter = Optional.ofNullable(accessorEntry.getValue().get(restQuery)).map(Filter.class::cast)
+					.orElse(null);
 
-			if (filter == null) {
+			if (filter == null || filter.getExpressionProducers().isEmpty()) {
 				continue;
 			}
 
-			filters.put(accessorEntry.getKey(), (Filter<?>) filter);
+			filters.put(accessorEntry.getKey(), filter);
 		}
 
 		return filters;
 	}
 
 	@SuppressWarnings("rawtypes")
-	private List[] resolveAssociationQueries(RestQuery<?> restQuery, CRUDCredential credential, boolean isQueryBatched)
+	private List[] resolveAssociationQueries(RestQuery<?> owningQuery, CRUDCredential credential, boolean isQueryBatched)
 			throws Exception {
-		QueryMetadata queryMetadata = queryMetadatasMap.get(restQuery.getResourceType());
+		QueryMetadata queryMetadata = queryMetadatasMap.get(owningQuery.getResourceType());
 		List<ComposedRestQuery<?>> nonBatchingQueries = new ArrayList<>();
-		int index = restQuery.getAttributes().size();
-		Set<String> owningQueryAttributes = new HashSet<>(restQuery.getAttributes());
+		int index = owningQuery.getAttributes().size();
+		Set<String> owningQueryAttributes = new HashSet<>(owningQuery.getAttributes());
 		Set<String> collidedAttributes = new HashSet<>(owningQueryAttributes.size());
 
-		for (Entry<String, RestQuery<?>> queryEntry : locateAssociationQueryEntries(restQuery,
+		for (Entry<String, RestQuery<?>> queryEntry : locateAssociationQueryEntries(owningQuery,
 				queryMetadata.getNonBatchingQueriesAccessors())) {
 			if (doCollide(owningQueryAttributes, queryEntry)) {
 				collidedAttributes.add(queryEntry.getKey());
@@ -266,7 +268,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			}
 
 			ComposedNonBatchingRestQuery<?> composeAssociationQuery = (ComposedNonBatchingRestQuery<?>) individuallyComposeAssociationQuery(
-					restQuery, index, queryEntry, credential, isQueryBatched);
+					owningQuery, index, queryEntry, credential, isQueryBatched);
 
 			nonBatchingQueries.add(composeAssociationQuery);
 			index += composeAssociationQuery.getPropertySpan();
@@ -278,7 +280,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		// TODO: test this out
 		List<ComposedRestQuery<?>> batchingQueries = new ArrayList<>();
 
-		for (Entry<String, RestQuery<?>> entry : locateAssociationQueryEntries(restQuery,
+		for (Entry<String, RestQuery<?>> entry : locateAssociationQueryEntries(owningQuery,
 				queryMetadata.getBatchingQueriesAccessors())) {
 			if (doCollide(owningQueryAttributes, entry)) {
 				collidedAttributes.add(entry.getKey());
@@ -286,7 +288,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			}
 
 			batchingQueries
-					.add(individuallyComposeAssociationQuery(restQuery, index, entry, credential, isQueryBatched));
+					.add(individuallyComposeAssociationQuery(owningQuery, index, entry, credential, isQueryBatched));
 			index++;
 		}
 

@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,7 +28,7 @@ public interface Filters {
 	public class BooleanFilter extends AbstractSingularFilter<Boolean> {
 	};
 
-	public class StringFilter extends AbstractPluralSingularFilter<String> implements Filter.Matchable {
+	public class StringFilter extends AbstractSingularPluralFilter<String> implements Filter.Matchable {
 
 		private static final String LIKE_TEMPLATE = "%%%s%%";
 
@@ -46,7 +47,7 @@ public interface Filters {
 		private String getLikeValue() {
 			return String.format(LIKE_TEMPLATE, this.like);
 		}
-		
+
 		@Override
 		public List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> getExpressionProducers() {
 			// @formatter:off
@@ -73,7 +74,7 @@ public interface Filters {
 	public class DoubleFilter extends AbstractSingularRangedPluralFilter<Double> {
 	};
 
-	public class EnumFilter<E extends Enum<?>> extends AbstractPluralSingularFilter<E> {
+	public class EnumFilter<E extends Enum<?>> extends AbstractSingularPluralFilter<E> {
 	};
 
 	public class BigIntegerFilter extends AbstractSingularRangedPluralFilter<BigDecimal> {
@@ -92,6 +93,9 @@ public interface Filters {
 	};
 
 	public class ZonedDateTimeFilter extends AbstractSingularRangedPluralFilter<ZonedDateTime> {
+	};
+
+	public class UUIDFilter extends AbstractSingularPluralFilter<UUID> {
 	};
 
 }

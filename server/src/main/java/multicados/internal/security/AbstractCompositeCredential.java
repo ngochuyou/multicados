@@ -5,7 +5,7 @@ package multicados.internal.security;
 
 import java.io.Serializable;
 
-import multicados.internal.helper.FunctionHelper.HandledBiFunction;
+import multicados.internal.helper.Utils.HandledBiFunction;
 
 /**
  * @author Ngoc Huy

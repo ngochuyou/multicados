@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import multicados.internal.context.ContextBuildListener;
-import multicados.internal.helper.FunctionHelper.HandledConsumer;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -25,7 +25,7 @@ public interface DomainResourceGraph<T extends DomainResource> extends ContextBu
 
 	void add(Class<? extends DomainResource> resourceType);
 
-	void forEach(HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer) throws Exception;
+	void forEach(Utils.HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer) throws Exception;
 
 	DomainResourceGraph<? extends T> locate(Class<DomainResource> resourceType);
 

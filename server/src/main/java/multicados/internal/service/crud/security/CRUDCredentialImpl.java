@@ -3,7 +3,7 @@
  */
 package multicados.internal.service.crud.security;
 
-import multicados.internal.helper.FunctionHelper.HandledBiFunction;
+import multicados.internal.helper.Utils.HandledBiFunction;
 import multicados.internal.security.AbstractCompositeCredential;
 import multicados.internal.security.Credential;
 import multicados.internal.security.CredentialException;

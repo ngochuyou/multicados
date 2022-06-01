@@ -19,7 +19,7 @@ import multicados.internal.service.crud.rest.filter.Filter.AbstractFilterImpleme
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractPluralSingularFilter<T> extends AbstractFilterImplementor<T>
+public abstract class AbstractSingularPluralFilter<T> extends AbstractFilterImplementor<T>
 		implements Filter<T>, Filter.Plural<T>, Filter.Singular<T> {
 
 	protected AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
