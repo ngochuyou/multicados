@@ -7,6 +7,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,17 +50,17 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes;
 
 	public ReadSecurityManagerImpl(DomainResourceContext resourceContext) throws Exception {
-		ReadFailureExceptionHandler exceptionThrower = resolveFailureHandler();
+		ReadFailureExceptionHandler failureHandler = resolveFailureHandler();
 		// @formatter:off
 		securityNodes = Utils
 			.declare(scanForContributors())
 				.second(new CRUDSecurityManagerBuilderImpl(resourceContext))
 			.then(this::doContribute)
 				.second(resourceContext)
-				.third(exceptionThrower)
+				.third(failureHandler)
 			.then(this::constructConfiguredNodes)
 				.second(resourceContext)
-				.third(exceptionThrower)
+				.third(failureHandler)
 			.then(this::constructEmptyNodes)
 			.then(Collections::unmodifiableMap)
 			.get();
@@ -184,8 +185,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		} catch (IllegalArgumentException iae) {
 			throw new IllegalArgumentException(
 					String.format("Unknown read failure exception throwing strategy of [%s], expected one of %s",
-							configuredStrategy, Stream.of(ExceptionHandlingStrategy.values()).map(Object::toString)
-									.collect(Collectors.joining(StringHelper.COMMON_JOINER))));
+							configuredStrategy, StringHelper.join(Arrays.asList(ExceptionHandlingStrategy.values()))));
 		}
 	}
 

@@ -21,9 +21,13 @@ public class ComposedRestQueryImpl<D extends DomainResource> implements Composed
 	private final List<ComposedRestQuery<?>> batchingAssociationQueries;
 	private final Map<String, Filter<?>> filtersMap;
 
-	public ComposedRestQueryImpl(RestQuery<D> delegatedQuery,
+	public ComposedRestQueryImpl(
+	// @formatter:off
+			RestQuery<D> delegatedQuery,
 			List<ComposedNonBatchingRestQuery<?>> nonBatchingAssociationQueries,
-			List<ComposedRestQuery<?>> batchingAssociationQueries, Map<String, Filter<?>> filtersMap) {
+			List<ComposedRestQuery<?>> batchingAssociationQueries,
+			Map<String, Filter<?>> filtersMap) {
+		// @formatter:on
 		this.delegatedQuery = delegatedQuery;
 		this.nonBatchingAssociationQueries = nonBatchingAssociationQueries;
 		this.batchingAssociationQueries = batchingAssociationQueries;

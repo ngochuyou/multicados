@@ -40,6 +40,11 @@ public class CollectionHelper {
 				.toArray(size -> (T[]) Array.newInstance(type, size));
 	}
 
+	@SafeVarargs
+	public static <T, C extends Collection<T>> C join(Collector<T, ?, C> collector, Collection<T>... elements) {
+		return Stream.of(elements).flatMap(Collection::stream).collect(collector);
+	}
+
 	public static <T> T[] toArray(@SuppressWarnings("unchecked") T... elements) {
 		return elements;
 	}

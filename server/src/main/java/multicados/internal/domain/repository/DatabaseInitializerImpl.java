@@ -19,7 +19,6 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -37,7 +36,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 			return;
 		}
 
-		Utils.declare(scan()).identical(this::invoke);
+		invoke(scan());
 	}
 
 	private Set<BeanDefinition> scan() {

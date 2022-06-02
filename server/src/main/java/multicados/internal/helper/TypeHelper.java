@@ -5,6 +5,7 @@ package multicados.internal.helper;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
@@ -94,10 +95,6 @@ public class TypeHelper {
 	private static <A, B> void make(TypeGraphEntry<A, B> entry) {
 		TypeGraph.INSTANCE.add(entry);
 	}
-
-//	public static <A, B> B cast(Class<A> typeA, Class<B> typeB, A value) throws Exception {
-//		return TypeGraph.INSTANCE.locate(typeA, typeB).apply(value);
-//	}
 
 	public static <A, B> B cast(Class<A> typeA, Class<B> typeB, A value) throws Exception {
 		return TypeGraph.INSTANCE.locate(typeA, typeB).apply(value);
@@ -213,6 +210,14 @@ public class TypeHelper {
 			return this;
 		}
 
+	}
+
+	public static Constructor<?> locateNoArgsConstructor(Class<?> type) {
+		try {
+			return type.getConstructor();
+		} catch (NoSuchMethodException | SecurityException any) {
+			throw new IllegalArgumentException(String.format("Unable to locate %s whose argument is empty in type [%s]", Constructor.class.getSimpleName(), type.getName()));
+		}
 	}
 
 }

@@ -50,8 +50,6 @@ public class Utils {
 
 	private interface SingularArgument<FIRST> extends ArgumentContext {
 
-		Declaration<FIRST> useFirst();
-
 		<RETURN> Declaration<RETURN> then(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception;
 
 		<NEXT_FIRST, SECOND> BiDeclaration<NEXT_FIRST, SECOND> flat(
@@ -87,6 +85,8 @@ public class Utils {
 		<THIRD> TriDeclaration<FIRST, SECOND, THIRD> third(THIRD third) throws Exception;
 
 		BiDeclaration<SECOND, FIRST> biInverse();
+
+		<RETURN> RETURN get(int i);
 
 	}
 
@@ -158,11 +158,6 @@ public class Utils {
 			return firstArg;
 		}
 
-		@Override
-		public Declaration<FIRST> useFirst() {
-			return declare(firstArg);
-		}
-
 		@SuppressWarnings("unchecked")
 		@Override
 		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
@@ -227,8 +222,15 @@ public class Utils {
 			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg)[i]);
 		}
 
+		@Override
 		public BiDeclaration<SECOND, FIRST> biInverse() {
 			return new BiDeclaration<>(secondArg, firstArg);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <RETURN> RETURN get(int i) {
+			return (RETURN) (new Object[] { firstArg, secondArg })[i];
 		}
 
 	}
@@ -274,6 +276,12 @@ public class Utils {
 		@Override
 		public <NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond) {
 			return new TriDeclaration<>(firstArg, nextSecond, thirdArg);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <RETURN> RETURN get(int i) {
+			return (RETURN) (new Object[] { firstArg, secondArg, thirdArg })[i];
 		}
 
 	}

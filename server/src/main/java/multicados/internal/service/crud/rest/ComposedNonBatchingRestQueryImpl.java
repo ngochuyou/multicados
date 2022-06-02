@@ -21,12 +21,15 @@ public class ComposedNonBatchingRestQueryImpl<D extends DomainResource> extends 
 	private final Integer associatedPosition;
 	private final int span;
 
-	public ComposedNonBatchingRestQueryImpl(RestQuery<D> delegatedQuery,
+	public ComposedNonBatchingRestQueryImpl(
+	// @formatter:off
+			RestQuery<D> delegatedQuery,
 			List<ComposedNonBatchingRestQuery<?>> nonBatchingAssociationQueries,
-			List<ComposedRestQuery<?>> batchingAssociationQueries, Map<String, Filter<?>> filtersMap,
+			List<ComposedRestQuery<?>> batchingAssociationQueries,
+			Map<String, Filter<?>> filtersMap,
 			Integer associatedPosition) {
+		// @formatter:on
 		super(delegatedQuery, nonBatchingAssociationQueries, batchingAssociationQueries, filtersMap);
-
 		this.associatedPosition = associatedPosition;
 		span = delegatedQuery.getAttributes().size() + getSizeOrZero(nonBatchingAssociationQueries)
 				+ getSizeOrZero(batchingAssociationQueries);
