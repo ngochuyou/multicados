@@ -17,13 +17,15 @@ import org.springframework.util.StringUtils;
  */
 public class StringHelper extends StringUtils {
 
+	public static final String[] EMPTY_STRING_ARRAY = new String[0];
+	
 	public static final String COMMON_JOINER = ", ";
 	public static final String EMPTY_STRING = "";
 	public static final String SPACE = " ";
 	public static final String DOT = ".";
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
-
+	
 	public static <T> String join(@SuppressWarnings("unchecked") T... elements) {
 		return join(List.of(elements));
 	}
@@ -40,7 +42,7 @@ public class StringHelper extends StringUtils {
 		return elements.stream().map(stringGetter).collect(Collectors.joining(joiner));
 	}
 
-	public static final String WHITESPACE_CHARS = EMPTY_STRING + "\\u0009" // CHARACTER TABULATION
+	public static final String WHITESPACE_CHARS = "\\u0009" // CHARACTER TABULATION
 			+ "\\u000A" // LINE FEED (LF)
 			+ "\\u000B" // LINE TABULATION
 			+ "\\u000C" // FORM FEED (FF)

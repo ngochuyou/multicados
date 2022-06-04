@@ -50,9 +50,9 @@ public class ContextManager implements ApplicationContextAware {
 
 		private volatile boolean hasExited = false;
 
-		public synchronized ApplicationContext getContext() throws IllegalAccessException {
+		public synchronized ApplicationContext getContext() {
 			if (hasExited) {
-				throw new IllegalAccessException("Application has already exited");
+				throw new UnsupportedOperationException("Application has already exited");
 			}
 
 			hasExited = true;

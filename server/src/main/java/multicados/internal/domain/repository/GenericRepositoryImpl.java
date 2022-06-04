@@ -81,7 +81,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.then(this::chainFixedSpecifications)
 					.second(entityType)
 				.biInverse()
-				.identical(fixedSpecifications::put);
+				.consume(fixedSpecifications::put);
 			// @formatter:on
 		}
 
@@ -153,7 +153,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))
 				.third(selector)
-			.identical(this::doSelect)
+			.consume(this::doSelect)
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -162,7 +162,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
-			.identical(this::log)
+			.consume(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -233,9 +233,9 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))
 				.third(selector)
-			.identical(this::doSelect)
+			.consume(this::doSelect)
 				.third(specification)
-			.identical(this::doFilter)
+			.consume(this::doFilter)
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -244,7 +244,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
-			.identical(this::log)
+			.consume(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -254,7 +254,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	private <D extends DomainResource, E> CriteriaQuery<E> doFilter(CriteriaQuery<E> cq, Root<D> root,
 			Specification<D> requestedSpecication) {
 		Specification<D> mandatorySpecification = (Specification<D>) fixedSpecifications
-				.get(root.getModel().getJavaType());
+				.get(root.getModel().getBindableJavaType());
 
 		return cq.where(mandatorySpecification.and(requestedSpecication).toPredicate(root, cq, criteriaBuilder));
 	}
@@ -290,7 +290,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
-			.identical(this::log)
+			.consume(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -321,7 +321,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return declare(criteriaBuilder.createQuery(type))
 				.second(cq -> cq.from(type))
 				.third(spec)
-			.identical(this::doFilter)
+			.consume(this::doFilter)
 				.third(pageable)
 			.then(this::doOrder)
 				.second(session)
@@ -330,7 +330,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
-			.identical(this::log)
+			.consume(this::log)
 			.then(Query::list)
 			.get();
 		// @formatter:on
@@ -380,7 +380,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 			.then(this::doPaging)
 				.second(lockMode)
 			.then(this::doLocking)
-			.identical(this::log)
+			.consume(this::log)
 			.then(Query::getResultStream)
 			.then(Stream::findFirst)
 			.get();
@@ -400,7 +400,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 		return declare(criteriaBuilder.createTupleQuery())
 				.second(cq -> cq.from(type))
 				.third(selector)
-			.identical(this::doSelect)
+			.consume(this::doSelect)
 				.third(spec)
 			.then(this::doFilter)
 				.second(session)
@@ -408,8 +408,8 @@ public class GenericRepositoryImpl implements GenericRepository {
 				.second(SINGLE_ROW_PAGEABLE)
 			.then(this::doPaging)
 				.second(lockMode)
-				.then(this::doLocking)
-			.identical(this::log)
+			.then(this::doLocking)
+			.consume(this::log)
 			.then(Query::getResultStream)
 			.then(Stream::findFirst)
 			.get();

@@ -7,8 +7,9 @@ import java.util.List;
 
 import javax.persistence.EntityManager;
 
+import org.springframework.security.core.GrantedAuthority;
+
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
@@ -16,20 +17,10 @@ import multicados.internal.service.crud.security.CRUDCredential;
  */
 public interface RestQueryFulfiller<TUPLE, EM extends EntityManager> {
 
-	/*
-	 * <D extends DomainResource> List<TUPLE> readAll(BatchingRestQuery<D>
-	 * restQuery, CRUDCredential credential, EM entityManager) throws
-	 * CredentialException, UnknownAttributesException, Exception;
-	 * 
-	 * <D extends DomainResource> TUPLE read(NonBatchingRestQuery<D> restQuery,
-	 * CRUDCredential credential, EM entityManager) throws CredentialException,
-	 * UnknownAttributesException, Exception;
-	 */
+	<D extends DomainResource> List<TUPLE> readAll(RestQuery<D> restQuery, GrantedAuthority credential,
+			EM entityManager) throws Exception;
 
-	<D extends DomainResource> List<TUPLE> readAll(RestQuery<D> restQuery, CRUDCredential credential, EM entityManager)
-			throws Exception;
-
-	<D extends DomainResource> TUPLE read(RestQuery<D> restQuery, CRUDCredential credential, EM entityManager)
+	<D extends DomainResource> TUPLE read(RestQuery<D> restQuery, GrantedAuthority credential, EM entityManager)
 			throws Exception;
 
 }

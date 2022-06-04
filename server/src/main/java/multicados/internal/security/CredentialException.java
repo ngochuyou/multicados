@@ -16,7 +16,7 @@ public class CredentialException extends Exception {
 
 	public CredentialException() {}
 
-	public CredentialException(Throwable cause) {
+	public CredentialException(Exception cause) {
 		super(cause);
 	}
 

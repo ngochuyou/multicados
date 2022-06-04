@@ -7,9 +7,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.core.GrantedAuthority;
+
 import multicados.internal.domain.DomainResource;
 import multicados.internal.security.CredentialException;
-import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
@@ -17,7 +18,7 @@ import multicados.internal.service.crud.security.CRUDCredential;
  */
 public interface ReadSecurityNode<D extends DomainResource> {
 
-	List<String> check(Collection<String> requestedAttributes, CRUDCredential credential)
+	List<String> check(Collection<String> requestedAttributes, GrantedAuthority credential)
 			throws CredentialException, UnknownAttributesException;
 
 	Map<String, String> translate(Collection<String> attributes);

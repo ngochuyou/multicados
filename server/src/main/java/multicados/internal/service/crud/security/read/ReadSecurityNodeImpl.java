@@ -122,7 +122,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 		for (SecuredAttribute<D> attribute : attributes) {
 			String name = attribute.getName();
 			boolean isMasked = Optional.ofNullable(attribute.isMasked()).orElse(true);
-			String credential = attribute.getCredential().evaluate();
+			String credential = attribute.getCredential().getAuthority();
 
 			if (credential == null) {
 				throw new IllegalArgumentException(String.format("Credential was empty on property [%s]", name));

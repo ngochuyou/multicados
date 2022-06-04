@@ -3,12 +3,13 @@
  */
 package multicados.domain;
 
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import multicados.domain.entity.Role;
 import multicados.domain.entity.entities.Personnel;
 import multicados.domain.entity.entities.Province;
 import multicados.domain.entity.entities.Province_;
-import multicados.internal.service.crud.security.CRUDCredential;
-import multicados.internal.service.crud.security.CRUDCredentialImpl;
 import multicados.internal.service.crud.security.read.ReadSecurityContributor;
 import multicados.internal.service.crud.security.read.ReadSecurityManagerImpl.CRUDSecurityManagerBuilder;
 
@@ -35,8 +36,8 @@ public class ReadSecurityContributorImpl implements ReadSecurityContributor {
 		// @formatter:on
 	}
 
-	private CRUDCredential make(String val) {
-		return new CRUDCredentialImpl(val);
+	private GrantedAuthority make(String val) {
+		return new SimpleGrantedAuthority(val);
 	}
 
 }

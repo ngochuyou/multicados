@@ -11,17 +11,18 @@ import javax.persistence.EntityManager;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.GrantedAuthority;
 
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.service.Service;
 import multicados.internal.service.ServiceResult;
-import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Service {
+public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Service, ContextBuilder {
 
 	default <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type, EM entityManager) {
 		return create(id, model, type, entityManager, false);
@@ -39,23 +40,23 @@ public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Ser
 
 	/* ==================== */
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties, Pageable pageable,
-			CRUDCredential credential, EM entityManager) throws Exception;
+			GrantedAuthority credential, EM entityManager) throws Exception;
 
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
-			CRUDCredential credential, EM entityManager) throws Exception;
+			GrantedAuthority credential, EM entityManager) throws Exception;
 
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
-			Specification<E> specification, Pageable pageable, CRUDCredential credential, EM entityManager)
+			Specification<E> specification, Pageable pageable, GrantedAuthority credential, EM entityManager)
 			throws Exception;
 
 	<E extends DomainResource> List<TUPLE> readAll(Class<E> type, Collection<String> properties,
-			Specification<E> specification, CRUDCredential credential, EM entityManager) throws Exception;
+			Specification<E> specification, GrantedAuthority credential, EM entityManager) throws Exception;
 
 	/* ==================== */
 	<E extends DomainResource> TUPLE readOne(Class<E> type, Collection<String> properties,
-			Specification<E> specification, CRUDCredential credential, EM entityManager) throws Exception;
+			Specification<E> specification, GrantedAuthority credential, EM entityManager) throws Exception;
 
 	/* ==================== */
 	<E extends DomainResource> TUPLE readById(Class<E> type, Serializable id, Collection<String> properties,
-			CRUDCredential credential, EM entityManager) throws Exception;
+			GrantedAuthority credential, EM entityManager) throws Exception;
 }

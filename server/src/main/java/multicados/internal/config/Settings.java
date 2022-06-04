@@ -19,4 +19,8 @@ public interface Settings {
 	
 	public static final String DUMMY_DATABASE_PATH = "multicados.dummy-database.path";
 	
+	public static final String SECURITY_PUBLIC_END_POINTS = "multicados.security.endpoints.public";
+	
+	public static final String SECURITY_TOKEN_END_POINT = "multicados.security.endpoints.token";
+	
 }

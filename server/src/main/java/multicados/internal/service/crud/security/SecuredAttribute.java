@@ -3,6 +3,8 @@
  */
 package multicados.internal.service.crud.security;
 
+import org.springframework.security.core.GrantedAuthority;
+
 import multicados.internal.domain.DomainResource;
 
 /**
@@ -13,7 +15,7 @@ public interface SecuredAttribute<D extends DomainResource> {
 
 	Class<D> getOwningType();
 
-	CRUDCredential getCredential();
+	GrantedAuthority getCredential();
 
 	String getName();
 

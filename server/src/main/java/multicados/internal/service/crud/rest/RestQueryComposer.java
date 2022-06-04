@@ -3,8 +3,9 @@
  */
 package multicados.internal.service.crud.rest;
 
+import org.springframework.security.core.GrantedAuthority;
+
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
@@ -12,7 +13,7 @@ import multicados.internal.service.crud.security.CRUDCredential;
  */
 public interface RestQueryComposer {
 
-	<D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, CRUDCredential credential,
+	<D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, GrantedAuthority credential,
 			boolean isBatched) throws Exception;
 
 }

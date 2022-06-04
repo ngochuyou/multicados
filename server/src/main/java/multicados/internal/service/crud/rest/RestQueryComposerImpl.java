@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.util.Assert;
 
 import multicados.internal.config.Settings;
@@ -40,7 +41,6 @@ import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.BiDeclaration;
 import multicados.internal.helper.Utils.TriDeclaration;
 import multicados.internal.service.crud.rest.filter.Filter;
-import multicados.internal.service.crud.security.CRUDCredential;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
@@ -118,7 +118,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			}
 
 			Queue<Class<? super DomainResource>> classStack = Utils.declare(TypeHelper.getClassQueue(resourceType))
-					.identical(Queue::poll).get();
+					.consume(Queue::poll).get();
 			Map<String, Accessor> scopedAccessors = new HashMap<>();
 
 			while (!classStack.isEmpty()) {
@@ -165,7 +165,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
 			List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
 			Queue<Class<? super DomainResource>> classStack = Utils.declare(TypeHelper.getClassQueue(resourceType))
-					.identical(Queue::poll).get();
+					.consume(Queue::poll).get();
 
 			while (!classStack.isEmpty()) {
 				Class<? super DomainResource> superClass = classStack.poll();
@@ -173,8 +173,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				if (metadatasMap.containsKey(superClass)) {
 					// @formatter:off
 					Utils.declare(metadatasMap.get(superClass))
-						.identical(queryMetadata -> nonBatchingQueriesAccessors.addAll(queryMetadata.getNonBatchingQueriesAccessors()))
-						.identical(queryMetadata -> batchingQueriesAccessors.addAll(queryMetadata.getBatchingQueriesAccessors()));
+						.consume(queryMetadata -> nonBatchingQueriesAccessors.addAll(queryMetadata.getNonBatchingQueriesAccessors()))
+						.consume(queryMetadata -> batchingQueriesAccessors.addAll(queryMetadata.getBatchingQueriesAccessors()));
 					// @formatter:on
 					break;
 				}
@@ -220,22 +220,23 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	}
 
 	@Override
-	public <D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, CRUDCredential credential,
+	public <D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, GrantedAuthority credential,
 			boolean isBatching) throws Exception {
 		return compose(null, restQuery, credential, isBatching);
 	}
 
 	private <D extends DomainResource> ComposedRestQuery<D> compose(Integer associatedPosition,
-			RestQuery<D> owningQuery, CRUDCredential credential, boolean isBatching) throws Exception {
+			RestQuery<D> owningQuery, GrantedAuthority credential, boolean isBatching) throws Exception {
 		// @formatter:off
 		TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> checkedResult = declare(owningQuery)
 				.second(locateAssociationQueries(owningQuery, isBatching))
 				.third(credential)
 			.then(this::check)
-			.identical(internal -> owningQuery.setAttributes(internal.get(0)))
+			.consume(internal -> owningQuery.setAttributes(internal.getFirst()))
 			.get();
-		BiDeclaration<List<ComposedNonBatchingRestQuery<?>>, List<ComposedRestQuery<?>>> composedResult = declare(checkedResult.<List<RestQuery<?>>>get(1))
-				.second(checkedResult.<List<RestQuery<?>>>get(2))
+		BiDeclaration<List<ComposedNonBatchingRestQuery<?>>, List<ComposedRestQuery<?>>> composedResult =
+			declare(checkedResult.getSecond())
+				.second(checkedResult.getThird())
 			.then((one, two) -> List.of(one, two))
 			.then(Collections::unmodifiableList)
 				.prepend(owningQuery)
@@ -247,15 +248,15 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		if (isBatching) {
 			return new ComposedRestQueryImpl<>(
 					owningQuery,
-					composedResult.get(0),
-					composedResult.get(1),
+					composedResult.getFirst(),
+					composedResult.getSecond(),
 					filters);
 		}
 
 		return new ComposedNonBatchingRestQueryImpl<>(
 				owningQuery,
-				composedResult.get(0),
-				composedResult.get(1),
+				composedResult.getFirst(),
+				composedResult.getSecond(),
 				filters,
 				associatedPosition);
 		// @formatter:on
@@ -271,7 +272,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	// @formatter:off
 			RestQuery<?> owningQuery,
 			List<List<RestQuery<?>>> associationQueries,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			boolean isBatching) throws Exception {
 		// @formatter:on
 		List<RestQuery<?>> rawNonBatchingQueries = associationQueries.get(NON_BATCHING_COLLECTION_INDEX);
@@ -288,7 +289,6 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 					credential,
 					determineBatching(resourceMetadata, rawNonBatchingQuery.getAssociationName(), isBatching));
 			// @formatter:on
-
 			composedNonBatchingQueries.add(composedNonBatchingQuery);
 			index += composedNonBatchingQuery.getPropertySpan();
 		}
@@ -309,7 +309,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 					rawBatchingQuery,
 					credential,
 					determineBatching(resourceMetadata, rawBatchingQuery.getAssociationName(), isBatching)))
-				.identical(composedBatchingQueries::add);
+				.consume(composedBatchingQueries::add);
 			// @formatter:on
 			index++;
 		}
@@ -318,7 +318,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	}
 
 	private <D extends DomainResource> TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> check(
-			RestQuery<D> owningQuery, List<List<RestQuery<?>>> associationQueries, CRUDCredential credential)
+			RestQuery<D> owningQuery, List<List<RestQuery<?>>> associationQueries, GrantedAuthority credential)
 			throws Exception {
 		// @formatter:off
 		Set<String> basicAttributes = declare(owningQuery.getResourceType())
@@ -336,7 +336,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 						.flatMap(stream -> stream.map(RestQuery::getAssociationName))
 						.collect(Collectors.toSet()))
 				.third(credential)
-			.identical(readSecurityManager::check);
+			.consume(readSecurityManager::check);
 		// @formatter:on
 		Set<String> collisions = checkForCollisions(basicAttributes, associationQueries);
 
@@ -367,7 +367,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 							.then(QueryMetadata::getConstructor)
 							.then(Constructor::newInstance)
 							.then(RestQuery.class::cast)
-							.identical(emptyQuery -> emptyQuery.setAssociationName(attribute))
+							.consume(emptyQuery -> emptyQuery.setAssociationName(attribute))
 							.get());
 				// @formatter:on
 				continue;
@@ -431,8 +431,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				continue;
 			}
 
-			declare(associationQuery).identical(query -> query.setAssociationName(accessorEntry.getKey()))
-					.identical(queries::add);
+			declare(associationQuery).consume(query -> query.setAssociationName(accessorEntry.getKey()))
+					.consume(queries::add);
 		}
 
 		return queries;

@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.internal.util.collections.CollectionHelper;
+import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.security.CredentialException;
-import multicados.internal.service.crud.security.CRUDCredential;
 
 /**
  * @author Ngoc Huy
@@ -30,16 +30,16 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 	}
 
 	@Override
-	public List<String> check(Collection<String> requestedAttributes, CRUDCredential credential)
+	public List<String> check(Collection<String> requestedAttributes, GrantedAuthority credential)
 			throws CredentialException, UnknownAttributesException {
-		String credentialValue = credential.evaluate();
+		String credentialValue = credential.getAuthority();
 		Set<String> authorizedAttributesByCredential = getAuthorizedAttributes(credentialValue);
 		int authorizedAttributesSpan = authorizedAttributesByCredential.size();
 
 		if (CollectionHelper.isEmpty(authorizedAttributesByCredential)) {
 			exceptionHandler.doOnUnauthorizedCredential(metadata.getResourceType(), credentialValue);
 		}
-		
+
 		if (CollectionHelper.isEmpty(requestedAttributes)) {
 			requestedAttributes = giveSomeAttributes(authorizedAttributesByCredential);
 		}
@@ -65,7 +65,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 
 		return checkedAttributes;
 	}
-	
+
 	private List<String> giveSomeAttributes(Set<String> authorizedAttributesByCredential) {
 		return metadata.getNonLazyAttributeNames().stream().filter(authorizedAttributesByCredential::contains).toList();
 	}

@@ -49,7 +49,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 		// @formatter:off
 		resourceGraph = declare(scan())
 				.then(this::buildGraph)
-				.identical(this::sealGraph)
+				.consume(this::sealGraph)
 				.get();
 		metadatasMap = declare(resourceGraph)
 				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))

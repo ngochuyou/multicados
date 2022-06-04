@@ -3,8 +3,6 @@
  */
 package multicados.internal.security;
 
-import java.io.Serializable;
-
 import multicados.internal.context.ContextBuilder;
 
 /**
@@ -13,8 +11,4 @@ import multicados.internal.context.ContextBuilder;
  */
 public interface CredentialFactory extends ContextBuilder {
 
-	<S extends Serializable> Credential<S> make(S evaluation);
-	
-	<S extends Serializable> Credential<S> getUnknown();
-	
 }

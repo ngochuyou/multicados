@@ -27,6 +27,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
@@ -36,7 +37,6 @@ import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.CredentialException;
-import multicados.internal.service.crud.security.CRUDCredential;
 import multicados.internal.service.crud.security.SecuredAttribute;
 import multicados.internal.service.crud.security.UnauthorizedCredentialException;
 
@@ -78,7 +78,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	@Override
 	public <D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
-			CRUDCredential credential) throws CredentialException, UnknownAttributesException {
+			GrantedAuthority credential) throws CredentialException, UnknownAttributesException {
 		@SuppressWarnings("unchecked")
 		ReadSecurityNode<D> readSecurityNode = securityNodes.get(resourceType);
 
@@ -263,7 +263,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			return new WithTypeImpl<>(type);
 		}
 
-		private <D extends DomainResource> Key<D> makeKey(Class<D> type, CRUDCredential credential, String name)
+		private <D extends DomainResource> Key<D> makeKey(Class<D> type, GrantedAuthority credential, String name)
 				throws CredentialException {
 			return new Key<>(type, credential, name);
 		}
@@ -287,8 +287,8 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			return attr;
 		}
 
-		private <D extends DomainResource> void setProperty(Class<D> owningType, CRUDCredential credential, String name,
-				String alias) throws CredentialException {
+		private <D extends DomainResource> void setProperty(Class<D> owningType, GrantedAuthority credential,
+				String name, String alias) throws CredentialException {
 			Key<D> key = makeKey(owningType, credential, name);
 			SecuredAttributeImpl<D> attr = locateProperty(key);
 
@@ -300,8 +300,8 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			putProperty(key, new SecuredAttributeImpl<>(owningType, credential, name).setAlias(alias));
 		}
 
-		private <D extends DomainResource> void setProperty(Class<D> owningType, CRUDCredential credential, String name,
-				Boolean isMasked) throws CredentialException {
+		private <D extends DomainResource> void setProperty(Class<D> owningType, GrantedAuthority credential,
+				String name, Boolean isMasked) throws CredentialException {
 			Key<D> key = makeKey(owningType, credential, name);
 			SecuredAttributeImpl<D> attr = locateProperty(key);
 
@@ -335,7 +335,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			}
 
 			@Override
-			public WithCredential<D> credentials(CRUDCredential... credentials) {
+			public WithCredential<D> credentials(GrantedAuthority... credentials) {
 				try {
 					return new WithCredentialImpl(this, credentials);
 				} catch (CredentialException any) {
@@ -349,18 +349,18 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						context.getMetadata(type).getAttributeNames());
 
 				private final WithType<D> owningType;
-				private final CRUDCredential[] credentials;
+				private final GrantedAuthority[] credentials;
 
-				public WithCredentialImpl(WithType<D> owningType, CRUDCredential... credentials)
+				public WithCredentialImpl(WithType<D> owningType, GrantedAuthority... credentials)
 						throws CredentialException {
 					this.owningType = owningType;
 					this.credentials = Stream.of(requireNonNull(credentials)).map(Objects::requireNonNull)
-							.toArray(CRUDCredential[]::new);
+							.toArray(GrantedAuthority[]::new);
 
 					List<String> credentialList = new ArrayList<>();
 
-					for (CRUDCredential credential : credentials) {
-						credentialList.add(credential.evaluate());
+					for (GrantedAuthority credential : credentials) {
+						credentialList.add(credential.getAuthority());
 					}
 
 					logger.debug(String.format("With Credentials[%s]",
@@ -384,13 +384,13 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 				}
 
 				@Override
-				public WithCredential<D> credentials(CRUDCredential credential) {
+				public WithCredential<D> credentials(GrantedAuthority credential) {
 					return owningType.credentials(credentials);
 				}
 
 				@Override
 				public WithCredential<D> mask() {
-					for (CRUDCredential crudCredential : credentials) {
+					for (GrantedAuthority crudCredential : credentials) {
 						for (String attribute : context.getMetadata(type).getAttributeNames()) {
 							try {
 								setProperty(type, crudCredential, attribute, Boolean.TRUE);
@@ -407,7 +407,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 				@Override
 				public WithCredential<D> publish() {
-					for (CRUDCredential crudCredential : credentials) {
+					for (GrantedAuthority crudCredential : credentials) {
 						for (String attribute : context.getMetadata(type).getAttributeNames()) {
 							try {
 								setProperty(type, crudCredential, attribute, Boolean.FALSE);
@@ -451,7 +451,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 						int n = attributes.length;
 
-						for (CRUDCredential credential : credentials) {
+						for (GrantedAuthority credential : credentials) {
 							for (int i = 0; i < n; i++) {
 								try {
 									setProperty(type, credential, attributes[i], alias[i]);
@@ -470,7 +470,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 					private WithAttribute<D> make(Boolean isMasked) {
 						int n = attributes.length;
 
-						for (CRUDCredential credential : credentials) {
+						for (GrantedAuthority credential : credentials) {
 							for (int i = 0; i < n; i++) {
 								try {
 									setProperty(type, credential, attributes[i], isMasked);
@@ -506,7 +506,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 					}
 
 					@Override
-					public WithCredential<D> credentials(CRUDCredential... credentials) {
+					public WithCredential<D> credentials(GrantedAuthority... credentials) {
 						return owningType.credentials(credentials);
 					}
 
@@ -522,13 +522,13 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private class SecuredAttributeImpl<D extends DomainResource> implements SecuredAttribute<D> {
 
 		private final Class<D> owningType;
-		private final CRUDCredential credential;
+		private final GrantedAuthority credential;
 		private final String name;
 
 		private Boolean masked;
 		private String alias;
 
-		public SecuredAttributeImpl(Class<D> owningType, CRUDCredential credential, String name) {
+		public SecuredAttributeImpl(Class<D> owningType, GrantedAuthority credential, String name) {
 			this.owningType = owningType;
 			this.credential = credential;
 			this.name = name;
@@ -540,7 +540,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		}
 
 		@Override
-		public CRUDCredential getCredential() {
+		public GrantedAuthority getCredential() {
 			return credential;
 		}
 
@@ -574,12 +574,12 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private class Key<T extends DomainResource> {
 
 		private final Class<T> type;
-		private final CRUDCredential credential;
+		private final GrantedAuthority credential;
 		private final String name;
 
 		private final int hashCode;
 
-		public Key(Class<T> type, CRUDCredential credential, String name) throws CredentialException {
+		public Key(Class<T> type, GrantedAuthority credential, String name) throws CredentialException {
 			this.type = type;
 			this.credential = credential;
 			this.name = name;
@@ -587,7 +587,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			int hash = 17;
 
 			hash += 37 * type.hashCode();
-			hash += credential.evaluate().hashCode();
+			hash += credential.getAuthority().hashCode();
 			hash += 37 * name.hashCode();
 
 			hashCode = hash;
@@ -610,22 +610,18 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 			Key<?> other = (Key<?>) obj;
 
 			try {
-				return credential.evaluate().equals(other.credential.evaluate()) && name.equals(other.name)
+				return credential.getAuthority().equals(other.credential.getAuthority()) && name.equals(other.name)
 						&& type.equals(other.type);
-			} catch (CredentialException any) {
+			} catch (Exception any) {
+				any.printStackTrace();
 				return false;
 			}
 		}
 
 		@Override
 		public String toString() {
-			try {
-				return "Key [type=" + type + ", credential=" + credential.evaluate() + ", name=" + name + ", hashCode="
-						+ hashCode + "]";
-			} catch (CredentialException any) {
-				any.printStackTrace();
-				return "Error while trying to get string";
-			}
+			return "Key [type=" + type + ", credential=" + credential.getAuthority() + ", name=" + name + ", hashCode="
+					+ hashCode + "]";
 		}
 
 	}

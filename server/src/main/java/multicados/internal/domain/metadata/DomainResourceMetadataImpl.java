@@ -220,10 +220,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private List<Map.Entry<String, ComponentPathImpl>> individuallyResolveComponentPath(
 				ComponentPathImpl currentPath, String attributeName, Type type) throws Exception {
 			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
-					.identical(self -> self.add(attributeName)).get();
+					.consume(self -> self.add(attributeName)).get();
 			List<Map.Entry<String, ComponentPathImpl>> paths = declare(
 					new ArrayList<Map.Entry<String, ComponentPathImpl>>())
-							.identical(self -> self.add(Map.entry(attributeName, root))).get();
+							.consume(self -> self.add(Map.entry(attributeName, root))).get();
 
 			if (!(type instanceof ComponentType)) {
 				return paths;
@@ -238,7 +238,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 						.second(componentType.getPropertyNames()[i])
 						.third(componentType.getSubtypes()[i])
 					.then(this::individuallyResolveComponentPath)
-					.identical(paths::addAll);
+					.consume(paths::addAll);
 				// @formatter:on
 			}
 
@@ -499,7 +499,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				declare(entry.getKey())
 						.second((ComponentType) entry.getValue())
 					.then(this::unwrapComponentType)
-					.identical(results::putAll);
+					.consume(results::putAll);
 				// @formatter:on
 			}
 			// @formatter:off
@@ -525,7 +525,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				declare(subAttr)
 						.second((ComponentType) subType)
 					.then(this::unwrapComponentType)
-					.identical(types::putAll);
+					.consume(types::putAll);
 				// @formatter:on
 			}
 
@@ -640,10 +640,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private List<Map.Entry<String, ComponentPathImpl>> individuallyResolveComponentPath(
 				ComponentPathImpl currentPath, String attributeName, Class<?> attributeType) throws Exception {
 			ComponentPathImpl root = declare(new ComponentPathImpl(currentPath))
-					.identical(self -> self.add(attributeName)).get();
+					.consume(self -> self.add(attributeName)).get();
 			List<Map.Entry<String, ComponentPathImpl>> paths = declare(
 					new ArrayList<Map.Entry<String, ComponentPathImpl>>())
-							.identical(self -> self.add(Map.entry(attributeName, root))).get();
+							.consume(self -> self.add(Map.entry(attributeName, root))).get();
 
 			if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
 				return paths;
@@ -660,7 +660,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 						.second(subAttributeNames[i])
 						.third(subAttributeTypes[i])
 					.then(this::individuallyResolveComponentPath)
-					.identical(paths::addAll);
+					.consume(paths::addAll);
 				// @formatter:on
 			}
 
@@ -674,7 +674,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 						.then(DomainResourceGraph::getResourceType)
 						.then(metadatasMap::get)
 						.then(metadata -> metadata == null ? Collections.<String, ComponentPath>emptyMap() : metadata.getComponentPaths())
-						.then(parentComponentsPaths -> declare(declaredPaths).identical(self -> self.putAll(parentComponentsPaths)).get())
+						.then(parentComponentsPaths -> declare(declaredPaths).consume(self -> self.putAll(parentComponentsPaths)).get())
 						.get();
 			// @formatter:on
 		}
@@ -699,7 +699,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 						.second(attributeTypes.get(attributeNames[i]))
 						.third(false)
 					.then(this::individuallyLocateAssocations)
-					.identical(associations::putAll);
+					.consume(associations::putAll);
 				// @formatter:on
 			}
 
@@ -723,7 +723,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 							.second(subTypes[i])
 							.third(true)
 						.then(this::individuallyLocateAssocations)
-						.identical(associations::putAll);
+						.consume(associations::putAll);
 					// @formatter:on
 				}
 
@@ -854,7 +854,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private DomainResourceGraph<? super DomainResource> locateParentGraph() throws Exception {
 			return (DomainResourceGraph<? super DomainResource>) Utils
 					.declare(resourceContextProvider.getResourceGraph().locate((Class<DomainResource>) resourceType))
-					.identical(
+					.consume(
 							tree -> Assert
 									.notNull(tree,
 											String.format("Unable to locate %s for resource [%s]",
@@ -869,7 +869,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 					.then(DomainResourceGraph::getResourceType)
 					.then(metadatasMap::get)
 					.then(metadata -> metadata == null ? Collections.<String, Class<?>>emptyMap():metadata.getAttributeTypes())
-					.then(parentAttributeTypes -> declare(typesMap).identical(self -> self.putAll(parentAttributeTypes)).get())
+					.then(parentAttributeTypes -> declare(typesMap).consume(self -> self.putAll(parentAttributeTypes)).get())
 					.get();
 			// @formatter:on
 		}

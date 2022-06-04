@@ -44,13 +44,13 @@ public class Utils {
 
 	private interface ArgumentContext {
 
-		<ARGUMENT> Declaration<ARGUMENT> use(int i);
-
 	}
 
 	private interface SingularArgument<FIRST> extends ArgumentContext {
 
 		<RETURN> Declaration<RETURN> then(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception;
+
+		Declaration<FIRST> consume(HandledConsumer<FIRST, Exception> consumer) throws Exception;
 
 		<NEXT_FIRST, SECOND> BiDeclaration<NEXT_FIRST, SECOND> flat(
 				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
@@ -60,21 +60,44 @@ public class Utils {
 
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc) throws Exception;
 
-		Utils.Declaration<FIRST> identical(Utils.HandledConsumer<FIRST, Exception> consumer) throws Exception;
-
 		<SECOND> BiDeclaration<FIRST, SECOND> second(SECOND second) throws Exception;
 
+		<RETURN> BiDeclaration<FIRST, RETURN> second(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception;
+
 		FIRST get();
+
+		<RETURN> Declaration<RETURN> boundThen(HandledBiFunction<FIRST, Declaration<FIRST>, RETURN, Exception> fnc)
+				throws Exception;
+
+		Declaration<FIRST> boundConsume(HandledBiConsumer<FIRST, Declaration<FIRST>, Exception> consumer)
+				throws Exception;
+
+		<RETURN> Declaration<RETURN> exit(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception;
+
+		<RETURN> Declaration<RETURN> exit(RETURN value);
 
 	}
 
 	private interface BiArgument<FIRST, SECOND> extends SingularArgument<FIRST> {
 
+		Declaration<FIRST> useFirst();
+
+		FIRST getFirst();
+
 		Declaration<SECOND> useSecond();
+
+		SECOND getSecond();
 
 		<RETURN> Declaration<RETURN> then(HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc) throws Exception;
 
-		BiDeclaration<FIRST, SECOND> identical(HandledBiConsumer<FIRST, SECOND, Exception> consumer) throws Exception;
+		BiDeclaration<FIRST, SECOND> consume(HandledBiConsumer<FIRST, SECOND, Exception> consumer) throws Exception;
+
+		<RETURN> Declaration<RETURN> boundThen(
+				HandledTriFunction<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, RETURN, Exception> fnc)
+				throws Exception;
+
+		BiDeclaration<FIRST, SECOND> boundConsume(
+				HandledTriConsumer<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, Exception> fnc) throws Exception;
 
 		<THIRD> TriDeclaration<FIRST, SECOND, THIRD> append(HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc)
 				throws Exception;
@@ -86,19 +109,21 @@ public class Utils {
 
 		BiDeclaration<SECOND, FIRST> biInverse();
 
-		<RETURN> RETURN get(int i);
+		<RETURN> Declaration<RETURN> exit(HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc) throws Exception;
 
 	}
 
 	private interface TriArgument<FIRST, SECOND, THIRD> extends BiArgument<FIRST, SECOND> {
 
+		Declaration<THIRD> useThird();
+
+		THIRD getThird();
+
 		<RETURN> Declaration<RETURN> then(HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
 				throws Exception;
 
-		TriDeclaration<FIRST, SECOND, THIRD> identical(HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer)
+		TriDeclaration<FIRST, SECOND, THIRD> consume(HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer)
 				throws Exception;
-
-		Declaration<THIRD> useThird();
 
 		<NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond);
 
@@ -138,7 +163,7 @@ public class Utils {
 		}
 
 		@Override
-		public Declaration<FIRST> identical(Utils.HandledConsumer<FIRST, Exception> consumer) throws Exception {
+		public Declaration<FIRST> consume(HandledConsumer<FIRST, Exception> consumer) throws Exception {
 			consumer.accept(firstArg);
 			return this;
 		}
@@ -148,7 +173,8 @@ public class Utils {
 			return declare(firstArg, secondArg);
 		}
 
-		public <RETURN> BiDeclaration<FIRST, RETURN> second(Utils.HandledFunction<FIRST, RETURN, Exception> fnc)
+		@Override
+		public <RETURN> BiDeclaration<FIRST, RETURN> second(HandledFunction<FIRST, RETURN, Exception> fnc)
 				throws Exception {
 			return declare(firstArg, fnc.apply(firstArg));
 		}
@@ -158,16 +184,40 @@ public class Utils {
 			return firstArg;
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
-			return declare((ARGUMENT) CollectionHelper.toArray(firstArg)[0]);
+		public <RETURN> Declaration<RETURN> exit(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
+			return new ExitDeclaration<RETURN>(fnc.apply(firstArg));
+		}
+
+		@Override
+		public <RETURN> Declaration<RETURN> exit(RETURN value) {
+			return new ExitDeclaration<RETURN>(value);
+		}
+
+		@Override
+		public <RETURN> Declaration<RETURN> boundThen(
+				HandledBiFunction<FIRST, Declaration<FIRST>, RETURN, Exception> fnc) throws Exception {
+			return declare(fnc.apply(firstArg, this));
+		}
+
+		@Override
+		public Declaration<FIRST> boundConsume(HandledBiConsumer<FIRST, Declaration<FIRST>, Exception> consumer)
+				throws Exception {
+			consumer.accept(firstArg, this);
+			return this;
 		}
 
 	}
 
-	public static class BiDeclaration<FIRST, SECOND> extends Utils.Declaration<FIRST>
-			implements BiArgument<FIRST, SECOND> {
+	public static class ExitDeclaration<FIRST> extends Declaration<FIRST> implements SingularArgument<FIRST> {
+
+		private ExitDeclaration(FIRST val) {
+			super(val);
+		}
+
+	}
+
+	public static class BiDeclaration<FIRST, SECOND> extends Declaration<FIRST> implements BiArgument<FIRST, SECOND> {
 
 		protected SECOND secondArg;
 
@@ -177,7 +227,7 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Utils.Declaration<RETURN> then(Utils.HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
+		public <RETURN> Declaration<RETURN> then(Utils.HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
 				throws Exception {
 			return declare(fnc.apply(firstArg, secondArg));
 		}
@@ -195,7 +245,7 @@ public class Utils {
 		}
 
 		@Override
-		public BiDeclaration<FIRST, SECOND> identical(Utils.HandledBiConsumer<FIRST, SECOND, Exception> consumer)
+		public BiDeclaration<FIRST, SECOND> consume(Utils.HandledBiConsumer<FIRST, SECOND, Exception> consumer)
 				throws Exception {
 			consumer.accept(firstArg, secondArg);
 			return this;
@@ -212,14 +262,13 @@ public class Utils {
 		}
 
 		@Override
-		public Utils.Declaration<SECOND> useSecond() {
-			return declare(secondArg);
+		public Declaration<FIRST> useFirst() {
+			return declare(firstArg);
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public <ARGUMENT> Utils.Declaration<ARGUMENT> use(int i) {
-			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg)[i]);
+		public Declaration<SECOND> useSecond() {
+			return declare(secondArg);
 		}
 
 		@Override
@@ -227,10 +276,34 @@ public class Utils {
 			return new BiDeclaration<>(secondArg, firstArg);
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public <RETURN> RETURN get(int i) {
-			return (RETURN) (new Object[] { firstArg, secondArg })[i];
+		public <RETURN> Declaration<RETURN> boundThen(
+				HandledTriFunction<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, RETURN, Exception> fnc)
+				throws Exception {
+			return declare(fnc.apply(firstArg, secondArg, this));
+		}
+
+		@Override
+		public BiDeclaration<FIRST, SECOND> boundConsume(
+				HandledTriConsumer<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, Exception> consumer) throws Exception {
+			consumer.accept(firstArg, secondArg, this);
+			return this;
+		}
+
+		@Override
+		public FIRST getFirst() {
+			return firstArg;
+		}
+
+		@Override
+		public SECOND getSecond() {
+			return secondArg;
+		}
+
+		@Override
+		public <RETURN> Declaration<RETURN> exit(HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
+				throws Exception {
+			return new ExitDeclaration<>(fnc.apply(firstArg, secondArg));
 		}
 
 	}
@@ -246,13 +319,13 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Utils.Declaration<RETURN> then(
-				Utils.HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc) throws Exception {
+		public <RETURN> Declaration<RETURN> then(Utils.HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
+				throws Exception {
 			return declare(fnc.apply(firstArg, secondArg, thirdArg));
 		}
 
 		@Override
-		public TriDeclaration<FIRST, SECOND, THIRD> identical(
+		public TriDeclaration<FIRST, SECOND, THIRD> consume(
 				HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer) throws Exception {
 			consumer.accept(firstArg, secondArg, thirdArg);
 			return this;
@@ -263,10 +336,9 @@ public class Utils {
 			return new Declaration<>(thirdArg);
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public <ARGUMENT> Declaration<ARGUMENT> use(int i) {
-			return declare((ARGUMENT) CollectionHelper.toArray(firstArg, secondArg, thirdArg)[i]);
+		public THIRD getThird() {
+			return thirdArg;
 		}
 
 		public TriDeclaration<THIRD, SECOND, FIRST> triInverse() {
@@ -276,12 +348,6 @@ public class Utils {
 		@Override
 		public <NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond) {
 			return new TriDeclaration<>(firstArg, nextSecond, thirdArg);
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public <RETURN> RETURN get(int i) {
-			return (RETURN) (new Object[] { firstArg, secondArg, thirdArg })[i];
 		}
 
 	}
@@ -382,16 +448,17 @@ public class Utils {
 
 	}
 
-	public static abstract class LazyLoader<V, L> {
+	private static abstract class LazyLoader<V, L> {
 
 		protected static final Logger logger = LoggerFactory.getLogger(Utils.LazyLoader.class);
+		private static final String LOG_MESSAGE = "Invoking lazy loader first time ever";
 
 		protected V value;
 
 		protected L loader;
 
 		protected void log() {
-			logger.debug("Invoking lazy loader first time ever");
+			logger.debug(LOG_MESSAGE);
 		}
 
 	}

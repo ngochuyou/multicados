@@ -58,7 +58,7 @@ import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.CredentialFactory;
-import multicados.internal.service.crud.GenericRestHibernateCRUDService;
+import multicados.internal.service.crud.GenericCRUDService;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
@@ -139,9 +139,9 @@ public class WebConfiguration implements WebMvcConfigurer {
 			// @formatter:off
 			declare(scan())
 				.then(this::sortContextBuilders)
-				.identical(this::logContextBuilders)
+				.consume(this::logContextBuilders)
 				.then(this::registerContextBuilders)
-				.identical(this::summaryContextBuilders);
+				.consume(this::summaryContextBuilders);
 			// @formatter:on
 		} catch (Exception any) {
 			any.printStackTrace();
@@ -203,7 +203,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 				CredentialFactory.class,
 				DomainResourceBuilderFactory.class,
 				ReadSecurityManager.class,
-				GenericRestHibernateCRUDService.class,
+				GenericCRUDService.class,
 				DatabaseInitializer.class
 			);
 		int size = builderTypes.size();

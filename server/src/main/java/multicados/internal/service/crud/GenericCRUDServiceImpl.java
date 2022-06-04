@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
@@ -43,7 +44,6 @@ import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.repository.Selector;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.helper.CollectionHelper;
-import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.SpecificationHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
@@ -56,24 +56,23 @@ import multicados.internal.service.crud.rest.RestQuery;
 import multicados.internal.service.crud.rest.RestQueryComposer;
 import multicados.internal.service.crud.rest.RestQueryComposerImpl;
 import multicados.internal.service.crud.rest.filter.Filter;
-import multicados.internal.service.crud.security.CRUDCredential;
 import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
  * @author Ngoc Huy
  *
  */
-public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDService<Map<String, Object>> {
+public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<Map<String, Object>>
+		implements GenericRestHibernateCRUDService<Map<String, Object>> {
 
 	private static final Logger logger = LoggerFactory.getLogger(GenericCRUDServiceImpl.class);
 
 	private final GenericRepository genericRepository;
-	private final ReadSecurityManager readSecurityManager;
+	private final CriteriaBuilder criteriaBuilder;
 
+	private final ReadSecurityManager readSecurityManager;
 	private final RestQueryComposer restQueryComposer;
 	private final SelectionProducersProvider selectionProducersProvider;
-
-	private final CriteriaBuilder criteriaBuilder;
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 
@@ -120,7 +119,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Class<E> type,
 			Collection<String> properties,
 			Pageable pageable,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
 		return readAll(type, properties, null, pageable, credential, session);
@@ -131,7 +130,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
 		return readAll(type, properties, DEFAULT_PAGEABLE, credential, session);
@@ -143,7 +142,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Class<E> type,
 			Collection<String> properties,
 			Specification<E> specification,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
 		return readAll(type, properties, specification, DEFAULT_PAGEABLE, credential, session);
@@ -156,12 +155,12 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Collection<String> properties,
 			Specification<E> specification,
 			Pageable pageable,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
 		List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
-		List<Tuple> tuples = genericRepository.findAll(type, HibernateHelper.toSelector(checkedProperties),
-				specification, pageable, session);
+		List<Tuple> tuples = genericRepository.findAll(type, toSelector(checkedProperties), specification, pageable,
+				session);
 
 		return resolveRows(type, tuples, checkedProperties);
 	}
@@ -172,7 +171,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Class<E> type,
 			Serializable id,
 			Collection<String> properties,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session entityManager) throws Exception {
 		// @formatter:on
 		return readOne(type, properties, SpecificationHelper.hasId(type, id), credential, entityManager);
@@ -184,12 +183,12 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			Class<E> type,
 			Collection<String> properties,
 			Specification<E> specification,
-			CRUDCredential credential,
+			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
 		List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
-		Optional<Tuple> optionalTuple = genericRepository.findOne(type, HibernateHelper.toSelector(checkedProperties),
-				specification, session);
+		Optional<Tuple> optionalTuple = genericRepository.findOne(type, toSelector(checkedProperties), specification,
+				session);
 
 		if (optionalTuple.isEmpty()) {
 			return null;
@@ -200,28 +199,32 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 
 	@Override
 	public <D extends DomainResource> List<Map<String, Object>> readAll(RestQuery<D> restQuery,
-			CRUDCredential credential, Session entityManager) throws Exception {
+			GrantedAuthority credential, Session entityManager) throws Exception {
 		return readAll(restQueryComposer.compose(restQuery, credential, true), credential, entityManager);
 	}
 
+	private static <D extends DomainResource, E> Selector<D, E> toSelector(Collection<String> attributes) {
+		return (root, query, builder) -> attributes.stream().map(root::get).collect(Collectors.toList());
+	}
+
 	private <D extends DomainResource> RestQueryProcessingUnit<D> createProcessingUnit(
-			ComposedRestQuery<D> composedQuery, CRUDCredential credential) {
+			ComposedRestQuery<D> composedQuery, GrantedAuthority credential) {
 		return new RestQueryProcessingUnit<>(composedQuery, credential);
 	}
 
 	public <D extends DomainResource> List<Map<String, Object>> readAll(ComposedRestQuery<D> composedQuery,
-			CRUDCredential credential, Session session) throws Exception {
+			GrantedAuthority credential, Session session) throws Exception {
 		return createProcessingUnit(composedQuery, credential).doReadAll(session);
 	}
 
 	@Override
-	public <D extends DomainResource> Map<String, Object> read(RestQuery<D> restQuery, CRUDCredential credential,
+	public <D extends DomainResource> Map<String, Object> read(RestQuery<D> restQuery, GrantedAuthority credential,
 			Session entityManager) throws Exception {
 		return read(restQueryComposer.compose(restQuery, credential, false), credential, entityManager);
 	}
 
 	private <D extends DomainResource> Map<String, Object> read(ComposedRestQuery<D> composedQuery,
-			CRUDCredential credential, Session session) throws Exception {
+			GrantedAuthority credential, Session session) throws Exception {
 		return createProcessingUnit(composedQuery, credential).doRead(session);
 	}
 
@@ -235,13 +238,13 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private final List<ComposedRestQuery<?>> batchingQueries;
 		private final LazySupplier<Map<String, String>> translatedAttributesLoader;
 		private final Pageable pageable;
-		private final CRUDCredential credential;
+		private final GrantedAuthority credential;
 
 		private final Map<String, From<?, ?>> fromsCache = new HashMap<>();
 
 		private static final String ROOT_KEY_IN_CACHE = "<ROOT>";
 
-		public RestQueryProcessingUnit(ComposedRestQuery<D> query, CRUDCredential credential) {
+		public RestQueryProcessingUnit(ComposedRestQuery<D> query, GrantedAuthority credential) {
 			this.query = query;
 			this.credential = credential;
 
@@ -264,7 +267,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			// @formatter:off
 			return (root, cq, builder) -> declare(root)
 					.second(ROOT_KEY_IN_CACHE)
-				.identical(this::cache)
+				.consume(this::cache)
 					.second(selectionProducersProvider.getSelectionProducers(rootResourceType))
 				.append(this::produceBasicSelections)
 				.then(this::addAssociationSelections)
@@ -291,10 +294,10 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			for (ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
 				declare(nonBatchingQuery.getAssociationName())
 						.flat(joinName -> (Join<?, ?>) selectionProducers.get(joinName).apply(root), HandledFunction.identity())
-					.identical(this::cache)
+					.consume(this::cache)
 						.third(nonBatchingQuery)
 					.then(this::resolveJoinedSelections)
-					.identical(basicSelections::addAll);
+					.consume(basicSelections::addAll);
 			}
 
 			return basicSelections;
@@ -331,7 +334,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 					.then(selectionProducersProvider::getSelectionProducers)
 					.then(selectionsProducers -> selectionsProducers.get(joinedAttribute))
 					.then(producer -> producer.apply(join))
-					.identical(selections::add);
+					.consume(selections::add);
 			}
 			// @formatter:on
 			return selections;
@@ -347,7 +350,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 					.flat(
 						associationName -> joinEntry.getKey().join(associationName),
 						associationName -> resolveJoinRole(joinEntry.getValue(), associationName))
-					.identical(this::cache)
+					.consume(this::cache)
 						.third(nonBatchingAssociationQuery)
 					.then(this::resolveJoinedSelections)
 					.then(associationBasicSelections::addAll);
@@ -516,7 +519,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 		private Map<String, Object> transformRow(
 		// @formatter:off
 				ComposedRestQuery<?> composedQuery,
-				CRUDCredential credential,
+				GrantedAuthority credential,
 				List<String> attributes,
 				Map<String, String> translatedAttributes,
 				Tuple tuple) {
@@ -544,7 +547,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericRestHibernateCRUDServ
 			return record;
 		}
 
-		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery, CRUDCredential credential) {
+		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery,
+				GrantedAuthority credential) {
 			// should never be throwing exceptions
 			// @formatter:off
 			try {
