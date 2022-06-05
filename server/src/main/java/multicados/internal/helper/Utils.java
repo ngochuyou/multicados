@@ -56,6 +56,11 @@ public class Utils {
 				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
 				HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception;
 
+		<NEXT_FIRST, SECOND, THIRD> TriDeclaration<NEXT_FIRST, SECOND, THIRD> flat(
+				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
+				HandledFunction<FIRST, SECOND, Exception> secondArgProducer,
+				HandledFunction<FIRST, THIRD, Exception> thirdArgProducer) throws Exception;
+
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg);
 
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc) throws Exception;
@@ -140,15 +145,28 @@ public class Utils {
 		}
 
 		@Override
-		public <RETURN> Declaration<RETURN> then(Utils.HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
+		public <RETURN> Declaration<RETURN> then(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
 			return new Declaration<RETURN>(fnc.apply(firstArg));
 		}
 
 		@Override
 		public <NEXT_FIRST, SECOND> BiDeclaration<NEXT_FIRST, SECOND> flat(
-				Utils.HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
-				Utils.HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception {
+				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
+				HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception {
 			return declare(nextFirstArgProducer.apply(firstArg), secondArgProducer.apply(firstArg));
+		}
+
+		@Override
+		public <NEXT_FIRST, SECOND, THIRD> TriDeclaration<NEXT_FIRST, SECOND, THIRD> flat(
+				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
+				HandledFunction<FIRST, SECOND, Exception> secondArgProducer,
+				HandledFunction<FIRST, THIRD, Exception> thirdArgProducer) throws Exception {
+			// @formatter:off
+			return declare(
+					nextFirstArgProducer.apply(firstArg),
+					secondArgProducer.apply(firstArg),
+					thirdArgProducer.apply(firstArg));
+			// @formatter:on
 		}
 
 		@Override

@@ -27,6 +27,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +35,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.security.jwt.JWTRequestFilter;
 
 /**
  * @author Ngoc Huy
@@ -153,7 +155,12 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private void authorizationFilters(HttpSecurity http) {}
 
-	private void authenticationFilters(HttpSecurity http) {}
+	private void authenticationFilters(HttpSecurity http) throws Exception {
+		// @formatter:off
+		http
+			.addFilterBefore(new JWTRequestFilter(env, userDetailsService()), UsernamePasswordAuthenticationFilter.class);
+		// @formatter:on
+	}
 
 	private void exceptionHandling(HttpSecurity http) {}
 

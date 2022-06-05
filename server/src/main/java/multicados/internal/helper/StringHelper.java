@@ -3,6 +3,10 @@
  */
 package multicados.internal.helper;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -18,14 +22,36 @@ import org.springframework.util.StringUtils;
 public class StringHelper extends StringUtils {
 
 	public static final String[] EMPTY_STRING_ARRAY = new String[0];
-	
+
 	public static final String COMMON_JOINER = ", ";
 	public static final String EMPTY_STRING = "";
 	public static final String SPACE = " ";
 	public static final String DOT = ".";
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
-	
+
+	private static final MessageDigest SHA_256_MD;
+
+	static {
+		MessageDigest digest;
+		SecureRandom random = new SecureRandom();
+
+		try {
+			digest = MessageDigest.getInstance("SHA-256");
+
+			byte[] salt = new byte[16];
+
+			random.nextBytes(salt);
+			digest.update(salt);
+		} catch (NoSuchAlgorithmException nsae) {
+			digest = null;
+			nsae.printStackTrace();
+			System.exit(-1);
+		}
+
+		SHA_256_MD = digest;
+	}
+
 	public static <T> String join(@SuppressWarnings("unchecked") T... elements) {
 		return join(List.of(elements));
 	}
@@ -99,6 +125,23 @@ public class StringHelper extends StringUtils {
 		}
 
 		return (EMPTY_STRING + input.charAt(0)).toLowerCase() + input.substring(1);
+	}
+
+	public static String hash(String input) {
+		byte[] hashed = SHA_256_MD.digest(input.getBytes(StandardCharsets.UTF_8));
+
+		StringBuilder sb = new StringBuilder();
+
+		for (byte b : hashed)
+			sb.append(String.format("%02x", b));
+
+		return sb.toString();
+	}
+
+	private static final String NUMERIC_PATTERN = "^[0-9]+$";
+
+	public static final boolean isNumeric(String string) {
+		return string.matches(NUMERIC_PATTERN);
 	}
 
 }
