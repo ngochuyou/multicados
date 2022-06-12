@@ -33,7 +33,7 @@ public class OnMemoryUserDetailsContextImpl implements OnMemoryUserDetailsContex
 			mutecies.put(username, new Mutex(userDetails, lock));
 
 			if (logger.isDebugEnabled()) {
-				logger.debug("New entry: {}", username);
+				logger.debug("Entry: {}", username);
 			}
 		}
 	}

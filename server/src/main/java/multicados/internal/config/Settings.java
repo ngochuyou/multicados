@@ -13,6 +13,8 @@ public interface Settings {
 
 	public static final String ACTIVE_PROFILES = "spring.profiles.active";
 	
+	public static final String PRODUCTION_PROFILE = "PROD";
+	
 	public static final String SCANNED_ENTITY_PACKAGES = "multicados.scanned-packages.entity";
 
 	public static final String READ_FAILURE_EXCEPTION_THROWING_STRATEGY = "multicados.crud.security.read.failurestrategy";

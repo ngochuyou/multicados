@@ -124,7 +124,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	}
 
 	private boolean isInDevMode() {
-		return !env.getProperty(Settings.ACTIVE_PROFILES).equals("PROD");
+		return !env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.PRODUCTION_PROFILE);
 	}
 
 	private void csrf(HttpSecurity http) throws Exception {

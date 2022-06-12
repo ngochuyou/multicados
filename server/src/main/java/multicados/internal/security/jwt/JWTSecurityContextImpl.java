@@ -24,9 +24,6 @@ import multicados.internal.helper.StringHelper;
  */
 public class JWTSecurityContextImpl implements JWTSecurityContext {
 
-	private static final String NO_SECRET = "Unable to locate any configured secret key for JWT";
-	private static final String NO_COOKIE_NAME = "Unable to locate any configured cookie name for JWT";
-
 	private static final String LOCAL_ZONE = "LOCAL";
 	private static final Duration DEFAULT_DURATION = Duration.ofDays(7);
 	private static final String DEFAULT_HEADER_PREFIX = "JWTBearer";
@@ -42,16 +39,18 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private final String tokenEndpoint;
 	private final String usernameParam;
 	private final String passwordParam;
+	private final boolean isCookieSecured;
 
 	public JWTSecurityContextImpl(Environment env) throws Exception {
 		Function<String, String> exact = identity();
 
 		headerPrefix = getOrDefault(env, Settings.SECURITY_JWT_HEADER_PREFIX, exact, DEFAULT_HEADER_PREFIX);
 		cookieName = getOrThrow(env, Settings.SECURITY_JWT_COOKIE_NAME, exact,
-				() -> new IllegalArgumentException(NO_COOKIE_NAME));
+				() -> new IllegalArgumentException("Unable to locate any configured cookie name for JWT"));
 		tokenEndpoint = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_END_POINT, exact, DEFAULT_TOKEN_ENDPOINT);
 		usernameParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_USERNAME, exact, DEFAULT_USERNAME_PARAM);
 		passwordParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_PASSWORD, exact, DEFAULT_PASSWORD_PARAM);
+		isCookieSecured = env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.PRODUCTION_PROFILE);
 		strategy = buildJWTContext(env);
 	}
 
@@ -93,7 +92,8 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	}
 
 	private String locateSecret(Environment env) throws Exception {
-		return getOrThrow(env, Settings.SECURITY_JWT_SECRET, identity(), () -> new IllegalArgumentException(NO_SECRET));
+		return getOrThrow(env, Settings.SECURITY_JWT_SECRET, identity(),
+				() -> new IllegalArgumentException("Unable to locate any configured secret key for JWT"));
 	}
 
 	@Override
@@ -134,6 +134,11 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	@Override
 	public Duration getExpirationDuration() {
 		return strategy.getExpirationDuration();
+	}
+
+	@Override
+	public boolean isCookieSecured() {
+		return isCookieSecured;
 	}
 
 }

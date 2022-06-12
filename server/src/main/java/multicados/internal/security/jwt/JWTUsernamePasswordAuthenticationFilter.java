@@ -47,6 +47,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 
 	private static final String THE_WHOLE_DOMAIN = "/";
 	private final int maxAge;
+	private final boolean isCookieSecured;
 	private static final String SUCCESSFULLY_LOGGED_IN = "SUCCESSFULLY LOGGED IN";
 
 	public JWTUsernamePasswordAuthenticationFilter(OnMemoryUserDetailsContext onMemoryUserDetailsContext,
@@ -58,7 +59,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 		this.jwtSecurityContext = jwtSecurityContext;
 		jwtStrategy = jwtSecurityContext.getStrategy();
 		maxAge = Long.valueOf(jwtStrategy.getExpirationDuration().toSeconds()).intValue();
-
+		isCookieSecured = this.jwtSecurityContext.isCookieSecured();
 		setAuthenticationFailureHandler(authenticationFailureHandler);
 		setAuthenticationManager(authenticationManager);
 
@@ -81,8 +82,8 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 
 	@Override
 	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
-			Authentication authResult) throws IOException, ServletException {
-		DomainUserDetails userDetails = (DomainUserDetails) authResult.getPrincipal();
+			Authentication authentication) throws IOException, ServletException {
+		DomainUserDetails userDetails = (DomainUserDetails) authentication.getPrincipal();
 
 		onMemoryUserDetailsContext.put(userDetails);
 
@@ -108,7 +109,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 			.get();
 		// @formatter:on
 		cookie.setPath(THE_WHOLE_DOMAIN);
-		cookie.setSecure(false);
+		cookie.setSecure(isCookieSecured);
 		cookie.setHttpOnly(true);
 		cookie.setMaxAge(maxAge);
 
