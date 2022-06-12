@@ -8,6 +8,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.util.List;
 
 import multicados.internal.helper.StringHelper;
 
@@ -29,7 +30,7 @@ public @interface For {
 
 		public static String getMissingMessage(Field field) {
 			return getMissingMessage(
-					StringHelper.join(StringHelper.DOT, field.getDeclaringClass().getName(), field.getName()));
+					StringHelper.join(StringHelper.DOT, List.of(field.getDeclaringClass().getName(), field.getName())));
 		}
 
 		private static String getMissingMessage(String trailingInfo) {

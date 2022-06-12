@@ -5,6 +5,7 @@ package multicados.application.data;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,8 +30,8 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.AssociationType;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
-import multicados.internal.domain.tuplizer.TuplizerException;
 import multicados.internal.helper.HibernateHelper;
+import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.service.ServiceResult;
@@ -46,7 +47,10 @@ public abstract class AbstractDummyDatabaseContributor {
 	private final GenericCRUDServiceImpl crudService;
 	private final ObjectMapper objectMapper;
 
+	private static final String DISCRIMINATOR_KEY = "DTYPE";
+
 	private final String path;
+	private final Environment env;
 
 	public AbstractDummyDatabaseContributor(ObjectMapper objectMapper, DomainResourceContext resourceContext,
 			GenericCRUDServiceImpl crudService, Environment env) {
@@ -54,6 +58,7 @@ public abstract class AbstractDummyDatabaseContributor {
 		this.resourceContext = resourceContext;
 		this.crudService = crudService;
 		this.objectMapper = objectMapper;
+		this.env = env;
 		path = Optional.of(env.getProperty(Settings.DUMMY_DATABASE_PATH)).get();
 	}
 
@@ -72,21 +77,31 @@ public abstract class AbstractDummyDatabaseContributor {
 		return TypeHelper.cast((Class<Object>) value.getClass(), (Class<Object>) expecting, value);
 	}
 
-	private <E extends DomainResource> List<E> toInstances(List<Map<String, Object>> objMaps, Class<E> type)
-			throws Exception {
-		DomainResourceTuplizer<E> tuplizer = resourceContext.getTuplizer(type);
+	private <E extends DomainResource, T extends E> List<T> toInstances(List<Map<String, Object>> objMaps,
+			Class<E> type) throws Exception {
+		if (objMaps.isEmpty()) {
+			return Collections.emptyList();
+		}
+
 		int batchSize = objMaps.size();
-		List<E> instances = IntStream.range(0, batchSize).mapToObj(index -> {
-			try {
-				return tuplizer.instantiate();
-			} catch (TuplizerException e) {
-				e.printStackTrace();
-				return null;
-			}
-		}).filter(Objects::nonNull).collect(Collectors.toList());
-		DomainResourceMetadata<E> metadata = resourceContext.getMetadata(type);
+		List<Map.Entry<T, DomainResourceTuplizer<T>>> instanceEntries = IntStream.range(0, batchSize)
+				.mapToObj(index -> {
+					try {
+						Map<String, Object> state = objMaps.get(index);
+						DomainResourceTuplizer<T> tuplizer = resourceContext.getTuplizer(resolveActualType(state, type));
+
+						state.remove(DISCRIMINATOR_KEY);
+
+						return Map.entry(tuplizer.instantiate(), tuplizer);
+					} catch (Exception any) {
+						any.printStackTrace();
+						return null;
+					}
+				}).filter(Objects::nonNull).collect(Collectors.toList());
 
 		return IntStream.range(0, batchSize).mapToObj(index -> {
+			DomainResourceTuplizer<T> tuplizer = instanceEntries.get(index).getValue();
+			DomainResourceMetadata<T> metadata = resourceContext.getMetadata(tuplizer.getResourceType());
 			Map<String, Object> state = objMaps.get(index);
 
 			for (Map.Entry<String, Object> entry : state.entrySet()) {
@@ -94,14 +109,28 @@ public abstract class AbstractDummyDatabaseContributor {
 					String attributeName = entry.getKey();
 					Object value = resolveValue(attributeName, entry.getValue(), metadata);
 
-					tuplizer.setProperty(instances.get(index), attributeName, value);
+					tuplizer.setProperty(instanceEntries.get(index).getKey(), attributeName, value);
 				} catch (Exception any) {
 					any.printStackTrace();
 				}
 			}
 
-			return instances.get(index);
+			return instanceEntries.get(index).getKey();
 		}).collect(Collectors.toList());
+	}
+
+	@SuppressWarnings("unchecked")
+	private <E extends DomainResource, T extends E> Class<T> resolveActualType(Map<String, Object> map, Class<E> type)
+			throws ClassNotFoundException {
+		String optionalDTYPE = Optional.ofNullable(map.get(DISCRIMINATOR_KEY)).map(Object::toString)
+				.orElse(StringHelper.EMPTY_STRING);
+
+		if (optionalDTYPE.isEmpty()) {
+			return (Class<T>) type;
+		}
+
+		return (Class<T>) Class.forName(StringHelper.join(StringHelper.DOT,
+				List.of(env.getProperty(Settings.SCANNED_ENTITY_PACKAGES), optionalDTYPE)));
 	}
 
 	@SuppressWarnings("unchecked")

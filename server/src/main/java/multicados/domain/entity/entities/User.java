@@ -40,18 +40,20 @@ public class User extends PermanentEntity<String> {
 	@Column(nullable = false)
 	private String phone;
 
+	@Column(nullable = false)
 	private String lastName;
 
+	@Column(nullable = false)
 	private String firstName;
 
 	@Enumerated(EnumType.STRING)
-	@Column(length = 20)
+	@Column(length = 20, nullable = false)
 	private Gender gender;
 
 	private LocalDate birthDate;
 
 	@Enumerated(EnumType.STRING)
-	@Column(length = 20)
+	@Column(length = 20, nullable = false)
 	private Role role;
 
 	@Column(nullable = false)

@@ -5,12 +5,17 @@ package multicados.internal.security;
 
 import static multicados.internal.helper.Utils.declare;
 
+import java.lang.reflect.InvocationTargetException;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -18,7 +23,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -27,15 +34,23 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
+import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils;
+import multicados.internal.helper.TypeHelper;
 import multicados.internal.security.jwt.JWTRequestFilter;
+import multicados.internal.security.jwt.JWTSecurityContext;
+import multicados.internal.security.jwt.JWTSecurityContextImpl;
+import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
 
 /**
  * @author Ngoc Huy
@@ -51,8 +66,27 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private final Environment env;
 
-	public SecurityConfiguration(Environment env) {
+	private final UserDetailsService userDetailsService;
+	private final AuthenticationFailureHandler authenticationFailureHandler;
+	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
+	private JWTSecurityContext jwtSecurityContext;
+
+	public SecurityConfiguration(Environment env) throws Exception {
 		this.env = env;
+		onMemoryUserDetailsContext = new OnMemoryUserDetailsContextImpl();
+		jwtSecurityContext = new JWTSecurityContextImpl(env);
+		authenticationFailureHandler = new AuthenticationFailureHandlerImpl();
+		userDetailsService = locateUserDetailsService();
+	}
+
+	private UserDetailsService locateUserDetailsService() throws Exception {
+		// @formatter:off
+		return declare(new CustomUserDetailsServiceLocator())
+			.then(CustomUserDetailsServiceLocator::locate)
+			.then(Optional::ofNullable)
+			.then(optional -> optional.orElseGet(() -> super.userDetailsService()))
+			.get();
+		// @formatter:on
 	}
 
 	@Override
@@ -62,30 +96,20 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			.consume(this::csrf)
 			.consume(this::cors)
 			.consume(this::publicEndpoints)
-			.consume(this::tokenEndpoint)
 			.consume(this::securedEndpoints)
 			.consume(this::statelessSession)
-			.consume(this::authorizationFilters)
-			.consume(this::authenticationFilters)
-			.consume(this::exceptionHandling);
+			.consume(this::jwt);
 		// @formatter:on
 	}
 
 	@Override
+	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+		auth.userDetailsService(userDetailsService());
+	}
+
+	@Override
 	protected UserDetailsService userDetailsService() {
-		try {
-			// @formatter:off
-			return Utils.declare(new CustomUserDetailsServiceLocator())
-				.then(CustomUserDetailsServiceLocator::locate)
-				.then(Optional::ofNullable)
-				.then(optional -> optional.orElseGet(() -> super.userDetailsService()))
-				.get();
-			// @formatter:on
-		} catch (Exception any) {
-			any.printStackTrace();
-			SpringApplication.exit(ContextManager.getExitAcess().getContext());
-			return null;
-		}
+		return userDetailsService;
 	}
 
 	@Bean
@@ -93,8 +117,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		return new BCryptPasswordEncoder();
 	}
 
+	@Bean
+	public AbstractAuthenticationProcessingFilter jwtUsernamePasswordAuthenticationFilter() throws Exception {
+		return new JWTUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
+				authenticationFailureHandler, authenticationManager());
+	}
+
 	private boolean isInDevMode() {
-		return !env.getProperty("spring.profiles.active").equals("PROD");
+		return !env.getProperty(Settings.ACTIVE_PROFILES).equals("PROD");
 	}
 
 	private void csrf(HttpSecurity http) throws Exception {
@@ -103,6 +133,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private void cors(HttpSecurity http) throws Exception {
 		http.cors();
+		new DevCorsConfigurer().configure(http);
 	}
 
 	private static final String ENDPOINT_PATTERN_PARTS_DELIMITER = "\\\\";
@@ -135,14 +166,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				http.authorizeRequests().antMatchers(httpMethod, parts[0]).permitAll();
 			}
 		}
-	}
 
-	private void tokenEndpoint(HttpSecurity http) throws Exception {
-		// @formatter:off
-		http.authorizeRequests()
-			.antMatchers(HttpMethod.POST, env.getProperty(Settings.SECURITY_TOKEN_END_POINT))
-			.permitAll();
-		// @formatter:on
+		http.authorizeRequests().antMatchers(HttpMethod.POST, jwtSecurityContext.getTokenEndpoint()).permitAll();
 	}
 
 	private void securedEndpoints(HttpSecurity http) throws Exception {
@@ -153,16 +178,18 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 	}
 
-	private void authorizationFilters(HttpSecurity http) {}
-
-	private void authenticationFilters(HttpSecurity http) throws Exception {
-		// @formatter:off
-		http
-			.addFilterBefore(new JWTRequestFilter(env, userDetailsService()), UsernamePasswordAuthenticationFilter.class);
-		// @formatter:on
+	private void jwt(HttpSecurity http) throws Exception {
+		declare(http).consume(this::jwtFilters);
 	}
 
-	private void exceptionHandling(HttpSecurity http) {}
+	private void jwtFilters(HttpSecurity http) throws Exception {
+		// @formatter:off
+		http
+			.addFilterBefore(
+					new JWTRequestFilter(env, userDetailsService(), onMemoryUserDetailsContext, jwtSecurityContext),
+					UsernamePasswordAuthenticationFilter.class);
+		// @formatter:on
+	}
 
 	private class CustomUserDetailsServiceLocator {
 
@@ -200,14 +227,14 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		}
 
 		private UserDetailsService tryToConstruct(BeanDefinition beanDef, UserDetailsService beanFromContext)
-				throws ClassNotFoundException {
+				throws ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException,
+				InvocationTargetException, NoSuchMethodException, SecurityException {
 			if (beanFromContext != null) {
 				return beanFromContext;
 			}
 
-			ContextManager.registerBean(beanDef.getBeanClassName(), beanDef);
-
-			return (UserDetailsService) ContextManager.getBean(Class.forName(beanDef.getBeanClassName()));
+			return UserDetailsService.class
+					.cast(TypeHelper.constructFromNonArgs(Class.forName(beanDef.getBeanClassName())));
 		}
 
 		private UserDetailsService doLocate(Optional<BeanDefinition> optionalBeanDef) throws Exception {
@@ -228,11 +255,49 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				.then(this::scan)
 				.then(this::doLocate)
 				.consume(bean -> logger.trace(bean == null
-							? String.format("No custom %s", UserDetailsService.class.getSimpleName())
+							? String.format("No custom %s found", UserDetailsService.class.getSimpleName())
 							: String.format("Located one custom %s of type [%s]",
 									UserDetailsService.class.getSimpleName(), bean.getClass().getName())))
 				.get();
 			// @formatter:on
+		}
+
+	}
+
+	private class DevCorsConfigurer {
+
+		private DevCorsConfigurer() {}
+
+		public void configure(HttpSecurity http) throws Exception {
+			if (!isInDevMode()) {
+				return;
+			}
+			// @formatter:off
+			CorsConfiguration configuration = declare(new CorsConfiguration())
+					.consume(self -> self.setAllowCredentials(true)).get();
+			DatagramSocket socket = declare(new DatagramSocket()).consume(self -> self.connect(InetAddress.getByName("8.8.8.8"), 10002)).get(); 
+			String clientURLTemplate = String.format("http://%s:%s", socket.getLocalAddress().getHostAddress(), "%s");
+			
+			socket.close();
+			
+			declare(Stream.of(SpringHelper.getArrayOrDefault(env, Settings.SECURITY_DEV_CLIENT_PORTS, Function.identity(), StringHelper.EMPTY_STRING_ARRAY))
+						.map(clientPort -> String.format(clientURLTemplate, clientPort))
+						.toArray(String[]::new))
+				.then(Arrays::asList)
+				.consume(configuration::setAllowedOrigins);
+			declare(Arrays.asList(
+					HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(),
+					HttpMethod.PATCH.name(), HttpMethod.DELETE.name(), HttpMethod.OPTIONS.name()))
+				.consume(configuration::setAllowedMethods);
+			declare(Arrays.asList(
+					HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE,
+					HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
+				.consume(configuration::setAllowedHeaders);
+			// @formatter:on
+			UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+			source.registerCorsConfiguration("/**", configuration);
+			http.addFilterAt(new CorsFilter(source), CorsFilter.class);
 		}
 
 	}

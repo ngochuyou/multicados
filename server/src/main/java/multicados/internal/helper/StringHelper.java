@@ -8,7 +8,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -52,10 +51,6 @@ public class StringHelper extends StringUtils {
 		SHA_256_MD = digest;
 	}
 
-	public static <T> String join(@SuppressWarnings("unchecked") T... elements) {
-		return join(List.of(elements));
-	}
-
 	public static <T> String join(Collection<T> elements) {
 		return join((value) -> Optional.ofNullable(value).map(Object::toString).orElse(NULL), elements);
 	}
@@ -64,6 +59,10 @@ public class StringHelper extends StringUtils {
 		return join(COMMON_JOINER, stringGetter, elements);
 	}
 
+	public static <T> String join(CharSequence joiner, Collection<String> elements) {
+		return elements.stream().collect(Collectors.joining(joiner));
+	}
+	
 	public static <T> String join(CharSequence joiner, Function<T, String> stringGetter, Collection<T> elements) {
 		return elements.stream().map(stringGetter).collect(Collectors.joining(joiner));
 	}

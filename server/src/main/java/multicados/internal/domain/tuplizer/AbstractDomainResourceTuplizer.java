@@ -52,6 +52,7 @@ public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> i
 
 	protected abstract Setter getSetter(String propName);
 
+	@Override
 	public Class<D> getResourceType() {
 		return resourceType;
 	}

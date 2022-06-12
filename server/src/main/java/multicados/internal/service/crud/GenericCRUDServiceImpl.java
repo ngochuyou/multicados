@@ -360,7 +360,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 		}
 		// @formatter:on
 		private String resolveJoinRole(String joinRole, String nextJoinName) {
-			return joinRole != null ? StringHelper.join(StringHelper.DOT, joinRole, nextJoinName) : nextJoinName;
+			return joinRole != null ? StringHelper.join(StringHelper.DOT, List.of(joinRole, nextJoinName))
+					: nextJoinName;
 		}
 
 		private Specification<D> resolveSpecification() {

@@ -6,6 +6,7 @@ package multicados.application;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.cache.annotation.EnableCaching;
 
 import multicados.internal.config.Settings;
 
@@ -19,6 +20,7 @@ import multicados.internal.config.Settings;
 @SpringBootApplication(
 		exclude = HibernateJpaAutoConfiguration.class,
 		scanBasePackages = Settings.BASE_PACKAGE)
+@EnableCaching(proxyTargetClass = true)
 // @formatter:on
 public class BootEntry {
 

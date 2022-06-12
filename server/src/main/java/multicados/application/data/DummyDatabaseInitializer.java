@@ -12,9 +12,8 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.domain.entity.entities.Category;
-import multicados.domain.entity.entities.District;
-import multicados.domain.entity.entities.Province;
+import multicados.domain.entity.entities.User;
+import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
 import multicados.internal.helper.HibernateHelper;
@@ -27,10 +26,13 @@ import multicados.internal.service.crud.GenericCRUDServiceImpl;
 public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		implements DatabaseInitializerContributor {
 
+	private final Environment env;
+
 	@Autowired
 	public DummyDatabaseInitializer(ObjectMapper objectMapper, DomainResourceContext resourceContext,
 			GenericCRUDServiceImpl crudService, Environment env) {
 		super(objectMapper, resourceContext, crudService, env);
+		this.env = env;
 	}
 
 	@Override
@@ -42,9 +44,8 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		session.beginTransaction();
 		// @formatter:off
 		try {
-			createBatch(Category.class, "dummy_categories.json", session, ex -> logger.error(ex.getMessage()));
-			createBatch(Province.class, "dummy_provinces.json", session, ex -> logger.error(ex.getMessage()));
-			createBatch(District.class, "dummy_districts.json", session, ex -> logger.error(ex.getMessage()));
+			createNonProductStrictDummies(logger, session);
+			createProductStrictDummies(logger, session);
 			
 			session.getTransaction().commit();
 		} catch (Exception e) {
@@ -55,6 +56,20 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 			session.close();
 		}
 		// @formatter:on
+	}
+
+	private void createProductStrictDummies(Logger logger, Session session) throws Exception {
+		if (env.getProperty(Settings.ACTIVE_PROFILES).equals("PROD")) {
+			return;
+		}
+
+		createBatch(User.class, "dummy_users.json", session, ex -> logger.error(ex.getMessage()));
+	}
+
+	private void createNonProductStrictDummies(final Logger logger, Session session) throws Exception {
+//		createBatch(Category.class, "dummy_categories.json", session, ex -> logger.error(ex.getMessage()));
+//		createBatch(Province.class, "dummy_provinces.json", session, ex -> logger.error(ex.getMessage()));
+//		createBatch(District.class, "dummy_districts.json", session, ex -> logger.error(ex.getMessage()));
 	}
 
 }

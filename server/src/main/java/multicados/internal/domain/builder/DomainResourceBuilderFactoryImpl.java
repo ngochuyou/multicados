@@ -61,14 +61,14 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 	private static final AbstractDomainResourceBuilder<NamedResource> NAMED_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
 
 		@Override
-		public <E extends NamedResource> E buildInsertion(Serializable id, E resource, EntityManager entityManager)
+		public NamedResource buildInsertion(Serializable id, NamedResource resource, EntityManager entityManager)
 				throws Exception {
 			resource.setName(StringHelper.normalizeString(resource.getName()));
 			return resource;
 		}
 
 		@Override
-		public <E extends NamedResource> E buildUpdate(Serializable id, E model, E resource,
+		public NamedResource buildUpdate(Serializable id, NamedResource model, NamedResource resource,
 				EntityManager entityManger) {
 			resource.setName(StringHelper.normalizeString(model.getName()));
 			return resource;
@@ -88,14 +88,14 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 
 	private static final AbstractDomainResourceBuilder<PermanentResource> PERMANENT_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
 		@Override
-		public <E extends PermanentResource> E buildInsertion(Serializable id, E resource, EntityManager entityManager)
-				throws Exception {
+		public PermanentResource buildInsertion(Serializable id, PermanentResource resource,
+				EntityManager entityManager) throws Exception {
 			resource.setActive(Boolean.TRUE);
 			return resource;
 		}
 
 		@Override
-		public <E extends PermanentResource> E buildUpdate(Serializable id, E model, E resource,
+		public PermanentResource buildUpdate(Serializable id, PermanentResource model, PermanentResource resource,
 				EntityManager entityManger) {
 			return resource;
 		}
@@ -132,7 +132,7 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public <E extends IdentifiableResource> E buildInsertion(Serializable id, E resource,
+		public IdentifiableResource buildInsertion(Serializable id, IdentifiableResource resource,
 				EntityManager entityManager) throws Exception {
 			if (id == null) {
 				return resource;
@@ -148,8 +148,8 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 		}
 
 		@Override
-		public <E extends IdentifiableResource> E buildUpdate(Serializable id, E model, E resource,
-				EntityManager entityManger) {
+		public IdentifiableResource buildUpdate(Serializable id, IdentifiableResource model,
+				IdentifiableResource resource, EntityManager entityManger) {
 			return resource;
 		}
 
@@ -168,13 +168,13 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 	private static final AbstractDomainResourceBuilder<DomainResource> NO_OP_BUILDER = new AbstractDomainResourceBuilder<DomainResource>() {
 
 		@Override
-		public <E extends DomainResource> E buildInsertion(Serializable id, E resource, EntityManager entityManager)
+		public DomainResource buildInsertion(Serializable id, DomainResource resource, EntityManager entityManager)
 				throws Exception {
 			return resource;
 		}
 
 		@Override
-		public <E extends DomainResource> E buildUpdate(Serializable id, E model, E resource,
+		public DomainResource buildUpdate(Serializable id, DomainResource model, DomainResource resource,
 				EntityManager entityManger) {
 			return resource;
 		}

@@ -39,16 +39,17 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 			this.childBuilder = childBuilder;
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
-		public <E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager)
-				throws Exception {
-			return childBuilder.buildInsertion(id, parentBuilder.buildInsertion(id, resource, entityManager),
+		public T buildInsertion(Serializable id, T resource, EntityManager entityManager) throws Exception {
+			return childBuilder.buildInsertion(id, (T) parentBuilder.buildInsertion(id, resource, entityManager),
 					entityManager);
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
-		public <E extends T> E buildUpdate(Serializable id, E model, E resource, EntityManager entityManger) {
-			return childBuilder.buildUpdate(id, model, parentBuilder.buildUpdate(id, model, resource, entityManger),
+		public T buildUpdate(Serializable id, T model, T resource, EntityManager entityManger) {
+			return childBuilder.buildUpdate(id, model, (T) parentBuilder.buildUpdate(id, model, resource, entityManger),
 					entityManger);
 		}
 

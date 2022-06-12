@@ -28,7 +28,7 @@ public interface DomainResourceBuilder<T extends DomainResource> extends GraphWa
 	 * @return entity {@link DomainResource}
 	 * @throws Exception
 	 */
-	<E extends T> E buildInsertion(Serializable id, E resource, EntityManager entityManager) throws Exception;
+	T buildInsertion(Serializable id, T resource, EntityManager entityManager) throws Exception;
 
 	/**
 	 * @see DomainResourceBuilder#insertionBuild(DomainResource)
@@ -36,7 +36,7 @@ public interface DomainResourceBuilder<T extends DomainResource> extends GraphWa
 	 * @param model
 	 * @return persisted {@link DomainResource}
 	 */
-	<E extends T> E buildUpdate(Serializable id, E model, E resource, EntityManager entityManger);
+	T buildUpdate(Serializable id, T model, T resource, EntityManager entityManger);
 
 	<E extends T> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next);
 

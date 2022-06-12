@@ -4,14 +4,12 @@
 package multicados.internal.security.jwt;
 
 import static multicados.internal.helper.Utils.declare;
-import static org.springframework.util.StringUtils.hasLength;
+import static multicados.internal.helper.Utils.HandledFunction.identity;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 
 import javax.servlet.FilterChain;
@@ -33,11 +31,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.WebUtils;
 
 import io.jsonwebtoken.Claims;
-import multicados.internal.config.Settings;
 import multicados.internal.helper.HttpHelper;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.helper.Utils.TriDeclaration;
+import multicados.internal.security.OnMemoryUserDetailsContext;
 
 /**
  * @author Ngoc Huy
@@ -50,78 +47,21 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	private static final String NO_HEADERS = "JWT header not found";
 	private static final String NO_COOKIES = "Unable to locate JWT cookie";
 
-	private static final String DEFAULT_HEADER_PREFIX = "JWTBearer";
-	private static final String DEFAULT_COOKIE_NAME = "seito";
-
-	private static final String NO_SECRET = "Unable to locate any configured secret key for JWT";
-	private static final String LOCAL_ZONE = "LOCAL";
-	private static final Duration DEFAULT_DURATION = Duration.ofDays(7);
-
-	private static final String VERSION_KEY = "version";
-
 	private static final String TOKEN_IS_EXPIRED = "TOKEN EXPIRED";
 	private static final String TOKEN_IS_STALE = "STALE TOKEN";
-	private static final String LOGGED_IN = "LOGGED IN";
-
-	private final String jwtHeaderPrefix;
-	private final String jwtCookieName;
-	private final JWT jwtContext;
 
 	private final UserDetailsService userDetailsService;
+	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
+	private final JWTSecurityContext jwtSecurityContext;
+	private final JWTStrategy strategy;
 
-	public JWTRequestFilter(Environment env, UserDetailsService userDetailsService) throws Exception {
-		jwtHeaderPrefix = env.getProperty(Settings.SECURITY_JWT_HEADER_PREFIX, DEFAULT_HEADER_PREFIX);
-		jwtCookieName = env.getProperty(Settings.SECURITY_JWT_HEADER_PREFIX, DEFAULT_COOKIE_NAME);
-		jwtContext = buildJWTContext(env);
-
+	public JWTRequestFilter(Environment env, UserDetailsService userDetailsService,
+			OnMemoryUserDetailsContext onMemoryUserDetailsContext, JWTSecurityContext jwtSecurityContext)
+			throws Exception {
 		this.userDetailsService = userDetailsService;
-	}
-
-	private JWT buildJWTContext(Environment env) throws Exception {
-		// @formatter:off
-		return declare(env)
-			.flat(this::locateSecret, this::locateZone, this::locateDuration)
-			.then(JWT::new)
-			.get();
-		// @formatter:on
-	}
-
-	private Duration locateDuration(Environment env) {
-		String configuredDuration = env.getProperty(Settings.SECURITY_JWT_EXPIRATION_DURATION);
-
-		if (!hasLength(configuredDuration)) {
-			return DEFAULT_DURATION;
-		}
-
-		if (!StringHelper.isNumeric(configuredDuration)) {
-			throw new IllegalArgumentException(String.format("%s is not a number", configuredDuration));
-		}
-
-		return Duration.ofMillis(Long.parseLong(configuredDuration));
-	}
-
-	private ZoneId locateZone(Environment env) {
-		String configuredZone = env.getProperty(Settings.SECURITY_JWT_ZONE);
-
-		if (!hasLength(configuredZone) || LOCAL_ZONE.equals(configuredZone.toUpperCase())) {
-			return ZoneId.systemDefault();
-		}
-
-		if (!ZoneId.SHORT_IDS.containsKey(configuredZone)) {
-			throw new IllegalArgumentException(String.format("Unknown zone id [%s]", configuredZone));
-		}
-
-		return ZoneId.of(ZoneId.SHORT_IDS.get(configuredZone));
-	}
-
-	private String locateSecret(Environment env) {
-		String configuredSecret = env.getProperty(Settings.SECURITY_JWT_SECRET);
-
-		if (!hasLength(configuredSecret)) {
-			throw new IllegalArgumentException(NO_SECRET);
-		}
-
-		return configuredSecret;
+		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
+		this.jwtSecurityContext = jwtSecurityContext;
+		strategy = jwtSecurityContext.getStrategy();
 	}
 
 	@Override
@@ -130,7 +70,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 		try {
 			String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-			if (authHeader == null || !authHeader.startsWith(jwtHeaderPrefix)) {
+			if (authHeader == null || !authHeader.startsWith(jwtSecurityContext.getHeaderPrefix())) {
 				if (logger.isTraceEnabled()) {
 					logger.trace(NO_HEADERS);
 				}
@@ -139,7 +79,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 				return;
 			}
 
-			Cookie cookie = WebUtils.getCookie(request, jwtCookieName);
+			Cookie cookie = WebUtils.getCookie(request, jwtSecurityContext.getCookieName());
 
 			if (cookie == null) {
 				if (logger.isTraceEnabled()) {
@@ -151,21 +91,35 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			}
 			// @formatter:off
 			declare(new Candidate(cookie, request, response))
-				.flat(HandledFunction.identity(), this::locateUserDetails)
+				.flat(identity(), this::locateUserDetails)
 					.third(request)
 				.then(this::validate)
 				.consume(this::doPostValidation);
 			// @formatter:on
 			filterChain.doFilter(request, response);
 		} catch (Exception any) {
-			SecurityContextHolder.clearContext();
+			any.printStackTrace();
 			logger.error(String.format("Error while filtering request: %s", any.getMessage()));
 			filterChain.doFilter(request, response);
 		}
 	}
 
-	private UserDetails locateUserDetails(Candidate candidate) {
-		return userDetailsService.loadUserByUsername(candidate.getUsername());
+	private UserDetails locateUserDetails(Candidate candidate) throws Exception {
+		// @formatter:off
+		return declare(candidate)
+				.flat(identity(), this::tryLocatingFromOnMemoryContext)
+				.then(this::tryLocatingFromDataSource)
+				.get();
+		// @formatter:on
+	}
+
+	private UserDetails tryLocatingFromOnMemoryContext(Candidate candidate) {
+		return onMemoryUserDetailsContext.get(candidate.getUsername());
+	}
+
+	private UserDetails tryLocatingFromDataSource(Candidate candidate, UserDetails onMemoryUserDetails) {
+		return Optional.ofNullable(onMemoryUserDetails)
+				.orElseGet(() -> userDetailsService.loadUserByUsername(candidate.getUsername()));
 	}
 
 	private TriDeclaration<Candidate, UserDetails, UsernamePasswordAuthenticationToken> validate(Candidate candidate,
@@ -204,12 +158,8 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			return;
 		}
 
-		writeMessage(request, response, LOGGED_IN);
 		SecurityContextHolder.getContext().setAuthentication(token);
-		doCache(validation.getSecond());
 	}
-
-	private void doCache(UserDetails userDetails) {}
 
 	private void writeMessage(HttpServletRequest request, HttpServletResponse response, String message)
 			throws Exception {
@@ -236,22 +186,22 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 		private final HttpServletResponse response;
 
 		public Candidate(Cookie cookie, HttpServletRequest request, HttpServletResponse response) {
-			claims = jwtContext.extractAllClaims(cookie.getValue());
+			claims = strategy.extractAllClaims(cookie.getValue());
 			version = locateVersion(claims);
-			expiration = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), jwtContext.getZone());
+			expiration = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), strategy.getZone());
 			this.request = request;
 			this.response = response;
 		}
 
 		private LocalDateTime locateVersion(Claims claims) {
-			String versionString = Optional.ofNullable(claims.get(VERSION_KEY)).map(Object::toString)
-					.orElse(StringHelper.EMPTY_STRING);
+			String versionString = Optional.ofNullable(claims.get(jwtSecurityContext.getVersionKey()))
+					.map(Object::toString).orElse(StringHelper.EMPTY_STRING);
 
 			if (!StringHelper.isNumeric(versionString)) {
 				throw new IllegalArgumentException(INVALID_VERSION_VALUE);
 			}
 
-			return LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(versionString)), jwtContext.getZone());
+			return LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(versionString)), strategy.getZone());
 		}
 
 		public String getUsername() {
