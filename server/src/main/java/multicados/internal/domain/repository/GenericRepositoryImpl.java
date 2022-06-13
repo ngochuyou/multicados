@@ -345,7 +345,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@Override
 	public <D extends DomainResource> Optional<D> findById(Class<D> type, Serializable id, LockModeType lockMode,
 			SharedSessionContract session) throws Exception {
-		return findOne(type, SpecificationHelper.hasId(type, id), lockMode, session);
+		return findOne(type, SpecificationHelper.hasId(type, id, session), lockMode, session);
 	}
 
 	@Override
@@ -357,7 +357,7 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findById(Class<D> type, Serializable id,
 			Selector<D, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception {
-		return findOne(type, selector, SpecificationHelper.hasId(type, id), lockMode, session);
+		return findOne(type, selector, SpecificationHelper.hasId(type, id, session), lockMode, session);
 	}
 
 	@Override

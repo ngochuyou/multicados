@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.hibernate.Session;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.tuple.IdentifierProperty;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
@@ -30,7 +31,6 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.AssociationType;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
-import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -78,7 +78,7 @@ public abstract class AbstractDummyDatabaseContributor {
 	}
 
 	private <E extends DomainResource, T extends E> List<T> toInstances(List<Map<String, Object>> objMaps,
-			Class<E> type) throws Exception {
+			Class<E> type, SessionFactoryImplementor sfi) throws Exception {
 		if (objMaps.isEmpty()) {
 			return Collections.emptyList();
 		}
@@ -88,7 +88,8 @@ public abstract class AbstractDummyDatabaseContributor {
 				.mapToObj(index -> {
 					try {
 						Map<String, Object> state = objMaps.get(index);
-						DomainResourceTuplizer<T> tuplizer = resourceContext.getTuplizer(resolveActualType(state, type));
+						DomainResourceTuplizer<T> tuplizer = resourceContext
+								.getTuplizer(resolveActualType(state, type));
 
 						state.remove(DISCRIMINATOR_KEY);
 
@@ -107,7 +108,7 @@ public abstract class AbstractDummyDatabaseContributor {
 			for (Map.Entry<String, Object> entry : state.entrySet()) {
 				try {
 					String attributeName = entry.getKey();
-					Object value = resolveValue(attributeName, entry.getValue(), metadata);
+					Object value = resolveValue(attributeName, entry.getValue(), metadata, sfi);
 
 					tuplizer.setProperty(instanceEntries.get(index).getKey(), attributeName, value);
 				} catch (Exception any) {
@@ -135,7 +136,7 @@ public abstract class AbstractDummyDatabaseContributor {
 
 	@SuppressWarnings("unchecked")
 	private Object resolveValue(String attributeName, Object value,
-			DomainResourceMetadata<? extends DomainResource> metadata) throws Exception {
+			DomainResourceMetadata<? extends DomainResource> metadata, SessionFactoryImplementor sfi) throws Exception {
 		if (metadata.isAssociation(attributeName)
 				&& metadata.getAssociationType(attributeName) == AssociationType.ENTITY) {
 			Class<? extends DomainResource> associationJavaType = (Class<? extends DomainResource>) metadata
@@ -143,7 +144,7 @@ public abstract class AbstractDummyDatabaseContributor {
 			DomainResourceTuplizer<? extends DomainResource> associationTuplizer = resourceContext
 					.getTuplizer((Class<? extends DomainResource>) associationJavaType);
 			Object associationValue = associationTuplizer.instantiate();
-			IdentifierProperty identifierProperty = HibernateHelper.getEntityPersister(associationJavaType)
+			IdentifierProperty identifierProperty = sfi.getMetamodel().entityPersister(associationJavaType)
 					.getEntityMetamodel().getIdentifierProperty();
 
 			associationTuplizer.setProperty(associationValue, identifierProperty.getName(),
@@ -168,6 +169,7 @@ public abstract class AbstractDummyDatabaseContributor {
 		List<E> instances = Utils.declare(getPath(path))
 				.then(this::getArray)
 					.second(type)
+					.third(entityManager.getSessionFactory().unwrap(SessionFactoryImplementor.class))
 				.then(this::toInstances)
 				.get();
 

@@ -1,0 +1,454 @@
+/**
+ * 
+ */
+package multicados.internal.file.engine;
+
+import static multicados.internal.helper.Utils.declare;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+import javax.persistence.SharedCacheMode;
+
+import org.apache.commons.lang3.RandomStringUtils;
+import org.hibernate.EntityMode;
+import org.hibernate.HibernateException;
+import org.hibernate.MultiTenancyStrategy;
+import org.hibernate.annotations.common.reflection.ReflectionManager;
+import org.hibernate.annotations.common.reflection.java.JavaReflectionManager;
+import org.hibernate.boot.AttributeConverterInfo;
+import org.hibernate.boot.CacheRegionDefinition;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.archive.scan.spi.ScanEnvironment;
+import org.hibernate.boot.archive.scan.spi.ScanOptions;
+import org.hibernate.boot.archive.spi.ArchiveDescriptorFactory;
+import org.hibernate.boot.cfgxml.spi.CfgXmlAccessService;
+import org.hibernate.boot.internal.BootstrapContextImpl;
+import org.hibernate.boot.internal.IdGeneratorInterpreterImpl;
+import org.hibernate.boot.internal.MetadataBuilderImpl;
+import org.hibernate.boot.internal.SessionFactoryOptionsBuilder;
+import org.hibernate.boot.model.IdGeneratorStrategyInterpreter;
+import org.hibernate.boot.model.naming.ImplicitNamingStrategy;
+import org.hibernate.boot.model.naming.PhysicalNamingStrategy;
+import org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl;
+import org.hibernate.boot.model.process.spi.MetadataBuildingProcess;
+import org.hibernate.boot.model.relational.AuxiliaryDatabaseObject;
+import org.hibernate.boot.registry.BootstrapServiceRegistry;
+import org.hibernate.boot.registry.BootstrapServiceRegistryBuilder;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.classloading.spi.ClassLoaderService;
+import org.hibernate.boot.registry.internal.StandardServiceRegistryImpl;
+import org.hibernate.boot.spi.BasicTypeRegistration;
+import org.hibernate.boot.spi.BootstrapContext;
+import org.hibernate.boot.spi.JpaOrmXmlPersistenceUnitDefaultAware;
+import org.hibernate.boot.spi.MappingDefaults;
+import org.hibernate.boot.spi.MetadataBuildingOptions;
+import org.hibernate.boot.spi.SessionFactoryOptions;
+import org.hibernate.bytecode.spi.ProxyFactoryFactory;
+import org.hibernate.cache.spi.CacheImplementor;
+import org.hibernate.cache.spi.RegionFactory;
+import org.hibernate.cache.spi.access.AccessType;
+import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.cfg.MetadataSourceType;
+import org.hibernate.cfg.annotations.reflection.internal.JPAXMLOverriddenMetadataProvider;
+import org.hibernate.dialect.function.SQLFunction;
+import org.hibernate.engine.config.internal.ConfigurationServiceImpl;
+import org.hibernate.engine.config.spi.ConfigurationService;
+import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
+import org.hibernate.engine.jdbc.spi.JdbcServices;
+import org.hibernate.engine.query.spi.HQLQueryPlan;
+import org.hibernate.engine.query.spi.QueryPlanCache;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.id.IdentifierGenerator;
+import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
+import org.hibernate.persister.spi.PersisterFactory;
+import org.hibernate.property.access.internal.PropertyAccessStrategyFieldImpl;
+import org.hibernate.property.access.spi.PropertyAccessStrategy;
+import org.hibernate.property.access.spi.PropertyAccessStrategyResolver;
+import org.hibernate.service.internal.ProvidedService;
+import org.hibernate.service.internal.SessionFactoryServiceRegistryImpl;
+import org.hibernate.service.spi.ServiceRegistryImplementor;
+import org.hibernate.service.spi.SessionFactoryServiceRegistry;
+import org.hibernate.service.spi.SessionFactoryServiceRegistryFactory;
+import org.jboss.jandex.IndexView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.env.Environment;
+import org.springframework.core.type.filter.AssignableTypeFilter;
+
+import multicados.internal.config.Settings;
+import multicados.internal.context.ContextManager;
+import multicados.internal.domain.FileResource;
+import multicados.internal.helper.SpringHelper;
+import multicados.internal.locale.ZoneContext;
+
+/**
+ * @author Ngoc Huy
+ *
+ */
+public class FileManagementImpl implements FileManagement {
+
+	private static final Logger logger = LoggerFactory.getLogger(FileManagementImpl.class);
+
+	private final FileResourceSessionFactory sessionFactory;
+
+	public FileManagementImpl(SessionFactoryImplementor sfi, Environment env) throws Exception {
+		// @formatter:off
+		logger.info("\n\n"
+				+ "\t\t\t\t\t\t========================================================\n"
+				+ "\t\t\t\t\t\t=          BUILDING FILE RESOURCE MANAGEMENT           =\n"
+				+ "\t\t\t\t\t\t========================================================\n");
+		// @formatter:on
+		BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
+		StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi, bootstrapServiceRegistry,
+				new ProvidedServicesLocator(sfi));
+		MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(standardServiceRegistry);
+		BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry, metadataBuildingOptions);
+
+		declare(metadataBuildingOptions).then(MetadataBuildingOptionsImpl.class::cast)
+				.consume(self -> self.makeReflectionManager(bootstrapContext));
+
+		sessionFactory = build(env, sfi, standardServiceRegistry, bootstrapContext, metadataBuildingOptions);
+	}
+
+	// @formatter:off
+	private FileResourceSessionFactory build(
+			Environment env,
+			SessionFactoryImplementor sfi,
+			StandardServiceRegistry serviceRegistry,
+			BootstrapContext bootstrapContext,
+			MetadataBuildingOptions metadataBuildingOptions) throws Exception {
+		return declare(serviceRegistry, env)
+				.then(this::scanForMetadataSources)
+					.second(bootstrapContext)
+					.third(metadataBuildingOptions)
+				.then(MetadataBuildingProcess::build)
+					.second(declare(serviceRegistry, bootstrapContext)
+							.then(SessionFactoryOptionsBuilder::new)
+							.get())
+					.<QueryPlanCache.QueryPlanCreator>third(HQLQueryPlan::new)
+				.then((metadata, sessionFactoryOptionsBuilder, queryPlan) -> new FileResourceSessionFactoryImpl(env, metadata, sessionFactoryOptionsBuilder, queryPlan))
+				.get();
+	}
+	// @formatter:on
+	private MetadataSources scanForMetadataSources(StandardServiceRegistry serviceRegistry, Environment env)
+			throws ClassNotFoundException {
+		MetadataSources metadataSources = new MetadataSources(serviceRegistry, true);
+		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+
+		scanner.addIncludeFilter(new AssignableTypeFilter(FileResource.class));
+
+		for (BeanDefinition beanDefinition : scanner.findCandidateComponents(SpringHelper.getOrDefault(env,
+				Settings.SCANNED_FILE_RESOURCE_PACKAGE, Function.identity(), Settings.BASE_PACKAGE))) {
+			Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
+
+			metadataSources.addAnnotatedClass(clazz);
+			metadataSources.addAnnotatedClassName(clazz.getName());
+		}
+
+		return metadataSources;
+	}
+
+	private StandardServiceRegistry createStandardServiceRegistry(SessionFactoryImplementor sfi,
+			BootstrapServiceRegistry bootstrapServiceRegistry, ProvidedServicesLocator providedServicesLocator)
+			throws Exception {
+		// @formatter:off
+		return new StandardServiceRegistryImpl(
+				bootstrapServiceRegistry,
+				Collections.emptyList(),
+				providedServicesLocator.providedServices,
+				Collections.emptyMap());
+		// @formatter:on;
+	}
+
+	private BootstrapServiceRegistry createBootstrapServiceRegistry(SessionFactoryImplementor sfi) {
+		// @formatter:off
+		return new BootstrapServiceRegistryBuilder()
+				.enableAutoClose()
+				.applyClassLoaderService(sfi.getServiceRegistry().requireService(ClassLoaderService.class))
+				.build();
+		// @formatter:on
+	}
+
+	private class ProvidedServicesLocator {
+
+		private static final String CONFIGURATION_FRIENDLY_NONE_VALUE = "none";
+		// @formatter:off
+		@SuppressWarnings({ "rawtypes" })
+		private final List<ProvidedService> providedServices;
+		
+		@SuppressWarnings({ "rawtypes", "unchecked", "serial" })
+		public ProvidedServicesLocator(SessionFactoryImplementor sfi) throws Exception {
+			final List<ProvidedService> providedServices = new ArrayList<>();
+			final ServiceRegistryImplementor serviceRegistry = sfi.getServiceRegistry();
+			
+			providedServices.add(new ProvidedService<>(
+					MutableIdentifierGeneratorFactory.class,
+					declare(serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class))
+						.consume(self -> self.register(FileIdentifierGenerator.NAME, FileIdentifierGenerator.class))
+						.get()));
+			providedServices.add(new ProvidedService<>(JdbcServices.class, sfi.getJdbcServices()));
+			providedServices.add(new ProvidedService<>(JdbcEnvironment.class, sfi.getJdbcServices().getJdbcEnvironment()));
+			providedServices.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
+			providedServices.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
+					declare(new HashMap())
+						.consume(self -> self.putAll(serviceRegistry.requireService(ConfigurationService.class).getSettings()))
+						.consume(self -> self.putAll(Map.of(
+							AvailableSettings.HBM2DDL_AUTO, CONFIGURATION_FRIENDLY_NONE_VALUE,
+							AvailableSettings.HBM2DDL_SCRIPTS_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
+							AvailableSettings.HBM2DDL_DATABASE_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
+							AvailableSettings.USE_SECOND_LEVEL_CACHE, Boolean.TRUE,
+							AvailableSettings.STATEMENT_BATCH_SIZE, 0)))
+						.get())));
+			providedServices.add(new ProvidedService<>(ProxyFactoryFactory.class, serviceRegistry.requireService(ProxyFactoryFactory.class)));
+			providedServices.add(new ProvidedService<>(CfgXmlAccessService.class, serviceRegistry.requireService(CfgXmlAccessService.class)));
+			providedServices.add(new ProvidedService<>(CacheImplementor.class, serviceRegistry.requireService(CacheImplementor.class)));
+			providedServices.add(new ProvidedService<>(PersisterFactory.class, serviceRegistry.requireService(PersisterFactory.class)));
+			providedServices.add(new ProvidedService<>(PropertyAccessStrategyResolver.class, new PropertyAccessStrategyResolver() {
+				@Override
+				public PropertyAccessStrategy resolvePropertyAccessStrategy(Class containerClass, String explicitAccessStrategyName,
+						EntityMode entityMode) {
+					return PropertyAccessStrategyFieldImpl.INSTANCE;
+				}
+			}));
+			providedServices.add(new ProvidedService<>(SessionFactoryServiceRegistryFactory.class, new SessionFactoryServiceRegistryFactory() {
+				@Override
+				public SessionFactoryServiceRegistry buildServiceRegistry(SessionFactoryImplementor theSfiThatBeingBuilt,
+						SessionFactoryOptions sfiOptions) {
+					try {
+						return new SessionFactoryServiceRegistryImpl(
+								serviceRegistry, // we want to use the service registry from the original SessionFactoryImpl as the parent
+								Collections.emptyList(), // we have to initiate all the additional Services before we build our SessionFactory
+								ProvidedServicesLocator.this.providedServices, // this SessionFactory must be the original one from Hibernate so that we can collect all the configurations
+								theSfiThatBeingBuilt, // this SessionFactory is the one that we are trying to build
+								sfiOptions);
+					} catch (Exception any) {
+						any.printStackTrace();
+						return null;
+					}
+				}
+			}));
+			
+			this.providedServices = Collections.unmodifiableList(providedServices);
+		}
+		// @formatter:on
+	}
+
+	public static class FileIdentifierGenerator implements IdentifierGenerator {
+
+		public static final String NAME = "fileresource_identifier_generator";
+
+		private final ZoneId zoneId = ContextManager.getBean(ZoneContext.class).getZone();
+
+		private static final String IDENTIFIER_PARTS_SEPERATOR = "_";
+		private static final int IDENTIFIER_LENGTH = 25; // extension included
+
+		@Override
+		public Serializable generate(SharedSessionContractImplementor session, Object instance)
+				throws HibernateException {
+			FileResource resource = (FileResource) instance;
+			// @formatter:off
+			try {
+				return declare(LocalDateTime.now().atZone(zoneId).toInstant().toEpochMilli())
+						.then(String::valueOf)
+						.then(StringBuilder::new)
+						.then(builder -> builder.append(IDENTIFIER_PARTS_SEPERATOR))
+						.then(builder -> builder.append(RandomStringUtils.randomAlphanumeric(IDENTIFIER_LENGTH - builder.length() - resource.getExtension().length())))
+						.then(builder -> builder.append(resource.getExtension()))
+						.then(Object::toString)
+						.get();
+			} catch (Exception any) {
+				any.printStackTrace();
+				return null;
+			}
+			// @formatter:on
+		}
+
+	}
+
+	private class MetadataBuildingOptionsImpl implements MetadataBuildingOptions, JpaOrmXmlPersistenceUnitDefaultAware {
+
+		private final StandardServiceRegistry serviceRegistry;
+
+		private final MappingDefaults mappingDefaults;
+		private final ImplicitNamingStrategy implicitNamingStrategy;
+		private ReflectionManager reflectionManager;
+		private final IdGeneratorStrategyInterpreter idGeneratorStrategyInterpreter;
+
+		public MetadataBuildingOptionsImpl(StandardServiceRegistry serviceRegistry) {
+			this.serviceRegistry = serviceRegistry;
+			this.mappingDefaults = new MetadataBuilderImpl.MappingDefaultsImpl(this.serviceRegistry);
+			this.implicitNamingStrategy = new SpringImplicitNamingStrategy();
+			idGeneratorStrategyInterpreter = new IdGeneratorInterpreterImpl();
+		}
+
+		public void makeReflectionManager(BootstrapContext boostrapContext) throws Exception {
+			this.reflectionManager = declare(new JavaReflectionManager())
+					.consume(self -> self.setMetadataProvider(new JPAXMLOverriddenMetadataProvider(boostrapContext)))
+					.get();
+		}
+
+		@Override
+		public StandardServiceRegistry getServiceRegistry() {
+			return serviceRegistry;
+		}
+
+		@Override
+		public MappingDefaults getMappingDefaults() {
+			return mappingDefaults;
+		}
+
+		@Override
+		public List<BasicTypeRegistration> getBasicTypeRegistrations() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public ReflectionManager getReflectionManager() {
+			return reflectionManager;
+		}
+
+		@Override
+		public IndexView getJandexView() {
+			return null;
+		}
+
+		@Override
+		public ScanOptions getScanOptions() {
+			return null;
+		}
+
+		@Override
+		public ScanEnvironment getScanEnvironment() {
+			return null;
+		}
+
+		@Override
+		public Object getScanner() {
+			return null;
+		}
+
+		@Override
+		public ArchiveDescriptorFactory getArchiveDescriptorFactory() {
+			return null;
+		}
+
+		@Override
+		public ClassLoader getTempClassLoader() {
+			return null;
+		}
+
+		@Override
+		public ImplicitNamingStrategy getImplicitNamingStrategy() {
+			return implicitNamingStrategy;
+		}
+
+		@Override
+		public PhysicalNamingStrategy getPhysicalNamingStrategy() {
+			return PhysicalNamingStrategyStandardImpl.INSTANCE;
+		}
+
+		@Override
+		public SharedCacheMode getSharedCacheMode() {
+			return SharedCacheMode.ENABLE_SELECTIVE;
+		}
+
+		@Override
+		public AccessType getImplicitCacheAccessType() {
+			return AccessType.TRANSACTIONAL;
+		}
+
+		@Override
+		public MultiTenancyStrategy getMultiTenancyStrategy() {
+			return MultiTenancyStrategy.NONE;
+		}
+
+		@Override
+		public IdGeneratorStrategyInterpreter getIdGenerationTypeInterpreter() {
+			return idGeneratorStrategyInterpreter;
+		}
+
+		@Override
+		public List<CacheRegionDefinition> getCacheRegionDefinitions() {
+			return null;
+		}
+
+		@Override
+		public boolean ignoreExplicitDiscriminatorsForJoinedInheritance() {
+			return false;
+		}
+
+		@Override
+		public boolean createImplicitDiscriminatorsForJoinedInheritance() {
+
+			return false;
+		}
+
+		@Override
+		public boolean shouldImplicitlyForceDiscriminatorInSelect() {
+			return false;
+		}
+
+		@Override
+		public boolean useNationalizedCharacterData() {
+			return false;
+		}
+
+		@Override
+		public boolean isSpecjProprietarySyntaxEnabled() {
+			return false;
+		}
+
+		@Override
+		public boolean isNoConstraintByDefault() {
+			return false;
+		}
+
+		@Override
+		public List<MetadataSourceType> getSourceProcessOrdering() {
+			return Arrays.asList(MetadataSourceType.CLASS);
+		}
+
+		@Override
+		public Map<String, SQLFunction> getSqlFunctions() {
+			return Collections.emptyMap();
+		}
+
+		@Override
+		public List<AuxiliaryDatabaseObject> getAuxiliaryDatabaseObjectList() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public List<AttributeConverterInfo> getAttributeConverters() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public boolean isXmlMappingEnabled() {
+			return false;
+		}
+
+		@Override
+		public void apply(JpaOrmXmlPersistenceUnitDefaults jpaOrmXmlPersistenceUnitDefaults) {}
+
+	}
+
+	@Override
+	public FileResourceSessionFactory getSessionFactory() {
+		return sessionFactory;
+	}
+
+}

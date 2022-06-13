@@ -54,6 +54,7 @@ import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.repository.DatabaseInitializer;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
+import multicados.internal.file.engine.FileManagement;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -196,7 +197,8 @@ public class WebConfiguration implements WebMvcConfigurer {
 		logger.trace("Resolving builders order", ContextBuilder.class.getSimpleName());
 		// @formatter:off
 		final Map<Class<? extends ContextBuilder>, Integer> buildersOrder = new HashMap<>();
-		List<Class<? extends ContextBuilder>> builderTypes = List.of(
+		final List<Class<? extends ContextBuilder>> builderTypes = List.of(
+				FileManagement.class,
 				DomainResourceContext.class,
 				DomainResourceValidatorFactory.class,
 				GenericRepository.class,
@@ -223,7 +225,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 				})
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		// @formatter:on
-		Map<Class<? extends ContextBuilder>, Integer> beansOrder = new HashMap<>();
+		final Map<Class<? extends ContextBuilder>, Integer> beansOrder = new HashMap<>();
 
 		for (Map.Entry<Class<? extends ContextBuilder>, BeanDefinition> beanEntry : beansMap.entrySet()) {
 			for (Map.Entry<Class<? extends ContextBuilder>, Integer> orderEntry : buildersOrder.entrySet()) {

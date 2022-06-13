@@ -5,6 +5,7 @@ package multicados.internal.helper;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -497,6 +498,11 @@ public class Utils {
 
 		public V get() {
 			return loader.get();
+		}
+
+		@Override
+		public String toString() {
+			return Optional.ofNullable(get()).map(Object::toString).orElse(StringHelper.NULL);
 		}
 
 	}

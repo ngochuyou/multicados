@@ -3,23 +3,21 @@
  */
 package nh.multicados;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import javax.servlet.http.HttpServletResponse;
-
+import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import multicados.domain.entity.file.UserPhoto;
 import multicados.internal.config.WebConfiguration;
+import multicados.internal.context.ContextManager;
+import multicados.internal.file.engine.FileManagement;
+import multicados.internal.file.engine.FileResourceSessionFactory;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -32,19 +30,17 @@ import multicados.internal.config.WebConfiguration;
 @AutoConfigureMockMvc
 public class ApplicationIntegrationTest {
 
-	@Autowired
-	private MockMvc mockMvc;
-
 	@Test
 	public void test() throws Exception {
-		// @formatter:off
-		MvcResult result = mockMvc
-				.perform(MockMvcRequestBuilders
-						.get("/rest/district?attributes=id,name,active&province.attributes=id,name&province.name.like=ha"))
-				.andReturn();
-		// @formatter:on
-		assertTrue(result.getResponse().getStatus() == HttpServletResponse.SC_OK);
-		System.out.println(result.getResponse().getContentAsString());
+		final FileResourceSessionFactory sfi = ContextManager.getBean(FileManagement.class).getSessionFactory();
+		final Session session = Utils.declare(sfi.openSession()).consume(ss -> ss.beginTransaction()).get();
+		final UserPhoto photo = new UserPhoto();
+
+		photo.setContent(new byte[] { 0xa, 0x4 });
+		photo.setExtension(".jpg");
+
+		session.save(photo);
+		session.flush();
 	}
 
 }

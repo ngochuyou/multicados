@@ -174,7 +174,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			GrantedAuthority credential,
 			Session entityManager) throws Exception {
 		// @formatter:on
-		return readOne(type, properties, SpecificationHelper.hasId(type, id), credential, entityManager);
+		return readOne(type, properties, SpecificationHelper.hasId(type, id, entityManager), credential, entityManager);
 	}
 
 	@Override

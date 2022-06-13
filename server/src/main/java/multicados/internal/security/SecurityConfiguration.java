@@ -47,6 +47,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
+import multicados.internal.locale.ZoneContext;
 import multicados.internal.security.jwt.JWTRequestFilter;
 import multicados.internal.security.jwt.JWTSecurityContext;
 import multicados.internal.security.jwt.JWTSecurityContextImpl;
@@ -71,10 +72,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
 	private JWTSecurityContext jwtSecurityContext;
 
-	public SecurityConfiguration(Environment env) throws Exception {
+	public SecurityConfiguration(Environment env, ZoneContext zoneContext) throws Exception {
 		this.env = env;
 		onMemoryUserDetailsContext = new OnMemoryUserDetailsContextImpl();
-		jwtSecurityContext = new JWTSecurityContextImpl(env);
+		jwtSecurityContext = new JWTSecurityContextImpl(env, zoneContext);
 		authenticationFailureHandler = new AuthenticationFailureHandlerImpl();
 		userDetailsService = locateUserDetailsService();
 	}
@@ -124,7 +125,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	}
 
 	private boolean isInDevMode() {
-		return !env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.PRODUCTION_PROFILE);
+		return !env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.DEFAULT_PRODUCTION_PROFILE);
 	}
 
 	private void csrf(HttpSecurity http) throws Exception {

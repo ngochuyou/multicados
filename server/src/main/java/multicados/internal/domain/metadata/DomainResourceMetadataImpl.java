@@ -24,6 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.tuple.IdentifierProperty;
 import org.hibernate.tuple.entity.EntityMetamodel;
@@ -37,15 +38,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
+import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainComponentType;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.Entity;
+import multicados.internal.domain.FileResource;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation.MandatoryAssociation;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation.OptionalAssociation;
+import multicados.internal.file.engine.FileManagement;
 import multicados.internal.helper.CollectionHelper;
-import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -71,11 +74,8 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			throws Exception {
 		this.resourceType = resourceType;
 
-		Builder<T> builder = Entity.class.isAssignableFrom(resourceType)
-				&& !Modifier.isAbstract(resourceType.getModifiers())
-						? new HibernateResourceMetadataBuilder<>(resourceType)
-						: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider,
-								metadatasMap);
+		Builder<T> builder = isHbmManaged(resourceType) ? new HibernateResourceMetadataBuilder<>(resourceType)
+				: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider, metadatasMap);
 
 		attributeNames = unmodifiableList(builder.locateAttributeNames());
 		enclosedAttributeNames = unmodifiableList(builder.locateEnclosedAttributeNames());
@@ -83,6 +83,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		attributeTypes = Collections.unmodifiableMap(builder.locateAttributeTypes());
 		associationAttributes = Collections.unmodifiableMap(builder.locateAssociations());
 		componentPaths = Collections.unmodifiableMap(builder.resolveComponentPaths());
+	}
+
+	private boolean isHbmManaged(Class<T> resourceType) {
+		return (Entity.class.isAssignableFrom(resourceType) || FileResource.class.isAssignableFrom(resourceType))
+				&& !Modifier.isAbstract(resourceType.getModifiers());
 	}
 
 	@Override
@@ -122,7 +127,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	public boolean isAssociationOptional(String associationName) {
 		return OptionalAssociation.class.isAssignableFrom(associationAttributes.get(associationName).getClass());
 	}
-	
+
 	@Override
 	public boolean isAssociationInComponent(String associationName) {
 		return associationAttributes.get(associationName).isComponent();
@@ -164,22 +169,30 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({ "rawtypes" })
 	private class HibernateResourceMetadataBuilder<D extends DomainResource> implements Builder<D> {
 
 		private static final Logger logger = LoggerFactory
 				.getLogger(DomainResourceMetadataImpl.HibernateResourceMetadataBuilder.class);
 
-		private final Class<? extends Entity<?>> entityType;
 		private final EntityPersister persister;
 		private final EntityMetamodel metamodel;
 
 		private HibernateResourceMetadataBuilder(Class<D> resourceType) {
 			logger.trace("Building {} for Hibernate entity of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
-			entityType = (Class<? extends Entity<?>>) resourceType;
-			persister = HibernateHelper.getEntityPersister(entityType);
+			persister = locatePersister(resourceType);
 			metamodel = persister.getEntityMetamodel();
+		}
+
+		private EntityPersister locatePersister(Class<D> resourceType) {
+			if (Entity.class.isAssignableFrom(resourceType)) {
+				return ContextManager.getBean(SessionFactoryImplementor.class).getMetamodel()
+						.entityPersister(resourceType);
+			}
+
+			return ContextManager.getBean(FileManagement.class).getSessionFactory().getMetamodel()
+					.entityPersister(resourceType);
 		}
 
 		@Override

@@ -10,13 +10,13 @@ import static multicados.internal.helper.Utils.declare;
 import static org.springframework.util.StringUtils.hasLength;
 
 import java.time.Duration;
-import java.time.ZoneId;
 import java.util.function.Function;
 
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.locale.ZoneContext;
 
 /**
  * @author Ngoc Huy
@@ -24,7 +24,6 @@ import multicados.internal.helper.StringHelper;
  */
 public class JWTSecurityContextImpl implements JWTSecurityContext {
 
-	private static final String LOCAL_ZONE = "LOCAL";
 	private static final Duration DEFAULT_DURATION = Duration.ofDays(7);
 	private static final String DEFAULT_HEADER_PREFIX = "JWTBearer";
 	private static final String DEFAULT_TOKEN_ENDPOINT = "/auth/token";
@@ -41,7 +40,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private final String passwordParam;
 	private final boolean isCookieSecured;
 
-	public JWTSecurityContextImpl(Environment env) throws Exception {
+	public JWTSecurityContextImpl(Environment env, ZoneContext zoneContext) throws Exception {
 		Function<String, String> exact = identity();
 
 		headerPrefix = getOrDefault(env, Settings.SECURITY_JWT_HEADER_PREFIX, exact, DEFAULT_HEADER_PREFIX);
@@ -50,14 +49,14 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 		tokenEndpoint = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_END_POINT, exact, DEFAULT_TOKEN_ENDPOINT);
 		usernameParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_USERNAME, exact, DEFAULT_USERNAME_PARAM);
 		passwordParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_PASSWORD, exact, DEFAULT_PASSWORD_PARAM);
-		isCookieSecured = env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.PRODUCTION_PROFILE);
-		strategy = buildJWTContext(env);
+		isCookieSecured = env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.DEFAULT_PRODUCTION_PROFILE);
+		strategy = buildJWTContext(env, zoneContext);
 	}
 
-	private JWTStrategy buildJWTContext(Environment env) throws Exception {
+	private JWTStrategy buildJWTContext(Environment env, ZoneContext zoneContext) throws Exception {
 		// @formatter:off
 		return declare(env)
-			.flat(this::locateSecret, this::locateZone, this::locateDuration)
+			.flat(this::locateSecret, self -> zoneContext.getZone(), this::locateDuration)
 			.then(JWTStrategy::new)
 			.get();
 		// @formatter:on
@@ -75,20 +74,6 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 		}
 
 		return Duration.ofMillis(Long.parseLong(configuredDuration));
-	}
-
-	private ZoneId locateZone(Environment env) {
-		String configuredZone = env.getProperty(Settings.SECURITY_JWT_ZONE);
-
-		if (!hasLength(configuredZone) || LOCAL_ZONE.equals(configuredZone.toUpperCase())) {
-			return ZoneId.systemDefault();
-		}
-
-		if (!ZoneId.SHORT_IDS.containsKey(configuredZone)) {
-			throw new IllegalArgumentException(String.format("Unknown zone id [%s]", configuredZone));
-		}
-
-		return ZoneId.of(ZoneId.SHORT_IDS.get(configuredZone));
 	}
 
 	private String locateSecret(Environment env) throws Exception {

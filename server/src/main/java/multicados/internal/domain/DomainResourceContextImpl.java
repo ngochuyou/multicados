@@ -115,7 +115,8 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 						IdentifiableResource.class,
 						new HashSet<>(List.of(
 								new DomainResourceGraphImpl<>(EncryptedIdentifierResource.class),
-								new DomainResourceGraphImpl<>(Entity.class)))),
+								new DomainResourceGraphImpl<>(Entity.class),
+								new DomainResourceGraphImpl<>(FileResource.class)))),
 				new DomainResourceGraphImpl<>(NamedResource.class),
 				new DomainResourceGraphImpl<>(PermanentResource.class),
 				new DomainResourceGraphImpl<>(SpannedResource.class),

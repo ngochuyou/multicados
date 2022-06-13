@@ -5,6 +5,7 @@ package multicados.application.data;
 
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,6 @@ import multicados.domain.entity.entities.User;
 import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
-import multicados.internal.helper.HibernateHelper;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
 
 /**
@@ -27,18 +27,20 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		implements DatabaseInitializerContributor {
 
 	private final Environment env;
+	private final SessionFactoryImplementor sfi;
 
 	@Autowired
 	public DummyDatabaseInitializer(ObjectMapper objectMapper, DomainResourceContext resourceContext,
-			GenericCRUDServiceImpl crudService, Environment env) {
+			GenericCRUDServiceImpl crudService, Environment env, SessionFactoryImplementor sfi) {
 		super(objectMapper, resourceContext, crudService, env);
 		this.env = env;
+		this.sfi = sfi;
 	}
 
 	@Override
 	public void contribute() {
 		final Logger logger = LoggerFactory.getLogger(DummyDatabaseInitializer.class);
-		Session session = HibernateHelper.getSessionFactory().openSession();
+		Session session = sfi.openSession();
 
 		session.setHibernateFlushMode(FlushMode.MANUAL);
 		session.beginTransaction();
