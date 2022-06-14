@@ -37,17 +37,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.locale.ZoneContext;
+import multicados.internal.security.jwt.JWTLogoutFilter;
 import multicados.internal.security.jwt.JWTRequestFilter;
 import multicados.internal.security.jwt.JWTSecurityContext;
 import multicados.internal.security.jwt.JWTSecurityContextImpl;
@@ -70,14 +74,22 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	private final UserDetailsService userDetailsService;
 	private final AuthenticationFailureHandler authenticationFailureHandler;
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
-	private JWTSecurityContext jwtSecurityContext;
+	private final JWTSecurityContext jwtSecurityContext;
+	private final ObjectMapper objectMapper;
 
-	public SecurityConfiguration(Environment env, ZoneContext zoneContext) throws Exception {
+	private final JWTRequestFilter jwtRequestFilter;
+	private final JWTLogoutFilter jwtLogoutFilter;
+
+	public SecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper) throws Exception {
 		this.env = env;
+		this.objectMapper = objectMapper;
 		onMemoryUserDetailsContext = new OnMemoryUserDetailsContextImpl();
 		jwtSecurityContext = new JWTSecurityContextImpl(env, zoneContext);
-		authenticationFailureHandler = new AuthenticationFailureHandlerImpl();
+		authenticationFailureHandler = new AuthenticationFailureHandlerImpl(objectMapper);
 		userDetailsService = locateUserDetailsService();
+		jwtLogoutFilter = new JWTLogoutFilter(jwtSecurityContext);
+		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService(), onMemoryUserDetailsContext,
+				jwtSecurityContext, jwtLogoutFilter, objectMapper);
 	}
 
 	private UserDetailsService locateUserDetailsService() throws Exception {
@@ -121,7 +133,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	@Bean
 	public AbstractAuthenticationProcessingFilter jwtUsernamePasswordAuthenticationFilter() throws Exception {
 		return new JWTUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
-				authenticationFailureHandler, authenticationManager());
+				authenticationFailureHandler, authenticationManager(), objectMapper);
 	}
 
 	private boolean isInDevMode() {
@@ -167,8 +179,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				http.authorizeRequests().antMatchers(httpMethod, parts[0]).permitAll();
 			}
 		}
-
-		http.authorizeRequests().antMatchers(HttpMethod.POST, jwtSecurityContext.getTokenEndpoint()).permitAll();
+		// @formatter:off
+		http.authorizeRequests()
+			.antMatchers(HttpMethod.POST, jwtSecurityContext.getTokenEndpoint()).permitAll()
+			.antMatchers(HttpMethod.POST, jwtSecurityContext.getLogoutEndpoint()).permitAll();
+		// @formatter:on
 	}
 
 	private void securedEndpoints(HttpSecurity http) throws Exception {
@@ -186,9 +201,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	private void jwtFilters(HttpSecurity http) throws Exception {
 		// @formatter:off
 		http
-			.addFilterBefore(
-					new JWTRequestFilter(env, userDetailsService(), onMemoryUserDetailsContext, jwtSecurityContext),
-					UsernamePasswordAuthenticationFilter.class);
+			.addFilterBefore(jwtLogoutFilter, LogoutFilter.class)
+			.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 		// @formatter:on
 	}
 

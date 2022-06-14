@@ -139,7 +139,7 @@ public class FileManagementImpl implements FileManagement {
 							.then(SessionFactoryOptionsBuilder::new)
 							.get())
 					.<QueryPlanCache.QueryPlanCreator>third(HQLQueryPlan::new)
-				.then((metadata, sessionFactoryOptionsBuilder, queryPlan) -> new FileResourceSessionFactoryImpl(env, metadata, sessionFactoryOptionsBuilder, queryPlan))
+				.then(FileResourceSessionFactoryImpl::new)
 				.get();
 	}
 	// @formatter:on
@@ -253,7 +253,7 @@ public class FileManagementImpl implements FileManagement {
 		private final ZoneId zoneId = ContextManager.getBean(ZoneContext.class).getZone();
 
 		private static final String IDENTIFIER_PARTS_SEPERATOR = "_";
-		private static final int IDENTIFIER_LENGTH = 25; // extension included
+		public static final int IDENTIFIER_LENGTH = 25; // extension included
 
 		@Override
 		public Serializable generate(SharedSessionContractImplementor session, Object instance)

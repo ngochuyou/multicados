@@ -7,7 +7,6 @@ import static multicados.internal.helper.Utils.declare;
 import static multicados.internal.helper.Utils.HandledFunction.identity;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -30,10 +29,14 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.WebUtils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.jsonwebtoken.Claims;
+import multicados.internal.helper.Common;
 import multicados.internal.helper.HttpHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.TriDeclaration;
+import multicados.internal.security.DomainUserDetails;
 import multicados.internal.security.OnMemoryUserDetailsContext;
 
 /**
@@ -53,15 +56,20 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	private final UserDetailsService userDetailsService;
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
 	private final JWTSecurityContext jwtSecurityContext;
+	private final JWTLogoutFilter jwtLogoutFilter;
 	private final JWTStrategy strategy;
 
+	private final ObjectMapper objectMapper;
+
 	public JWTRequestFilter(Environment env, UserDetailsService userDetailsService,
-			OnMemoryUserDetailsContext onMemoryUserDetailsContext, JWTSecurityContext jwtSecurityContext)
-			throws Exception {
+			OnMemoryUserDetailsContext onMemoryUserDetailsContext, JWTSecurityContext jwtSecurityContext,
+			JWTLogoutFilter jwtLogoutFilter, ObjectMapper objectMapper) throws Exception {
 		this.userDetailsService = userDetailsService;
 		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
 		this.jwtSecurityContext = jwtSecurityContext;
 		strategy = jwtSecurityContext.getStrategy();
+		this.objectMapper = objectMapper;
+		this.jwtLogoutFilter = jwtLogoutFilter;
 	}
 
 	@Override
@@ -104,11 +112,12 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 		}
 	}
 
-	private UserDetails locateUserDetails(Candidate candidate) throws Exception {
+	private DomainUserDetails locateUserDetails(Candidate candidate) throws Exception {
 		// @formatter:off
 		return declare(candidate)
 				.flat(identity(), this::tryLocatingFromOnMemoryContext)
 				.then(this::tryLocatingFromDataSource)
+				.then(DomainUserDetails.class::cast)
 				.get();
 		// @formatter:on
 	}
@@ -122,15 +131,15 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 				.orElseGet(() -> userDetailsService.loadUserByUsername(candidate.getUsername()));
 	}
 
-	private TriDeclaration<Candidate, UserDetails, UsernamePasswordAuthenticationToken> validate(Candidate candidate,
-			UserDetails userDetails) {
+	private TriDeclaration<Candidate, DomainUserDetails, UsernamePasswordAuthenticationToken> validate(
+			Candidate candidate, DomainUserDetails userDetails) {
 		LocalDateTime now = LocalDateTime.now();
 
 		if (candidate.getExpiration().isBefore(now)) {
 			return declare(candidate, userDetails, EXPIRED_TOKEN);
 		}
 
-		if (!candidate.getVersion().isEqual(now)) {
+		if (!candidate.getVersion().isEqual(userDetails.getVersion())) {
 			return declare(candidate, userDetails, STALE_TOKEN);
 		}
 
@@ -143,17 +152,21 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	}
 
 	private void doPostValidation(
-			TriDeclaration<Candidate, UserDetails, UsernamePasswordAuthenticationToken> validation) throws Exception {
+			TriDeclaration<Candidate, DomainUserDetails, UsernamePasswordAuthenticationToken> validation)
+			throws Exception {
 		UsernamePasswordAuthenticationToken token = validation.getThird();
 		HttpServletRequest request = validation.getFirst().getRequest();
 		HttpServletResponse response = validation.getFirst().getResponse();
 
 		if (token == EXPIRED_TOKEN) {
+			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			writeMessage(request, response, TOKEN_IS_EXPIRED);
 			return;
 		}
 
 		if (token == STALE_TOKEN) {
+			response.setStatus(HttpServletResponse.SC_OK);
+			response.addCookie(jwtLogoutFilter.getLogoutCookie(request, response));
 			writeMessage(request, response, TOKEN_IS_STALE);
 			return;
 		}
@@ -163,15 +176,24 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 	private void writeMessage(HttpServletRequest request, HttpServletResponse response, String message)
 			throws Exception {
-		if (!HttpHelper.isTextAccepted(request)) {
-			return;
-		}
-
 		if (logger.isDebugEnabled()) {
 			logger.debug(message);
 		}
 
-		declare(response.getWriter()).consume(writer -> writer.write(message)).consume(PrintWriter::flush);
+		if (HttpHelper.isJsonAccepted(request)) {
+			HttpHelper.json(response);
+			response.getWriter().write(objectMapper.writeValueAsString(Common.error(message)));
+			return;
+		}
+
+		if (HttpHelper.isTextAccepted(request)) {
+			HttpHelper.text(response);
+			response.getWriter().write(message);
+			return;
+		}
+
+		HttpHelper.all(response);
+		return;
 	}
 
 	private class Candidate {

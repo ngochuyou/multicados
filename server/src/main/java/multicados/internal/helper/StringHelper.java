@@ -3,14 +3,19 @@
  */
 package multicados.internal.helper;
 
+import static java.util.Map.entry;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.util.StringUtils;
 
@@ -22,12 +27,42 @@ public class StringHelper extends StringUtils {
 
 	public static final String[] EMPTY_STRING_ARRAY = new String[0];
 
+	private static final String PATH_JOINNER = "\\";
 	public static final String COMMON_JOINER = ", ";
+
 	public static final String EMPTY_STRING = "";
 	public static final String SPACE = " ";
 	public static final String DOT = ".";
+	public static final String COMMA = ",";
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
+
+	// @formatter:off
+	private static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
+			entry('.', "period"),
+			entry('(', "opening parenthesis"),
+			entry(')', "closing parenthesis"),
+			entry('\s', "space"),
+			entry(',', "comma"),
+			entry('-', "hyphen"),
+			entry('_', "underscore"),
+			entry('"', "quote"),
+			entry('\'', "apostrophe"),
+			entry('/', "slash"),
+			entry('\\', "back slash"),
+			entry('!', "exclamation"),
+			entry('@', "at sign"),
+			entry('#', "numero sign"),
+			entry('$', "dollar sign"),
+			entry('%', "percent sign"),
+			entry('&', "ampersand"),
+			entry('*', "asterisk"),
+			entry('?', "question mark"));
+	// @formatter:on
+	public static final String symbolNamesOf(Character... characters) {
+		return Stream.of(characters).map(SYMBOL_NAMES::get).filter(Objects::nonNull)
+				.collect(Collectors.joining(COMMON_JOINER));
+	}
 
 	private static final MessageDigest SHA_256_MD;
 
@@ -51,6 +86,10 @@ public class StringHelper extends StringUtils {
 		SHA_256_MD = digest;
 	}
 
+	public static String path(Collection<String> pathNodes) {
+		return join(PATH_JOINNER, pathNodes);
+	}
+
 	public static <T> String join(Collection<T> elements) {
 		return join((value) -> Optional.ofNullable(value).map(Object::toString).orElse(NULL), elements);
 	}
@@ -62,7 +101,7 @@ public class StringHelper extends StringUtils {
 	public static <T> String join(CharSequence joiner, Collection<String> elements) {
 		return elements.stream().collect(Collectors.joining(joiner));
 	}
-	
+
 	public static <T> String join(CharSequence joiner, Function<T, String> stringGetter, Collection<T> elements) {
 		return elements.stream().map(stringGetter).collect(Collectors.joining(joiner));
 	}

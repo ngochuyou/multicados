@@ -45,7 +45,7 @@ public class FileResourcePersister extends SingleTableEntityPersister implements
 	private static final String MESSAGE = String.format("Insertions on %s must always contain every property values",
 			FileResource.class.getSimpleName());
 
-	private final String resourcePath;
+	private final String directoryPath;
 	private final int contentIndex;
 
 	@SuppressWarnings("unchecked")
@@ -55,7 +55,7 @@ public class FileResourcePersister extends SingleTableEntityPersister implements
 		super(persistentClass, cacheAccessStrategy, naturalIdRegionAccessStrategy, creationContext);
 		creationContext.getSessionFactory().addObserver(this);
 		// @formatter:off
-		resourcePath = String.format("%s%s",
+		directoryPath = String.format("%s%s",
 				SpringHelper.getOrDefault(
 						ContextManager.getBean(Environment.class),
 						Settings.FILE_RESOURCE_ROOT_DIRECTORY,
@@ -84,7 +84,7 @@ public class FileResourcePersister extends SingleTableEntityPersister implements
 	}
 
 	private String resolvePath(String id) {
-		return resourcePath + id;
+		return directoryPath + id;
 	}
 
 	@Override
@@ -119,7 +119,7 @@ public class FileResourcePersister extends SingleTableEntityPersister implements
 	}
 
 	private void createDirectory() {
-		Path path = Paths.get(resourcePath);
+		Path path = Paths.get(directoryPath);
 		boolean doesExist = Files.exists(path);
 		boolean isDirectory = Files.isDirectory(path);
 
@@ -134,6 +134,10 @@ public class FileResourcePersister extends SingleTableEntityPersister implements
 		}
 
 		throw new IllegalArgumentException(String.format("%s has already existed but it's not a directory", path));
+	}
+
+	public String getDirectoryPath() {
+		return directoryPath;
 	}
 
 }

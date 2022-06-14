@@ -27,6 +27,8 @@ import org.springframework.security.web.authentication.AbstractAuthenticationPro
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import multicados.internal.helper.Common;
 import multicados.internal.helper.HttpHelper;
 import multicados.internal.security.DomainUserDetails;
@@ -41,18 +43,18 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
 	private final JWTSecurityContext jwtSecurityContext;
 	private final JWTStrategy jwtStrategy;
+	private final ObjectMapper objectMapper;
 
 	private final BadCredentialsException usernameNotFoundException;
 	private final BadCredentialsException passwordNotFoundException;
 
-	private static final String THE_WHOLE_DOMAIN = "/";
 	private final int maxAge;
 	private final boolean isCookieSecured;
 	private static final String SUCCESSFULLY_LOGGED_IN = "SUCCESSFULLY LOGGED IN";
 
 	public JWTUsernamePasswordAuthenticationFilter(OnMemoryUserDetailsContext onMemoryUserDetailsContext,
 			JWTSecurityContext jwtSecurityContext, AuthenticationFailureHandler authenticationFailureHandler,
-			AuthenticationManager authenticationManager) {
+			AuthenticationManager authenticationManager, ObjectMapper objectMapper) {
 		super(new AntPathRequestMatcher(jwtSecurityContext.getTokenEndpoint(), HttpMethod.POST.name()),
 				authenticationManager);
 		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
@@ -62,6 +64,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 		isCookieSecured = this.jwtSecurityContext.isCookieSecured();
 		setAuthenticationFailureHandler(authenticationFailureHandler);
 		setAuthenticationManager(authenticationManager);
+		this.objectMapper = objectMapper;
 
 		usernameNotFoundException = new BadCredentialsException(Common.notEmpty(jwtSecurityContext.getUsernameParam()));
 		passwordNotFoundException = new BadCredentialsException(Common.notEmpty(jwtSecurityContext.getPasswordParam()));
@@ -92,8 +95,17 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 			response.setStatus(HttpStatus.OK.value());
 
 			if (HttpHelper.isTextAccepted(request)) {
-				response.getWriter().print(SUCCESSFULLY_LOGGED_IN);
+				response.getWriter().write(SUCCESSFULLY_LOGGED_IN);
 				response.getWriter().flush();
+				HttpHelper.text(response);
+				return;
+			}
+
+			if (HttpHelper.isJsonAccepted(request)) {
+				response.getWriter().write(objectMapper.writeValueAsString(Common.payload(SUCCESSFULLY_LOGGED_IN)));
+				response.getWriter().flush();
+				HttpHelper.json(response);
+				return;
 			}
 		} catch (Exception any) {
 			throw new ServletException(any);
@@ -108,7 +120,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 			.then(Cookie::new)
 			.get();
 		// @formatter:on
-		cookie.setPath(THE_WHOLE_DOMAIN);
+		cookie.setPath(jwtSecurityContext.getWholeDomainPath());
 		cookie.setSecure(isCookieSecured);
 		cookie.setHttpOnly(true);
 		cookie.setMaxAge(maxAge);

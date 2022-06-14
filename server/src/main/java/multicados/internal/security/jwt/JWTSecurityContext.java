@@ -19,11 +19,15 @@ public interface JWTSecurityContext {
 
 	String getTokenEndpoint();
 
+	String getLogoutEndpoint();
+	
 	String getVersionKey();
 
 	String getUsernameParam();
 
 	String getPasswordParam();
+	
+	String getWholeDomainPath();
 
 	Duration getExpirationDuration();
 	

@@ -3,21 +3,22 @@
  */
 package nh.multicados;
 
-import org.hibernate.Session;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import multicados.domain.entity.file.UserPhoto;
 import multicados.internal.config.WebConfiguration;
-import multicados.internal.context.ContextManager;
-import multicados.internal.file.engine.FileManagement;
-import multicados.internal.file.engine.FileResourceSessionFactory;
-import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -30,17 +31,21 @@ import multicados.internal.helper.Utils;
 @AutoConfigureMockMvc
 public class ApplicationIntegrationTest {
 
+	private final MockMvc mock;
+
+	@Autowired
+	public ApplicationIntegrationTest(MockMvc mock) {
+		this.mock = mock;
+	}
+
 	@Test
 	public void test() throws Exception {
-		final FileResourceSessionFactory sfi = ContextManager.getBean(FileManagement.class).getSessionFactory();
-		final Session session = Utils.declare(sfi.openSession()).consume(ss -> ss.beginTransaction()).get();
-		final UserPhoto photo = new UserPhoto();
+		MockHttpServletRequestBuilder reqBuilder = MockMvcRequestBuilders.get("/file/user/ngochuy.ou")
+				.accept(MediaType.APPLICATION_JSON_VALUE);
 
-		photo.setContent(new byte[] { 0xa, 0x4 });
-		photo.setExtension(".jpg");
-
-		session.save(photo);
-		session.flush();
+		mock.perform(reqBuilder).andExpect(status().isOk()).andDo(result -> {
+			System.out.println(result.getResponse().getContentAsString());
+		});
 	}
 
 }

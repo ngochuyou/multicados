@@ -27,8 +27,10 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private static final Duration DEFAULT_DURATION = Duration.ofDays(7);
 	private static final String DEFAULT_HEADER_PREFIX = "JWTBearer";
 	private static final String DEFAULT_TOKEN_ENDPOINT = "/auth/token";
+	private static final String DEFAULT_LOGOUT_ENDPOINT = "/auth/logout";
 	private static final String DEFAULT_USERNAME_PARAM = "username";
 	private static final String DEFAULT_PASSWORD_PARAM = "password";
+	private static final String THE_WHOLE_DOMAIN = "/";
 
 	private static final String VERSION_KEY = "version";
 
@@ -36,6 +38,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private final String headerPrefix;
 	private final String cookieName;
 	private final String tokenEndpoint;
+	private final String logoutEndpoint;
 	private final String usernameParam;
 	private final String passwordParam;
 	private final boolean isCookieSecured;
@@ -47,6 +50,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 		cookieName = getOrThrow(env, Settings.SECURITY_JWT_COOKIE_NAME, exact,
 				() -> new IllegalArgumentException("Unable to locate any configured cookie name for JWT"));
 		tokenEndpoint = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_END_POINT, exact, DEFAULT_TOKEN_ENDPOINT);
+		logoutEndpoint = getOrDefault(env, Settings.SECURITY_JWT_LOGOUT_END_POINT, exact, DEFAULT_LOGOUT_ENDPOINT);
 		usernameParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_USERNAME, exact, DEFAULT_USERNAME_PARAM);
 		passwordParam = getOrDefault(env, Settings.SECURITY_JWT_TOKEN_PASSWORD, exact, DEFAULT_PASSWORD_PARAM);
 		isCookieSecured = env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.DEFAULT_PRODUCTION_PROFILE);
@@ -124,6 +128,16 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	@Override
 	public boolean isCookieSecured() {
 		return isCookieSecured;
+	}
+
+	@Override
+	public String getLogoutEndpoint() {
+		return logoutEndpoint;
+	}
+
+	@Override
+	public String getWholeDomainPath() {
+		return THE_WHOLE_DOMAIN;
 	}
 
 }

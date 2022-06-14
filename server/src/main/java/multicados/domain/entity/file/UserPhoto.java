@@ -19,4 +19,5 @@ import multicados.internal.file.model.Directory;
 @Directory("user\\")
 @Persister(impl = FileResourcePersister.class)
 public class UserPhoto extends AbstractFileResource {
+
 }

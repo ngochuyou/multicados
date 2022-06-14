@@ -507,6 +507,36 @@ public class Utils {
 
 	}
 
+	public static class HandledLazySupplier<V> extends LazyLoader<V, HandledSupplier<V, Exception>> {
+
+		public HandledLazySupplier(HandledSupplier<V, Exception> supplier) {
+			this.loader = new HandledSupplier<>() {
+				@Override
+				public V get() throws Exception {
+					log();
+					HandledLazySupplier.this.value = supplier.get();
+					HandledLazySupplier.this.loader = () -> HandledLazySupplier.this.value;
+					return HandledLazySupplier.this.value;
+				}
+			};
+		}
+
+		public V get() throws Exception {
+			return loader.get();
+		}
+
+		@Override
+		public String toString() {
+			try {
+				return Optional.ofNullable(get()).map(Object::toString).orElse(StringHelper.NULL);
+			} catch (Exception any) {
+				any.printStackTrace();
+				return StringHelper.NULL;
+			}
+		}
+
+	}
+
 	public class LazyFunction<V, T> extends LazyLoader<V, Function<T, V>> {
 
 		public LazyFunction(Function<T, V> producer) {

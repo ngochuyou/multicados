@@ -9,8 +9,8 @@ import org.hibernate.boot.spi.MetadataImplementor;
 import org.hibernate.boot.spi.SessionFactoryOptions;
 import org.hibernate.engine.query.spi.QueryPlanCache.QueryPlanCreator;
 import org.hibernate.engine.spi.SessionBuilderImplementor;
+import org.hibernate.internal.SessionCreationOptions;
 import org.hibernate.internal.SessionFactoryImpl;
-import org.springframework.core.env.Environment;
 
 /**
  * @author Ngoc Huy
@@ -28,7 +28,6 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	@SuppressWarnings("rawtypes")
 	public FileResourceSessionFactoryImpl(
 	// @formatter:off
-			Environment env,
 			MetadataImplementor metadataImplementor,
 			SessionFactoryOptions factoryOptions,
 			QueryPlanCreator planCreator) throws Exception {
@@ -56,6 +55,11 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	@SuppressWarnings("rawtypes")
 	public StatelessSessionBuilder withStatelessOptions() {
 		return statelessSessionBuilder;
+	}
+
+	@Override
+	public SessionCreationOptions getSessionCreationOptions() {
+		return SessionCreationOptions.class.cast(sessionCreationOptions);
 	}
 
 }

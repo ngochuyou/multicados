@@ -25,6 +25,7 @@ public interface Settings {
 
 	public static final String SECURITY_PUBLIC_END_POINTS = "multicados.security.endpoints.public";
 	public static final String SECURITY_JWT_TOKEN_END_POINT = "multicados.security.jwt.token.endpoint";
+	public static final String SECURITY_JWT_LOGOUT_END_POINT = "multicados.security.jwt.logout.endpoint";
 	public static final String SECURITY_JWT_TOKEN_USERNAME = "multicados.security.jwt.param.username";
 	public static final String SECURITY_JWT_TOKEN_PASSWORD = "multicados.security.jwt.param.password";
 	public static final String SECURITY_JWT_HEADER_PREFIX = "multicados.security.jwt.headerprefix";
