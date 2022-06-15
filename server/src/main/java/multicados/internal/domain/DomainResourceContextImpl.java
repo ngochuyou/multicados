@@ -30,6 +30,8 @@ import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl;
 import multicados.internal.domain.tuplizer.DomainEntityTuplizer;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
+import multicados.internal.file.domain.FileResource;
+import multicados.internal.file.domain.Image;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;

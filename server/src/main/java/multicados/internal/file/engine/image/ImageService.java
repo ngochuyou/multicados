@@ -26,13 +26,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.util.Assert;
 
-import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
-import multicados.internal.domain.Image;
-import multicados.internal.helper.CollectionHelper;
-import multicados.internal.helper.SpringHelper;
+import multicados.internal.file.domain.Image;
+import multicados.internal.helper.Utils.BiDeclaration;
 
 /**
  * @author Ngoc Huy
@@ -44,48 +41,14 @@ public class ImageService implements Service {
 
 	private static final Logger logger = LoggerFactory.getLogger(ImageService.class);
 
-	public static final String EXECUTOR_NAME = "image-service-excutor-";
+	public static final String EXECUTOR_NAME = "image-manipulation-";
 
-	private static final Dimension DEFAULT_RESOLUTION = new Dimension(1366, 716);
-	private static final Float[] DEFAULT_COMPRESSION_QUALITIES = new Float[] { 0.75f, 0.45f, 0.25f };
-	private static final Float[] DEFAULT_COMPRESSION_FACTORS = new Float[] { 0.75f, 0.45f, 0.074f };
-
-	private static final String DIMENSION_DELIMITER = "x";
-
-	private final int propagationBatchSize;
-	private final int originalWidth;
-	private final int originalHeight;
-	private final float originalAspectRatio;
-	private final float[] compressionQualities;
-	private final float[] compressionFactors;
-
+	private final ManipulationContext manipulationContext;
 	private final PropagationWorker worker;
 
-	public ImageService(Environment env) throws Exception {
-		Dimension originalDimension = locateOriginalResolution(env);
-
-		originalWidth = Double.valueOf(originalDimension.getWidth()).intValue();
-		originalHeight = Double.valueOf(originalDimension.getHeight()).intValue();
-		originalAspectRatio = Double.valueOf((originalWidth * 1.0) / (originalHeight * 1.0)).floatValue();
-
-		compressionQualities = SpringHelper.getFloatsOrDefault(env, Settings.FILE_RESOURCE_IMAGE_COMPRESSION_QUALITIES,
-				DEFAULT_COMPRESSION_QUALITIES);
-		compressionFactors = SpringHelper.getFloatsOrDefault(env, Settings.FILE_RESOURCE_IMAGE_COMPRESSION_FACTORS,
-				DEFAULT_COMPRESSION_FACTORS);
-		Assert.isTrue(compressionQualities.length == compressionFactors.length,
-				String.format("%s and %s must have the same length", Settings.FILE_RESOURCE_IMAGE_COMPRESSION_QUALITIES,
-						Settings.FILE_RESOURCE_IMAGE_COMPRESSION_FACTORS));
-
-		propagationBatchSize = compressionQualities.length;
-
-		for (int i = 0; i < propagationBatchSize; i++) {
-			Assert.isTrue(compressionQualities[i] > 0, String.format("%s must not contain negative values",
-					Settings.FILE_RESOURCE_IMAGE_COMPRESSION_QUALITIES));
-			Assert.isTrue(compressionFactors[i] > 0, String.format("%s must not contain negative values",
-					Settings.FILE_RESOURCE_IMAGE_COMPRESSION_FACTORS));
-		}
-
+	public ImageService(Environment env, ManipulationContext manipulationContext) throws Exception {
 		worker = instantiatePropagationWorker();
+		this.manipulationContext = manipulationContext;
 	}
 
 	private PropagationWorker instantiatePropagationWorker() throws Exception {
@@ -101,79 +64,82 @@ public class ImageService implements Service {
 		// @formatter:on
 	}
 
-	private Dimension locateOriginalResolution(Environment env) throws Exception {
-		// @formatter:off
-		return SpringHelper.getOrDefault(
-					env,
-					Settings.FILE_RESOURCE_IMAGE_ORIGINAL_RESOLUTION,
-					value -> declare(value)
-						.then(val -> val.split(DIMENSION_DELIMITER))
-							.flat(parts -> Integer.valueOf(parts[0]), parts -> Integer.valueOf(parts[1]))
-						.consume((width, height) -> Assert.isTrue(width * height >= 0, String.format("%s must not be negative", Settings.FILE_RESOURCE_IMAGE_ORIGINAL_RESOLUTION)))
-						.then((width, height) -> new Dimension(width, height))
-						.get(),
-					DEFAULT_RESOLUTION);
-		// @formatter:on
-	}
-
-	public byte[][] adjustAndPropagate(Image image) throws IOException, InterruptedException, ExecutionException {
-		byte[][] adjustmentProduct = new byte[][] { adjust(image.getContent(), image.getExtension()) };
-		byte[][] propagationProducts = propagate(adjustmentProduct[0], image.getExtension());
-
-		return CollectionHelper.join(byte[].class, adjustmentProduct, propagationProducts);
-	}
-
-	private byte[] adjust(byte[] requestedBytes, String extension) throws IOException {
-		BufferedImage requestedImage = ImageIO.read(new ByteArrayInputStream(requestedBytes));
-		Dimension refinedDimension = refine(requestedImage);
-
-		if (logger.isDebugEnabled()) {
-			logger.debug("Refined request dimension: {}", refinedDimension);
-		}
-
-		BufferedImage adjustedImage = ImageUtils.adjustResolution(requestedImage, extension,
-				(int) refinedDimension.getWidth(), (int) refinedDimension.getHeight());
-		ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-		ImageIO.write(adjustedImage, extension, output);
-
-		output.close();
-
-		return output.toByteArray();
-	}
-
-	private Dimension refine(BufferedImage requestedBuffer) {
-		int requestedWidth = requestedBuffer.getWidth();
-
-		if (requestedWidth > originalWidth) {
-			return new Dimension(originalWidth, originalHeight);
-		}
-
-		return new Dimension(requestedWidth,
-				Double.valueOf(Math.ceil(requestedWidth / originalAspectRatio)).intValue());
-	}
-
-	private byte[][] propagate(byte[] requestedBytes, String extension)
+	public BiDeclaration<Standard, byte[][]> adjustAndPropagate(Image image)
 			throws IOException, InterruptedException, ExecutionException {
-		byte[][] products = new byte[propagationBatchSize][];
-		@SuppressWarnings("unchecked")
-		CompletableFuture<byte[]>[] futures = new CompletableFuture[propagationBatchSize];
-		BufferedImage originalBuffer = ImageIO.read(new ByteArrayInputStream(requestedBytes));
-		int originalWidth = originalBuffer.getWidth();
-		int originalHeight = originalBuffer.getHeight();
+		return new AdjustmentAndPropagation(image).doWork();
+	}
 
-		for (int i = 0; i < propagationBatchSize; i++) {
-			futures[i] = worker.propagate(originalBuffer, extension, (int) (originalWidth * compressionFactors[i]),
-					(int) (originalHeight * compressionFactors[i]), compressionQualities[i]);
+	private class AdjustmentAndPropagation {
+
+		private final Image image;
+		private BufferedImage originalBufferedImage;
+		private final Standard standard;
+
+		private final byte[][] products;
+
+		public AdjustmentAndPropagation(Image image) throws IOException {
+			this.image = image;
+			originalBufferedImage = ImageIO.read(new ByteArrayInputStream(image.getContent()));
+			standard = manipulationContext.resolveStandard(originalBufferedImage);
+			products = new byte[standard.getBatchSize()][];
 		}
 
-		CompletableFuture.allOf(futures).join();
+		private BiDeclaration<Standard, byte[][]> doWork()
+				throws IOException, InterruptedException, ExecutionException {
+			Dimension refinedDimension = refineDimension();
 
-		for (int i = 0; i < propagationBatchSize; i++) {
-			products[i] = futures[i].get();
+			if (logger.isDebugEnabled()) {
+				logger.debug("Refined request dimension: {}", refinedDimension);
+			}
+
+			BufferedImage adjustedImage = ImageUtils.adjustResolution(originalBufferedImage, image.getExtension(),
+					(int) refinedDimension.getWidth(), (int) refinedDimension.getHeight());
+			ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+			try {
+				originalBufferedImage = null;
+				ImageIO.write(adjustedImage, image.getExtension(), output);
+				products[0] = output.toByteArray();
+			} finally {
+				output.close();
+			}
+
+			propagate(adjustedImage);
+
+			return declare(standard, products);
 		}
 
-		return products;
+		private Dimension refineDimension() {
+			int requestedWidth = originalBufferedImage.getWidth();
+
+			if (requestedWidth > standard.getOriginalWidth()) {
+				return new Dimension(standard.getOriginalWidth(), standard.getOriginalHeight());
+			}
+
+			return new Dimension(requestedWidth, standard.maintainHeight(requestedWidth));
+		}
+
+		private void propagate(BufferedImage toBePropagatedImage)
+				throws IOException, InterruptedException, ExecutionException {
+			int propagationBatchSize = standard.getBatchSize() - 1;
+			@SuppressWarnings("unchecked")
+			CompletableFuture<byte[]>[] futures = new CompletableFuture[propagationBatchSize];
+			int originalWidth = toBePropagatedImage.getWidth();
+
+			for (int i = 0; i < propagationBatchSize; i++) {
+				int nextWidth = (int) (originalWidth * standard.getCompressionFactors()[i]);
+				int nextHeight = standard.maintainHeight(nextWidth);
+
+				futures[i] = worker.propagate(toBePropagatedImage, image.getExtension(), nextWidth, nextHeight,
+						standard.getCompressionQualities()[i]);
+			}
+
+			CompletableFuture.allOf(futures).join();
+
+			for (int i = 1; i < propagationBatchSize; i++) {
+				products[i] = futures[i - 1].get();
+			}
+		}
 	}
 
 	private interface ImageUtils {

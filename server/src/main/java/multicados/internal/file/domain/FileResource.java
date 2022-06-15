@@ -1,7 +1,9 @@
 /**
  * 
  */
-package multicados.internal.domain;
+package multicados.internal.file.domain;
+
+import multicados.internal.domain.IdentifiableResource;
 
 /**
  * @author Ngoc Huy

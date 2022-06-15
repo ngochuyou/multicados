@@ -35,9 +35,10 @@ public interface Settings {
 	public static final String SECURITY_DEV_CLIENT_PORTS = "multicados.security.dev.client.ports";
 
 	public static final String FILE_RESOURCE_ROOT_DIRECTORY = "multicados.file.directory";
-	public static final String FILE_RESOURCE_IMAGE_ORIGINAL_RESOLUTION = "multicados.file.image.resolution";
-	public static final String FILE_RESOURCE_IMAGE_COMPRESSION_FACTORS = "multicados.file.image.compression.factors";
-	public static final String FILE_RESOURCE_IMAGE_COMPRESSION_QUALITIES = "multicados.file.image.compression.qualities";
+
+	public static final String FILE_RESOURCE_IMAGE_STANDARD_LANDSCAPE = "multicados.file.image.standard.landscape";
+	public static final String FILE_RESOURCE_IMAGE_STANDARD_PORTRAIT = "multicados.file.image.standard.portrait";
+	public static final String FILE_RESOURCE_IMAGE_STANDARD_SQUARE = "multicados.file.image.standard.square";
 
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
 	public static final String DEAULT_FILE_RESOURCE_ROOT_DIRECTORY = "files\\";

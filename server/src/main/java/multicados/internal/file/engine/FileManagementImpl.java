@@ -89,8 +89,9 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
-import multicados.internal.domain.FileResource;
+import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.engine.image.ImageService;
+import multicados.internal.file.engine.image.ManipulationContextImpl;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
@@ -251,7 +252,7 @@ public class FileManagementImpl implements FileManagement {
 					}
 				}
 			}));
-			providedServices.add(new ProvidedService<>(ImageService.class, new ImageService(env)));
+			providedServices.add(new ProvidedService<>(ImageService.class, new ImageService(env, new ManipulationContextImpl(env))));
 			
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}

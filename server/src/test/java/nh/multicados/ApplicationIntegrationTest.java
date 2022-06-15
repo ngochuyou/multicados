@@ -56,6 +56,7 @@ public class ApplicationIntegrationTest {
 		photo.setExtension("jpg");
 
 		session.save(photo);
+		// session.flush();
 	}
 
 	@Test

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.file.model;
+package multicados.internal.file.domain;
 
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
@@ -9,7 +9,6 @@ import javax.persistence.MappedSuperclass;
 
 import org.hibernate.annotations.GenericGenerator;
 
-import multicados.internal.domain.FileResource;
 import multicados.internal.file.engine.FileManagementImpl.FileIdentifierGenerator;
 
 /**

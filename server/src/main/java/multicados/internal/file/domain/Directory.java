@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.file.model;
+package multicados.internal.file.domain;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

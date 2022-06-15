@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.internal.domain;
+package multicados.internal.file.domain;
 
 /**
  * @author Ngoc Huy

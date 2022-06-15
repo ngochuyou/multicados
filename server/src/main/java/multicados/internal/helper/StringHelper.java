@@ -31,14 +31,19 @@ public class StringHelper extends StringUtils {
 	public static final String COMMON_JOINER = ", ";
 
 	public static final String EMPTY_STRING = "";
-	public static final String SPACE = " ";
+	public static final String SPACE = "\s";
 	public static final String DOT = ".";
 	public static final String COMMA = ",";
+	public static final String COLON = ":";
+	public static final String VERTICAL_BAR = "\\|";
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
 	// @formatter:off
 	private static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
+			entry('|', "vertical bar"),
+			entry(';', "semicolon"),
+			entry(':', "colon"),
 			entry('.', "period"),
 			entry('(', "opening parenthesis"),
 			entry(')', "closing parenthesis"),

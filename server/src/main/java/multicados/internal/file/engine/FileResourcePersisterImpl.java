@@ -25,9 +25,9 @@ import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
-import multicados.internal.domain.FileResource;
-import multicados.internal.file.model.AbstractFileResource_;
-import multicados.internal.file.model.Directory;
+import multicados.internal.file.domain.AbstractFileResource_;
+import multicados.internal.file.domain.Directory;
+import multicados.internal.file.domain.FileResource;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
 

@@ -13,7 +13,7 @@ import org.hibernate.metamodel.spi.MetamodelImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import multicados.internal.domain.Image;
+import multicados.internal.file.domain.Image;
 import multicados.internal.file.engine.FileResourceSessionFactory;
 
 /**
@@ -48,7 +48,7 @@ public class ImageSaveEventListener implements SaveOrUpdateEventListener {
 
 		try {
 			Image image = Image.class.cast(entity);
-			byte[][] products = service.adjustAndPropagate(image);
+			byte[][] products = service.adjustAndPropagate(image).getSecond();
 
 			image.setContent(products[0]);
 		} catch (InterruptedException | IOException | ExecutionException any) {
