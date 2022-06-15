@@ -37,6 +37,10 @@ public class ContextManager implements ApplicationContextAware {
 		return applicationContext.getBean(beanType);
 	}
 
+	public static <T> void registerBean(Class<T> beanType, BeanDefinition beanDef) {
+		registerBean(beanType.getName(), beanDef);
+	}
+
 	public static void registerBean(String beanId, BeanDefinition beanDef) {
 		BeanDefinitionRegistry registry = BeanDefinitionRegistry.class
 				.cast(applicationContext.getAutowireCapableBeanFactory());

@@ -17,7 +17,7 @@ public interface Settings {
 
 	public static final String SCANNED_ENTITY_PACKAGES = "multicados.scanned-packages.entity";
 	public static final String SCANNED_FILE_RESOURCE_PACKAGE = "multicados.scanned-packages.file";
-	
+
 	public static final String READ_FAILURE_EXCEPTION_THROWING_STRATEGY = "multicados.crud.security.read.failurestrategy";
 
 	public static final String DUMMY_DATABASE_MODE = "multicados.dummy-database.initializer";
@@ -35,8 +35,11 @@ public interface Settings {
 	public static final String SECURITY_DEV_CLIENT_PORTS = "multicados.security.dev.client.ports";
 
 	public static final String FILE_RESOURCE_ROOT_DIRECTORY = "multicados.file.directory";
+	public static final String FILE_RESOURCE_IMAGE_ORIGINAL_RESOLUTION = "multicados.file.image.resolution";
+	public static final String FILE_RESOURCE_IMAGE_COMPRESSION_FACTORS = "multicados.file.image.compression.factors";
+	public static final String FILE_RESOURCE_IMAGE_COMPRESSION_QUALITIES = "multicados.file.image.compression.qualities";
 
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
 	public static final String DEAULT_FILE_RESOURCE_ROOT_DIRECTORY = "files\\";
-	
+
 }

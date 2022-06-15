@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import javax.persistence.SharedCacheMode;
 
@@ -91,7 +90,10 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.FileResource;
+import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.helper.SpringHelper;
+import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.locale.ZoneContext;
 
 /**
@@ -113,7 +115,7 @@ public class FileManagementImpl implements FileManagement {
 		// @formatter:on
 		BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
 		StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi, bootstrapServiceRegistry,
-				new ProvidedServicesLocator(sfi));
+				new ProvidedServicesLocator(sfi, env));
 		MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(standardServiceRegistry);
 		BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry, metadataBuildingOptions);
 
@@ -135,23 +137,32 @@ public class FileManagementImpl implements FileManagement {
 					.second(bootstrapContext)
 					.third(metadataBuildingOptions)
 				.then(MetadataBuildingProcess::build)
-					.second(declare(serviceRegistry, bootstrapContext)
-							.then(SessionFactoryOptionsBuilder::new)
-							.get())
+					.second(getSessionFactoryOptionsBuilder(sfi, serviceRegistry, bootstrapContext))
 					.<QueryPlanCache.QueryPlanCreator>third(HQLQueryPlan::new)
 				.then(FileResourceSessionFactoryImpl::new)
 				.get();
 	}
+
+	private SessionFactoryOptionsBuilder getSessionFactoryOptionsBuilder(SessionFactoryImplementor sfi,
+			StandardServiceRegistry serviceRegistry, BootstrapContext bootstrapContext) throws Exception {
+		// @formatter:off
+		return declare(serviceRegistry, bootstrapContext)
+				.then(SessionFactoryOptionsBuilder::new)
+				.consume(options -> options.applyCurrentTenantIdentifierResolver(sfi.getCurrentTenantIdentifierResolver()))
+				.get();
+		// @formatter:on
+	}
+
 	// @formatter:on
 	private MetadataSources scanForMetadataSources(StandardServiceRegistry serviceRegistry, Environment env)
-			throws ClassNotFoundException {
+			throws Exception {
 		MetadataSources metadataSources = new MetadataSources(serviceRegistry, true);
 		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(FileResource.class));
 
 		for (BeanDefinition beanDefinition : scanner.findCandidateComponents(SpringHelper.getOrDefault(env,
-				Settings.SCANNED_FILE_RESOURCE_PACKAGE, Function.identity(), Settings.BASE_PACKAGE))) {
+				Settings.SCANNED_FILE_RESOURCE_PACKAGE, HandledFunction.identity(), Settings.BASE_PACKAGE))) {
 			Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
 
 			metadataSources.addAnnotatedClass(clazz);
@@ -190,10 +201,10 @@ public class FileManagementImpl implements FileManagement {
 		private final List<ProvidedService> providedServices;
 		
 		@SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-		public ProvidedServicesLocator(SessionFactoryImplementor sfi) throws Exception {
+		public ProvidedServicesLocator(SessionFactoryImplementor sfi, Environment env) throws Exception {
 			final List<ProvidedService> providedServices = new ArrayList<>();
 			final ServiceRegistryImplementor serviceRegistry = sfi.getServiceRegistry();
-			
+
 			providedServices.add(new ProvidedService<>(
 					MutableIdentifierGeneratorFactory.class,
 					declare(serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class))
@@ -240,6 +251,7 @@ public class FileManagementImpl implements FileManagement {
 					}
 				}
 			}));
+			providedServices.add(new ProvidedService<>(ImageService.class, new ImageService(env)));
 			
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
@@ -266,6 +278,7 @@ public class FileManagementImpl implements FileManagement {
 						.then(StringBuilder::new)
 						.then(builder -> builder.append(IDENTIFIER_PARTS_SEPERATOR))
 						.then(builder -> builder.append(RandomStringUtils.randomAlphanumeric(IDENTIFIER_LENGTH - builder.length() - resource.getExtension().length())))
+						.then(builder -> builder.append(StringHelper.DOT))
 						.then(builder -> builder.append(resource.getExtension()))
 						.then(Object::toString)
 						.get();

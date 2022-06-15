@@ -3,16 +3,11 @@
  */
 package multicados.internal.security.jwt;
 
-import static multicados.internal.helper.Utils.declare;
-
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -41,15 +36,13 @@ import multicados.internal.security.OnMemoryUserDetailsContext;
 public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
-	private final JWTSecurityContext jwtSecurityContext;
-	private final JWTStrategy jwtStrategy;
+	final JWTSecurityContext jwtSecurityContext;
+	final JWTStrategy jwtStrategy;
 	private final ObjectMapper objectMapper;
 
 	private final BadCredentialsException usernameNotFoundException;
 	private final BadCredentialsException passwordNotFoundException;
 
-	private final int maxAge;
-	private final boolean isCookieSecured;
 	private static final String SUCCESSFULLY_LOGGED_IN = "SUCCESSFULLY LOGGED IN";
 
 	public JWTUsernamePasswordAuthenticationFilter(OnMemoryUserDetailsContext onMemoryUserDetailsContext,
@@ -60,8 +53,6 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
 		this.jwtSecurityContext = jwtSecurityContext;
 		jwtStrategy = jwtSecurityContext.getStrategy();
-		maxAge = Long.valueOf(jwtStrategy.getExpirationDuration().toSeconds()).intValue();
-		isCookieSecured = this.jwtSecurityContext.isCookieSecured();
 		setAuthenticationFailureHandler(authenticationFailureHandler);
 		setAuthenticationManager(authenticationManager);
 		this.objectMapper = objectMapper;
@@ -91,7 +82,7 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 		onMemoryUserDetailsContext.put(userDetails);
 
 		try {
-			response.addCookie(generateCookie(userDetails));
+			response.addCookie(jwtStrategy.generateCookie(userDetails));
 			response.setStatus(HttpStatus.OK.value());
 
 			if (HttpHelper.isTextAccepted(request)) {
@@ -110,31 +101,6 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 		} catch (Exception any) {
 			throw new ServletException(any);
 		}
-	}
-
-	private Cookie generateCookie(DomainUserDetails userDetails) throws Exception {
-		// @formatter:off
-		Cookie cookie = declare(createClaims(userDetails), userDetails.getUsername())
-			.then(jwtStrategy::createToken)
-				.prepend(jwtSecurityContext.getCookieName())
-			.then(Cookie::new)
-			.get();
-		// @formatter:on
-		cookie.setPath(jwtSecurityContext.getWholeDomainPath());
-		cookie.setSecure(isCookieSecured);
-		cookie.setHttpOnly(true);
-		cookie.setMaxAge(maxAge);
-
-		return cookie;
-	}
-
-	private Map<String, Object> createClaims(DomainUserDetails userDetails) throws Exception {
-		final Map<String, Object> preClaims = new HashMap<>();
-
-		preClaims.put(jwtSecurityContext.getVersionKey(),
-				userDetails.getVersion().atZone(jwtStrategy.getZone()).toInstant().toEpochMilli());
-
-		return preClaims;
 	}
 
 }

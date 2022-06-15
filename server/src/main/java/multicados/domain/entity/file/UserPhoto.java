@@ -7,7 +7,8 @@ import javax.persistence.Entity;
 
 import org.hibernate.annotations.Persister;
 
-import multicados.internal.file.engine.FileResourcePersister;
+import multicados.internal.domain.Image;
+import multicados.internal.file.engine.FileResourcePersisterImpl;
 import multicados.internal.file.model.AbstractFileResource;
 import multicados.internal.file.model.Directory;
 
@@ -17,7 +18,7 @@ import multicados.internal.file.model.Directory;
  */
 @Entity
 @Directory("user\\")
-@Persister(impl = FileResourcePersister.class)
-public class UserPhoto extends AbstractFileResource {
+@Persister(impl = FileResourcePersisterImpl.class)
+public class UserPhoto extends AbstractFileResource implements Image {
 
 }

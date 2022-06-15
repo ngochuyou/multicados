@@ -10,7 +10,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -37,7 +36,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.web.cors.CorsConfiguration;
@@ -50,6 +48,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.locale.ZoneContext;
 import multicados.internal.security.jwt.JWTLogoutFilter;
 import multicados.internal.security.jwt.JWTRequestFilter;
@@ -78,7 +77,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	private final ObjectMapper objectMapper;
 
 	private final JWTRequestFilter jwtRequestFilter;
-	private final JWTLogoutFilter jwtLogoutFilter;
 
 	public SecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper) throws Exception {
 		this.env = env;
@@ -87,9 +85,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		jwtSecurityContext = new JWTSecurityContextImpl(env, zoneContext);
 		authenticationFailureHandler = new AuthenticationFailureHandlerImpl(objectMapper);
 		userDetailsService = locateUserDetailsService();
-		jwtLogoutFilter = new JWTLogoutFilter(jwtSecurityContext);
-		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService(), onMemoryUserDetailsContext,
-				jwtSecurityContext, jwtLogoutFilter, objectMapper);
+		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService, onMemoryUserDetailsContext, jwtSecurityContext,
+				objectMapper);
 	}
 
 	private UserDetailsService locateUserDetailsService() throws Exception {
@@ -111,6 +108,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			.consume(this::publicEndpoints)
 			.consume(this::securedEndpoints)
 			.consume(this::statelessSession)
+			.consume(this::noLogout)
 			.consume(this::jwt);
 		// @formatter:on
 	}
@@ -136,6 +134,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				authenticationFailureHandler, authenticationManager(), objectMapper);
 	}
 
+	@Bean
+	public AbstractAuthenticationProcessingFilter jwtLogoutFilter() throws Exception {
+		return new JWTLogoutFilter(jwtSecurityContext, authenticationManager());
+	}
+
 	private boolean isInDevMode() {
 		return !env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.DEFAULT_PRODUCTION_PROFILE);
 	}
@@ -145,8 +148,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	}
 
 	private void cors(HttpSecurity http) throws Exception {
-		http.cors();
-		new DevCorsConfigurer().configure(http);
+		new CorsConfigurer().configure(http);
 	}
 
 	private static final String ENDPOINT_PATTERN_PARTS_DELIMITER = "\\\\";
@@ -194,6 +196,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 	}
 
+	private void noLogout(HttpSecurity http) throws Exception {
+		http.logout().disable();
+	}
+
 	private void jwt(HttpSecurity http) throws Exception {
 		declare(http).consume(this::jwtFilters);
 	}
@@ -201,7 +207,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	private void jwtFilters(HttpSecurity http) throws Exception {
 		// @formatter:off
 		http
-			.addFilterBefore(jwtLogoutFilter, LogoutFilter.class)
 			.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 		// @formatter:on
 	}
@@ -279,12 +284,13 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	}
 
-	private class DevCorsConfigurer {
+	private class CorsConfigurer {
 
-		private DevCorsConfigurer() {}
+		private CorsConfigurer() {}
 
 		public void configure(HttpSecurity http) throws Exception {
 			if (!isInDevMode()) {
+				http.cors();
 				return;
 			}
 			// @formatter:off
@@ -295,18 +301,19 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			
 			socket.close();
 			
-			declare(Stream.of(SpringHelper.getArrayOrDefault(env, Settings.SECURITY_DEV_CLIENT_PORTS, Function.identity(), StringHelper.EMPTY_STRING_ARRAY))
-						.map(clientPort -> String.format(clientURLTemplate, clientPort))
-						.toArray(String[]::new))
+			declare(Stream.of(
+						SpringHelper.getArrayOrDefault(env, Settings.SECURITY_DEV_CLIENT_PORTS, HandledFunction.identity(), StringHelper.EMPTY_STRING_ARRAY))
+							.map(clientPort -> String.format(clientURLTemplate, clientPort))
+							.toArray(String[]::new))
 				.then(Arrays::asList)
 				.consume(configuration::setAllowedOrigins);
 			declare(Arrays.asList(
-					HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(),
-					HttpMethod.PATCH.name(), HttpMethod.DELETE.name(), HttpMethod.OPTIONS.name()))
+						HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(),
+						HttpMethod.PATCH.name(), HttpMethod.DELETE.name(), HttpMethod.OPTIONS.name()))
 				.consume(configuration::setAllowedMethods);
 			declare(Arrays.asList(
-					HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE,
-					HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
+						HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE,
+						HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
 				.consume(configuration::setAllowedHeaders);
 			// @formatter:on
 			UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -314,7 +321,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			source.registerCorsConfiguration("/**", configuration);
 			http.addFilterAt(new CorsFilter(source), CorsFilter.class);
 		}
-
 	}
 
 }

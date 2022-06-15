@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -40,6 +41,9 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
 import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -55,6 +59,7 @@ import multicados.internal.domain.repository.DatabaseInitializer;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.file.engine.FileManagement;
+import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -71,6 +76,8 @@ import multicados.internal.service.crud.security.read.ReadSecurityManager;
 @EnableTransactionManagement
 @EnableWebMvc
 @EnableSpringDataWebSupport
+@EnableAsync
+@EnableScheduling
 public class WebConfiguration implements WebMvcConfigurer {
 
 	private static final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
@@ -114,6 +121,18 @@ public class WebConfiguration implements WebMvcConfigurer {
 		jsonConverter.setDefaultCharset(StandardCharsets.UTF_8);
 
 		return jsonConverter;
+	}
+
+	@Bean(name = ImageService.EXECUTOR_NAME)
+	public Executor imageServiceExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+
+		executor.setCorePoolSize(5);
+		executor.setMaxPoolSize(10);
+		executor.setQueueCapacity(50);
+		executor.setThreadNamePrefix(ImageService.EXECUTOR_NAME);
+
+		return executor;
 	}
 
 	@Override

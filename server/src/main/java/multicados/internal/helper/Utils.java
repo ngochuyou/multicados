@@ -9,7 +9,6 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,14 +19,9 @@ import multicados.internal.context.Loggable;
  * @author Ngoc Huy
  *
  */
-public class Utils {
+public abstract class Utils {
 
 	private Utils() {}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T[] spread(T any, int amount) {
-		return (T[]) IntStream.range(0, amount).mapToObj(index -> any).toArray();
-	}
 
 	// we use FIRST, SECOND, THIRD,... to avoid FunctionalInterface types conflict
 	public static <FIRST> Declaration<FIRST> declare(FIRST val) {
@@ -96,6 +90,10 @@ public class Utils {
 
 		<RETURN> Declaration<RETURN> then(HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc) throws Exception;
 
+		<RETURN_ONE, RETURN_TWO> BiDeclaration<RETURN_ONE, RETURN_TWO> map(
+				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
+				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer) throws Exception;
+
 		BiDeclaration<FIRST, SECOND> consume(HandledBiConsumer<FIRST, SECOND, Exception> consumer) throws Exception;
 
 		<RETURN> Declaration<RETURN> boundThen(
@@ -128,6 +126,11 @@ public class Utils {
 		<RETURN> Declaration<RETURN> then(HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
 				throws Exception;
 
+		<RETURN_ONE, RETURN_TWO, RETURN_THREE> TriDeclaration<RETURN_ONE, RETURN_TWO, RETURN_THREE> map(
+				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
+				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer,
+				HandledFunction<THIRD, RETURN_THREE, Exception> thirdProducer) throws Exception;
+
 		TriDeclaration<FIRST, SECOND, THIRD> consume(HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer)
 				throws Exception;
 
@@ -154,7 +157,7 @@ public class Utils {
 		public <NEXT_FIRST, SECOND> BiDeclaration<NEXT_FIRST, SECOND> flat(
 				HandledFunction<FIRST, NEXT_FIRST, Exception> nextFirstArgProducer,
 				HandledFunction<FIRST, SECOND, Exception> secondArgProducer) throws Exception {
-			return declare(nextFirstArgProducer.apply(firstArg), secondArgProducer.apply(firstArg));
+			return new BiDeclaration<>(nextFirstArgProducer.apply(firstArg), secondArgProducer.apply(firstArg));
 		}
 
 		@Override
@@ -163,8 +166,7 @@ public class Utils {
 				HandledFunction<FIRST, SECOND, Exception> secondArgProducer,
 				HandledFunction<FIRST, THIRD, Exception> thirdArgProducer) throws Exception {
 			// @formatter:off
-			return declare(
-					nextFirstArgProducer.apply(firstArg),
+			return new TriDeclaration<>(nextFirstArgProducer.apply(firstArg),
 					secondArgProducer.apply(firstArg),
 					thirdArgProducer.apply(firstArg));
 			// @formatter:on
@@ -172,13 +174,13 @@ public class Utils {
 
 		@Override
 		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg) {
-			return declare(secondArg, firstArg);
+			return new BiDeclaration<>(secondArg, firstArg);
 		}
 
 		@Override
 		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc)
 				throws Exception {
-			return declare(fnc.apply(firstArg), firstArg);
+			return new BiDeclaration<>(fnc.apply(firstArg), firstArg);
 		}
 
 		@Override
@@ -189,13 +191,13 @@ public class Utils {
 
 		@Override
 		public <SECOND> BiDeclaration<FIRST, SECOND> second(SECOND secondArg) throws Exception {
-			return declare(firstArg, secondArg);
+			return new BiDeclaration<>(firstArg, secondArg);
 		}
 
 		@Override
 		public <RETURN> BiDeclaration<FIRST, RETURN> second(HandledFunction<FIRST, RETURN, Exception> fnc)
 				throws Exception {
-			return declare(firstArg, fnc.apply(firstArg));
+			return new BiDeclaration<>(firstArg, fnc.apply(firstArg));
 		}
 
 		@Override
@@ -216,7 +218,7 @@ public class Utils {
 		@Override
 		public <RETURN> Declaration<RETURN> boundThen(
 				HandledBiFunction<FIRST, Declaration<FIRST>, RETURN, Exception> fnc) throws Exception {
-			return declare(fnc.apply(firstArg, this));
+			return new Declaration<>(fnc.apply(firstArg, this));
 		}
 
 		@Override
@@ -248,19 +250,27 @@ public class Utils {
 		@Override
 		public <RETURN> Declaration<RETURN> then(Utils.HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
 				throws Exception {
-			return declare(fnc.apply(firstArg, secondArg));
+			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg));
+		}
+
+		@Override
+		public <RETURN_ONE, RETURN_TWO> BiDeclaration<RETURN_ONE, RETURN_TWO> map(
+				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
+				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer) throws Exception {
+			return new BiDeclaration<RETURN_ONE, RETURN_TWO>(firstProducer.apply(firstArg),
+					secondProducer.apply(secondArg));
 		}
 
 		@Override
 		public <THIRD> TriDeclaration<FIRST, SECOND, THIRD> append(
 				HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
-			return declare(firstArg, secondArg, fnc.apply(firstArg, secondArg));
+			return new TriDeclaration<>(firstArg, secondArg, fnc.apply(firstArg, secondArg));
 		}
 
 		@Override
 		public <THIRD> TriDeclaration<THIRD, FIRST, SECOND> prepend(
 				HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
-			return declare(fnc.apply(firstArg, secondArg), firstArg, secondArg);
+			return new TriDeclaration<>(fnc.apply(firstArg, secondArg), firstArg, secondArg);
 		}
 
 		@Override
@@ -272,22 +282,22 @@ public class Utils {
 
 		@Override
 		public <THIRD> TriDeclaration<FIRST, SECOND, THIRD> third(THIRD thirdArg) throws Exception {
-			return declare(firstArg, secondArg, thirdArg);
+			return new TriDeclaration<>(firstArg, secondArg, thirdArg);
 		}
 
 		public <THIRD> TriDeclaration<FIRST, SECOND, THIRD> third(
 				Utils.HandledBiFunction<FIRST, SECOND, THIRD, Exception> fnc) throws Exception {
-			return declare(firstArg, secondArg, fnc.apply(firstArg, secondArg));
+			return new TriDeclaration<>(firstArg, secondArg, fnc.apply(firstArg, secondArg));
 		}
 
 		@Override
 		public Declaration<FIRST> useFirst() {
-			return declare(firstArg);
+			return new Declaration<>(firstArg);
 		}
 
 		@Override
 		public Declaration<SECOND> useSecond() {
-			return declare(secondArg);
+			return new Declaration<>(secondArg);
 		}
 
 		@Override
@@ -299,7 +309,7 @@ public class Utils {
 		public <RETURN> Declaration<RETURN> boundThen(
 				HandledTriFunction<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, RETURN, Exception> fnc)
 				throws Exception {
-			return declare(fnc.apply(firstArg, secondArg, this));
+			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg, this));
 		}
 
 		@Override
@@ -340,7 +350,16 @@ public class Utils {
 		@Override
 		public <RETURN> Declaration<RETURN> then(Utils.HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
 				throws Exception {
-			return declare(fnc.apply(firstArg, secondArg, thirdArg));
+			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg, thirdArg));
+		}
+
+		@Override
+		public <RETURN_ONE, RETURN_TWO, RETURN_THREE> TriDeclaration<RETURN_ONE, RETURN_TWO, RETURN_THREE> map(
+				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
+				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer,
+				HandledFunction<THIRD, RETURN_THREE, Exception> thirdProducer) throws Exception {
+			return new TriDeclaration<RETURN_ONE, RETURN_TWO, RETURN_THREE>(firstProducer.apply(firstArg),
+					secondProducer.apply(secondArg), thirdProducer.apply(thirdArg));
 		}
 
 		@Override

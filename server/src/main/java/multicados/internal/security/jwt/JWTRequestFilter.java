@@ -56,20 +56,18 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	private final UserDetailsService userDetailsService;
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
 	private final JWTSecurityContext jwtSecurityContext;
-	private final JWTLogoutFilter jwtLogoutFilter;
-	private final JWTStrategy strategy;
+	private final JWTStrategy jwtStrategy;
 
 	private final ObjectMapper objectMapper;
 
 	public JWTRequestFilter(Environment env, UserDetailsService userDetailsService,
 			OnMemoryUserDetailsContext onMemoryUserDetailsContext, JWTSecurityContext jwtSecurityContext,
-			JWTLogoutFilter jwtLogoutFilter, ObjectMapper objectMapper) throws Exception {
+			ObjectMapper objectMapper) throws Exception {
 		this.userDetailsService = userDetailsService;
 		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
 		this.jwtSecurityContext = jwtSecurityContext;
-		strategy = jwtSecurityContext.getStrategy();
+		jwtStrategy = jwtSecurityContext.getStrategy();
 		this.objectMapper = objectMapper;
-		this.jwtLogoutFilter = jwtLogoutFilter;
 	}
 
 	@Override
@@ -166,7 +164,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 		if (token == STALE_TOKEN) {
 			response.setStatus(HttpServletResponse.SC_OK);
-			response.addCookie(jwtLogoutFilter.getLogoutCookie(request, response));
+			response.addCookie(jwtStrategy.getLogoutCookie());
 			writeMessage(request, response, TOKEN_IS_STALE);
 			return;
 		}
@@ -208,9 +206,9 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 		private final HttpServletResponse response;
 
 		public Candidate(Cookie cookie, HttpServletRequest request, HttpServletResponse response) {
-			claims = strategy.extractAllClaims(cookie.getValue());
+			claims = jwtStrategy.extractAllClaims(cookie.getValue());
 			version = locateVersion(claims);
-			expiration = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), strategy.getZone());
+			expiration = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), jwtStrategy.getZone());
 			this.request = request;
 			this.response = response;
 		}
@@ -223,7 +221,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 				throw new IllegalArgumentException(INVALID_VERSION_VALUE);
 			}
 
-			return LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(versionString)), strategy.getZone());
+			return LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(versionString)), jwtStrategy.getZone());
 		}
 
 		public String getUsername() {

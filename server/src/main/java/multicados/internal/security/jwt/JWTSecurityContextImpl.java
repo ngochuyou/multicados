@@ -3,19 +3,19 @@
  */
 package multicados.internal.security.jwt;
 
-import static java.util.function.Function.identity;
 import static multicados.internal.helper.SpringHelper.getOrDefault;
 import static multicados.internal.helper.SpringHelper.getOrThrow;
 import static multicados.internal.helper.Utils.declare;
+import static multicados.internal.helper.Utils.HandledFunction.identity;
 import static org.springframework.util.StringUtils.hasLength;
 
 import java.time.Duration;
-import java.util.function.Function;
 
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.locale.ZoneContext;
 
 /**
@@ -44,7 +44,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private final boolean isCookieSecured;
 
 	public JWTSecurityContextImpl(Environment env, ZoneContext zoneContext) throws Exception {
-		Function<String, String> exact = identity();
+		HandledFunction<String, String, Exception> exact = identity();
 
 		headerPrefix = getOrDefault(env, Settings.SECURITY_JWT_HEADER_PREFIX, exact, DEFAULT_HEADER_PREFIX);
 		cookieName = getOrThrow(env, Settings.SECURITY_JWT_COOKIE_NAME, exact,
@@ -61,7 +61,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 		// @formatter:off
 		return declare(env)
 			.flat(this::locateSecret, self -> zoneContext.getZone(), this::locateDuration)
-			.then(JWTStrategy::new)
+			.then((secret, zone, duration) -> new JWTStrategy(this, secret, zone, duration))
 			.get();
 		// @formatter:on
 	}
@@ -118,11 +118,6 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	@Override
 	public String getPasswordParam() {
 		return passwordParam;
-	}
-
-	@Override
-	public Duration getExpirationDuration() {
-		return strategy.getExpirationDuration();
 	}
 
 	@Override
