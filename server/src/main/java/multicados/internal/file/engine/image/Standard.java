@@ -3,6 +3,8 @@
  */
 package multicados.internal.file.engine.image;
 
+import java.util.Arrays;
+
 import org.apache.commons.lang3.math.Fraction;
 import org.springframework.util.Assert;
 
@@ -26,8 +28,10 @@ public class Standard {
 
 	private final float[] compressionQualities;
 	private final float[] compressionFactors;
+	private final String[] compressionPrefixes;
 
-	public Standard(Fraction ratio, int originalWidth, float[] compressionQualities, float[] compressionFactors) {
+	public Standard(Fraction ratio, int originalWidth, float[] compressionQualities, float[] compressionFactors,
+			String[] compressionPrefixes) {
 		numerator = ratio.getNumerator();
 		denominator = ratio.getDenominator();
 
@@ -39,11 +43,14 @@ public class Standard {
 		this.originalWidth = originalWidth;
 		originalHeight = (originalWidth * denominator) / numerator;
 
-		Assert.isTrue(compressionQualities.length == compressionFactors.length,
-				"compressionQualities and compressionFactors must have the same length");
+		Assert.isTrue(
+				compressionQualities.length == compressionFactors.length
+						&& compressionPrefixes.length == compressionFactors.length,
+				"compressionQualities, compressionFactors and compressionPrefixes, must have the same length");
 
 		this.compressionQualities = compressionQualities;
 		this.compressionFactors = compressionFactors;
+		this.compressionPrefixes = compressionPrefixes;
 		batchSize = compressionQualities.length + 1;
 	}
 
@@ -97,6 +104,18 @@ public class Standard {
 
 	public float getRatio() {
 		return ratio;
+	}
+
+	public String[] getCompressionPrefixes() {
+		return compressionPrefixes;
+	}
+
+	@Override
+	public String toString() {
+		return "Standard [ratio=" + ratio + ", originalWidth=" + originalWidth + ", originalHeight=" + originalHeight
+				+ ", compressionQualities=" + Arrays.toString(compressionQualities) + ", compressionFactors="
+				+ Arrays.toString(compressionFactors) + ", compressionPrefixes=" + Arrays.toString(compressionPrefixes)
+				+ "]";
 	}
 
 }

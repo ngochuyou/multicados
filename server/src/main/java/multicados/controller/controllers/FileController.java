@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
@@ -34,7 +35,9 @@ import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileResourcePersister;
 import multicados.internal.file.engine.FileResourceSessionFactory;
+import multicados.internal.file.engine.image.ManipulationContext;
 import multicados.internal.helper.Common;
+import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledLazySupplier;
 import multicados.internal.helper.Utils.LazySupplier;
 
@@ -53,6 +56,7 @@ public class FileController extends AbstractController {
 	private final LazySupplier<FileResourceSessionFactory> fileResourceSessionFactorySupplier;
 
 	private final HandledLazySupplier<String> userPhotoDirectorySupplier;
+	private final LazySupplier<ManipulationContext> manipulationContextSupplier;
 
 	@Autowired
 	public FileController(SessionFactory sessionFactory) throws Exception {
@@ -68,13 +72,18 @@ public class FileController extends AbstractController {
 					.then(FileResourcePersister.class::cast)
 					.then(FileResourcePersister::getDirectoryPath)
 					.get());
+		manipulationContextSupplier = new LazySupplier<>(() -> fileResourceSessionFactorySupplier.get().getServiceRegistry().requireService(ManipulationContext.class));
 		// @formatter:on
 	}
 
 	@GetMapping("/user/{username}")
 	@Transactional(readOnly = true)
-	public ResponseEntity<?> getUserPhotoBytesDirectly(@PathVariable("username") String username,
+	public ResponseEntity<?> getUserPhotoBytesDirectly(
+	// @formatter:off	
+			@PathVariable("username") String username,
+			@RequestParam(name = "size", required = false, defaultValue = StringHelper.EMPTY_STRING) String size,
 			HttpServletRequest request) throws Exception {
+		// @formatter:on
 		Optional<Tuple> optionalTuple = genericRepositorySupplier.get().findById(User.class, username,
 				(root, query, builder) -> List.of(root.get(User_.photo).alias(User_.PHOTO)),
 				mainSessionFactory.getCurrentSession());
@@ -86,7 +95,7 @@ public class FileController extends AbstractController {
 		return declare(optionalTuple.get())
 				.then(tuple -> tuple.get(User_.PHOTO, String.class))
 					.prepend(userPhotoDirectorySupplier.get())
-				.then((directory, filename) -> directory + filename)
+				.then((directory, filename) -> directory + (size.isEmpty() ? filename : manipulationContextSupplier.get().resolveCompressionName(filename, size)))
 					.prepend(request)
 				.then(this::doGetBytesDirectly)
 				.get();

@@ -5,12 +5,12 @@ package multicados.internal.file.engine;
 
 import static multicados.internal.helper.Utils.declare;
 
-import java.io.File;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.SessionFactory;
 import org.hibernate.cache.spi.access.EntityDataAccess;
@@ -19,15 +19,16 @@ import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.persister.entity.SingleTableEntityPersister;
 import org.hibernate.persister.spi.PersisterCreationContext;
+import org.hibernate.proxy.HibernateProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
-import multicados.internal.file.domain.AbstractFileResource_;
 import multicados.internal.file.domain.Directory;
 import multicados.internal.file.domain.FileResource;
+import multicados.internal.file.domain.Image;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
 
@@ -44,14 +45,17 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 			FileResource.class.getSimpleName());
 
 	private final String directoryPath;
-	private final int contentIndex;
+
+	private final SaveStrategy saveStrategy;
 
 	@SuppressWarnings("unchecked")
 	public FileResourcePersisterImpl(PersistentClass persistentClass, EntityDataAccess cacheAccessStrategy,
 			NaturalIdDataAccess naturalIdRegionAccessStrategy, PersisterCreationContext creationContext)
 			throws Exception {
 		super(persistentClass, cacheAccessStrategy, naturalIdRegionAccessStrategy, creationContext);
-		creationContext.getSessionFactory().addObserver(this);
+		FileResourceSessionFactory sfi = FileResourceSessionFactory.class.cast(creationContext.getSessionFactory());
+
+		sfi.addObserver(this);
 		// @formatter:off
 		directoryPath = String.format("%s%s",
 				SpringHelper.getOrDefault(
@@ -65,8 +69,11 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 					.then(Directory.class::cast)
 					.then(Directory::value)
 					.get());
+		
+		SaveStrategyResolver saveStrategyResolver = sfi.getServiceRegistry().requireService(SaveStrategyResolver.class);
+		
+		saveStrategy = Image.class.isAssignableFrom(getMappedClass()) ? saveStrategyResolver.getSaveStrategy(Image.class) : saveStrategyResolver.getSaveStrategy(FileResource.class);
 		// @formatter:on
-		contentIndex = getEntityMetamodel().getPropertyIndex(AbstractFileResource_.CONTENT);
 	}
 
 	@Override
@@ -81,23 +88,21 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 		throw new UnsupportedOperationException(MESSAGE);
 	}
 
-	private String resolvePath(String id) {
-		return directoryPath + id;
-	}
-
 	@Override
 	public void insert(Serializable id, Object[] fields, boolean[] notNull, int j, String sql, Object object,
 			SharedSessionContractImplementor session) throws HibernateException {
+		throw new UnsupportedOperationException("Multiple insert operation is unnecessary");
+	}
+
+	@Override
+	public void insert(Serializable id, Object[] fields, Object object, SharedSessionContractImplementor session) {
 		// @formatter:off
 		try {
-			declare(id.toString())
-				.then(this::resolvePath)
-				.then(File::new)
-				.then(File::getPath)
-				.then(Paths::get)
-					.second(byte[].class.cast(fields[contentIndex]))
-				.consume(this::logInsert)
-				.consume(Files::write);
+			if (object instanceof HibernateProxy) {
+				Hibernate.initialize(object);
+			}
+
+			saveStrategy.save(this, id, FileResource.class.cast(object), FileResourceSession.class.cast(session));
 		} catch (Exception any) {
 			any.printStackTrace();
 			throw new HibernateException(any);
@@ -105,10 +110,9 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 		// @formatter:on
 	}
 
-	private void logInsert(Path path, byte[] content) {
-		if (logger.isDebugEnabled()) {
-			logger.debug("Writing file [{}] with content length {}", path, content.length);
-		}
+	@Override
+	public String resolvePath(String id) {
+		return directoryPath + id;
 	}
 
 	@Override
@@ -137,11 +141,6 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 	@Override
 	public String getDirectoryPath() {
 		return directoryPath;
-	}
-
-	@Override
-	public byte[] getContent(Serializable id, Object[] fields, FileResourceSession session) throws Exception {
-		return byte[].class.cast(fields[contentIndex]);
 	}
 
 }

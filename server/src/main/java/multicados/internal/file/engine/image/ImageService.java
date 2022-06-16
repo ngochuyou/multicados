@@ -41,7 +41,7 @@ public class ImageService implements Service {
 
 	private static final Logger logger = LoggerFactory.getLogger(ImageService.class);
 
-	public static final String EXECUTOR_NAME = "image-manipulation-";
+	public static final String EXECUTOR_NAME = "img-manipulation-";
 
 	private final ManipulationContext manipulationContext;
 	private final PropagationWorker worker;
@@ -136,8 +136,8 @@ public class ImageService implements Service {
 
 			CompletableFuture.allOf(futures).join();
 
-			for (int i = 1; i < propagationBatchSize; i++) {
-				products[i] = futures[i - 1].get();
+			for (int i = 0; i < propagationBatchSize; i++) {
+				products[i + 1] = futures[i].get();
 			}
 		}
 	}
@@ -175,7 +175,6 @@ public class ImageService implements Service {
 				writer.dispose();
 			}
 		}
-
 	}
 
 	// has to be static

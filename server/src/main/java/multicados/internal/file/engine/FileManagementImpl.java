@@ -252,8 +252,14 @@ public class FileManagementImpl implements FileManagement {
 					}
 				}
 			}));
-			providedServices.add(new ProvidedService<>(ImageService.class, new ImageService(env, new ManipulationContextImpl(env))));
 			
+			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env);			
+			ImageService imageService = new ImageService(env, manipulationContext);
+			
+			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
+			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
+			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
+
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
 		// @formatter:on
@@ -266,7 +272,7 @@ public class FileManagementImpl implements FileManagement {
 		private final ZoneId zoneId = ContextManager.getBean(ZoneContext.class).getZone();
 
 		private static final String IDENTIFIER_PARTS_SEPERATOR = "_";
-		public static final int IDENTIFIER_LENGTH = 25; // extension included
+		public static final int IDENTIFIER_LENGTH = 26; // extension included
 
 		@Override
 		public Serializable generate(SharedSessionContractImplementor session, Object instance)
@@ -278,7 +284,7 @@ public class FileManagementImpl implements FileManagement {
 						.then(String::valueOf)
 						.then(StringBuilder::new)
 						.then(builder -> builder.append(IDENTIFIER_PARTS_SEPERATOR))
-						.then(builder -> builder.append(RandomStringUtils.randomAlphanumeric(IDENTIFIER_LENGTH - builder.length() - resource.getExtension().length())))
+						.then(builder -> builder.append(RandomStringUtils.randomAlphanumeric(IDENTIFIER_LENGTH - builder.length() - resource.getExtension().length() - 1)))
 						.then(builder -> builder.append(StringHelper.DOT))
 						.then(builder -> builder.append(resource.getExtension()))
 						.then(Object::toString)

@@ -3,6 +3,7 @@
  */
 package multicados.internal.helper;
 
+import static java.util.Map.entry;
 import static multicados.internal.helper.StringHelper.SPACE;
 import static multicados.internal.helper.StringHelper.join;
 
@@ -23,7 +24,7 @@ public abstract class Common {
 	private static final String COMMON_TEMPLATE = "%s %s";
 
 	private static final String NOT_EMPTY = "must not be empty";
-	
+
 	private static final String USER = "User";
 	private static final String FILE = "File";
 	private static final String RESOURCE = "Resource";
@@ -67,5 +68,31 @@ public abstract class Common {
 
 		return String.format(NOT_FOUND_TEMPLATE, join(SPACE, preficies));
 	}
+
+	// @formatter:off
+	static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
+			entry('|', "vertical bar"),
+			entry(';', "semicolon"),
+			entry(':', "colon"),
+			entry('.', "period"),
+			entry('(', "opening parenthesis"),
+			entry(')', "closing parenthesis"),
+			entry('\s', "space"),
+			entry(',', "comma"),
+			entry('-', "hyphen"),
+			entry('_', "underscore"),
+			entry('"', "quote"),
+			entry('\'', "apostrophe"),
+			entry('/', "slash"),
+			entry('\\', "back slash"),
+			entry('!', "exclamation"),
+			entry('@', "at sign"),
+			entry('#', "numero sign"),
+			entry('$', "dollar sign"),
+			entry('%', "percent sign"),
+			entry('&', "ampersand"),
+			entry('*', "asterisk"),
+			entry('?', "question mark"));
+	// @formatter:on
 
 }

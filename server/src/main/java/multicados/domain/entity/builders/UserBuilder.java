@@ -50,6 +50,7 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 	@Override
 	public User buildInsertion(Serializable id, User resource, EntityManager entityManager) throws Exception {
 		mandatoryBuild(resource, resource);
+
 		resource.setCredentialVersion(LocalDateTime.now());
 		resource.setLocked(Boolean.TRUE);
 		resource.setPassword(resource.getPassword() == null && true/*
@@ -64,7 +65,7 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 
 	@Override
 	public User buildUpdate(Serializable id, User model, User resource, EntityManager entityManger) {
-		return model;
+		return mandatoryBuild(resource, resource);
 	}
 
 }

@@ -4,7 +4,6 @@
 package multicados.internal.helper;
 
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import org.springframework.core.env.Environment;
 
@@ -41,42 +40,14 @@ public class SpringHelper {
 	}
 
 	public static <T> T getOrThrow(Environment env, String propName, HandledFunction<String, T, Exception> producer,
-			Supplier<Exception> exceptionSupplier) throws Exception {
+			Supplier<Exception> thrower) throws Exception {
 		String configuredValue = env.getProperty(propName);
 
 		if (!StringHelper.hasLength(configuredValue)) {
-			throw exceptionSupplier.get();
+			throw thrower.get();
 		}
 
 		return producer.apply(configuredValue);
-	}
-
-	public static float[] getFloatsOrDefault(Environment env, String propNames, Float[] defaultNonPrims)
-			throws Exception {
-		Float[] nonPrims = getArrayOrDefault(env, propNames,
-				values -> Stream.of(values).map(Float::valueOf).toArray(Float[]::new), defaultNonPrims);
-		int size = nonPrims.length;
-		float[] prims = new float[size];
-
-		for (int i = 0; i < size; i++) {
-			prims[i] = nonPrims[i];
-		}
-
-		return prims;
-	}
-
-	public static <T> int[] getIntsOrDefault(Environment env, String propNames, Integer[] defaultNonPrims)
-			throws Exception {
-		Integer[] nonPrims = getArrayOrDefault(env, propNames,
-				values -> Stream.of(values).map(Integer::valueOf).toArray(Integer[]::new), defaultNonPrims);
-		int size = nonPrims.length;
-		int[] prims = new int[size];
-
-		for (int i = 0; i < size; i++) {
-			prims[i] = nonPrims[i];
-		}
-
-		return prims;
 	}
 
 }

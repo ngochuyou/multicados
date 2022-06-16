@@ -5,8 +5,8 @@ package multicados.internal.file.engine.image;
 
 import java.awt.image.BufferedImage;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -16,7 +16,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
+import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 
 /**
  * @author Ngoc Huy
@@ -24,12 +26,17 @@ import multicados.internal.helper.StringHelper;
  */
 public class ManipulationContextImpl implements ManipulationContext {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger logger = LoggerFactory.getLogger(ManipulationContextImpl.class);
 
 	private final Map<Ratio, Standard> standardsMap;
 	private final Standard[] standardArrays;
 
-	public ManipulationContextImpl(Environment env) {
+	public ManipulationContextImpl(Environment env) throws Exception {
 		Standard portrait = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_PORTRAIT);
 		Standard landscape = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_LANDSCAPE);
 		Standard square = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_SQUARE);
@@ -41,17 +48,14 @@ public class ManipulationContextImpl implements ManipulationContext {
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Ordered {}(s) are {}", Standard.class.getSimpleName(),
-					Stream.of(standardArrays).map(Standard::getRatio).map(Object::toString)
-							.collect(Collectors.joining(StringHelper.COMMON_JOINER)));
+					StringHelper.join(List.of(standardArrays)));
 		}
 	}
 
-	private Standard resolveStandard(Environment env, String envPropName) {
-		String configuration = env.getProperty(envPropName);
-
-		if (configuration == null || configuration.isEmpty()) {
-			throw new IllegalArgumentException(String.format("Unable to locate any %s configuration", envPropName));
-		}
+	private Standard resolveStandard(Environment env, String envPropName) throws Exception {
+		String configuration = SpringHelper.getOrThrow(env, envPropName, HandledFunction.identity(),
+				() -> new IllegalArgumentException(
+						String.format("Unable to locate any %s configuration", envPropName)));
 
 		String[] components = configuration.split(StringHelper.VERTICAL_BAR);
 		String[] ratioPair = components[0].split(StringHelper.COLON);
@@ -59,6 +63,7 @@ public class ManipulationContextImpl implements ManipulationContext {
 		if (ratioPair.length < 2) {
 			throw new IllegalArgumentException("Expect ratio parts to be 2 in length");
 		}
+
 		// @formatter:off
 		return new Standard(
 				Fraction.getFraction(Integer.valueOf(ratioPair[0]), Integer.valueOf(ratioPair[1])),
@@ -66,7 +71,8 @@ public class ManipulationContextImpl implements ManipulationContext {
 				ArrayUtils.toPrimitive(Stream.of(components[2].split(StringHelper.COMMA)).map(Float::parseFloat)
 						.toArray(Float[]::new)),
 				ArrayUtils.toPrimitive(Stream.of(components[3].split(StringHelper.COMMA)).map(Float::parseFloat)
-						.toArray(Float[]::new)));
+						.toArray(Float[]::new)),
+				components[4].split(StringHelper.COMMA));
 		// @formatter:on
 	}
 
@@ -93,6 +99,11 @@ public class ManipulationContextImpl implements ManipulationContext {
 		}
 
 		return standardArrays[size - 1];
+	}
+
+	@Override
+	public String resolveCompressionName(String filename, String prefix) {
+		return prefix + StringHelper.UNDERSCORE + filename;
 	}
 
 }

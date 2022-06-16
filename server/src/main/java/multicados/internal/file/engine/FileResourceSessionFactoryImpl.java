@@ -11,13 +11,8 @@ import org.hibernate.boot.spi.MetadataImplementor;
 import org.hibernate.boot.spi.SessionFactoryOptions;
 import org.hibernate.engine.query.spi.QueryPlanCache.QueryPlanCreator;
 import org.hibernate.engine.spi.SessionBuilderImplementor;
-import org.hibernate.event.service.spi.EventListenerRegistry;
-import org.hibernate.event.spi.EventType;
 import org.hibernate.internal.SessionCreationOptions;
 import org.hibernate.internal.SessionFactoryImpl;
-
-import multicados.internal.file.engine.image.ImageSaveEventListener;
-import multicados.internal.file.engine.image.ImageService;
 
 /**
  * @author Ngoc Huy
@@ -61,10 +56,9 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	}
 
 	private void registerEventListeners() {
-		EventListenerRegistry listenerRegistry = getServiceRegistry().requireService(EventListenerRegistry.class);
-
-		listenerRegistry.prependListeners(EventType.SAVE,
-				new ImageSaveEventListener(this, getServiceRegistry().requireService(ImageService.class)));
+//		EventListenerRegistry listenerRegistry = getServiceRegistry().requireService(EventListenerRegistry.class);
+//
+//		listenerRegistry.prependListeners(eventType, listener);
 	}
 
 	@Override

@@ -3,14 +3,11 @@
  */
 package multicados.internal.helper;
 
-import static java.util.Map.entry;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -31,41 +28,20 @@ public class StringHelper extends StringUtils {
 	public static final String COMMON_JOINER = ", ";
 
 	public static final String EMPTY_STRING = "";
+	
 	public static final String SPACE = "\s";
 	public static final String DOT = ".";
 	public static final String COMMA = ",";
 	public static final String COLON = ":";
 	public static final String VERTICAL_BAR = "\\|";
+	public static final String UNDERSCORE = "_";
+	
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
-	// @formatter:off
-	private static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
-			entry('|', "vertical bar"),
-			entry(';', "semicolon"),
-			entry(':', "colon"),
-			entry('.', "period"),
-			entry('(', "opening parenthesis"),
-			entry(')', "closing parenthesis"),
-			entry('\s', "space"),
-			entry(',', "comma"),
-			entry('-', "hyphen"),
-			entry('_', "underscore"),
-			entry('"', "quote"),
-			entry('\'', "apostrophe"),
-			entry('/', "slash"),
-			entry('\\', "back slash"),
-			entry('!', "exclamation"),
-			entry('@', "at sign"),
-			entry('#', "numero sign"),
-			entry('$', "dollar sign"),
-			entry('%', "percent sign"),
-			entry('&', "ampersand"),
-			entry('*', "asterisk"),
-			entry('?', "question mark"));
 	// @formatter:on
 	public static final String symbolNamesOf(Character... characters) {
-		return Stream.of(characters).map(SYMBOL_NAMES::get).filter(Objects::nonNull)
+		return Stream.of(characters).map(Common.SYMBOL_NAMES::get).filter(Objects::nonNull)
 				.collect(Collectors.joining(COMMON_JOINER));
 	}
 
