@@ -14,4 +14,6 @@ public interface FileResourceSessionFactory extends SessionFactoryImplementor {
 
 	SessionCreationOptions getSessionCreationOptions();
 
+	String getRootDirectory();
+
 }

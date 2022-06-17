@@ -23,11 +23,12 @@ import javax.imageio.stream.ImageOutputStream;
 import org.hibernate.service.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
 
-import multicados.internal.context.ContextManager;
 import multicados.internal.file.domain.Image;
 import multicados.internal.helper.Utils.BiDeclaration;
 
@@ -46,20 +47,20 @@ public class ImageService implements Service {
 	private final ManipulationContext manipulationContext;
 	private final PropagationWorker worker;
 
-	public ImageService(Environment env, ManipulationContext manipulationContext) throws Exception {
-		worker = instantiatePropagationWorker();
+	public ImageService(ApplicationContext applicationContext, Environment env, ManipulationContext manipulationContext)
+			throws Exception {
+		worker = instantiatePropagationWorker(applicationContext);
 		this.manipulationContext = manipulationContext;
 	}
 
-	private PropagationWorker instantiatePropagationWorker() throws Exception {
+	private PropagationWorker instantiatePropagationWorker(ApplicationContext applicationContext) throws Exception {
 		// @formatter:off
-		return declare(new GenericBeanDefinition())
-			.consume(bean -> bean.setLazyInit(false))
-			.consume(bean -> bean.setBeanClass(PropagationWorker.class))
-				.prepend(PropagationWorker.class)
-			.consume(ContextManager::registerBean)
-			.useFirst()
-			.then(ContextManager::getBean)
+		return declare(applicationContext, PropagationWorker.class, new GenericBeanDefinition())
+				.consume((appContext, type, bean) -> bean.setLazyInit(false))
+				.consume((appContext, type, bean) -> bean.setBeanClass(type))
+				.consume((appContext, type, bean) -> BeanDefinitionRegistry.class.cast(appContext.getAutowireCapableBeanFactory()).registerBeanDefinition(type.getName(), bean))
+			.useSecond()
+			.then(applicationContext::getBean)
 			.get();
 		// @formatter:on
 	}

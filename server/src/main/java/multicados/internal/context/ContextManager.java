@@ -33,15 +33,20 @@ public class ContextManager implements ApplicationContextAware {
 		return exitAcess;
 	}
 
-	public static <T> T getBean(Class<T> beanType) {
-		return applicationContext.getBean(beanType);
-	}
+//	public static <T> T getBean(Class<T> beanType) {
+//		return applicationContext.getBean(beanType);
+//	}
 
 	public static <T> void registerBean(Class<T> beanType, BeanDefinition beanDef) {
-		registerBean(beanType.getName(), beanDef);
+		doRegisterBean(ContextManager.applicationContext, beanType.getName(), beanDef);
 	}
 
-	public static void registerBean(String beanId, BeanDefinition beanDef) {
+	public static <T> void registerBean(ApplicationContext applicationContext, Class<T> beanType,
+			BeanDefinition beanDef) {
+		doRegisterBean(applicationContext, beanType.getName(), beanDef);
+	}
+
+	private static void doRegisterBean(ApplicationContext applicationContext, String beanId, BeanDefinition beanDef) {
 		BeanDefinitionRegistry registry = BeanDefinitionRegistry.class
 				.cast(applicationContext.getAutowireCapableBeanFactory());
 

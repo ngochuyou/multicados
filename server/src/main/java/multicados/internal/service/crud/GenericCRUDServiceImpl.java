@@ -33,6 +33,7 @@ import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.GrantedAuthority;
@@ -76,14 +77,15 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 
+	@Autowired
 	public GenericCRUDServiceImpl(
 	// @formatter:off
+			SessionFactoryImplementor sfi,
 			DomainResourceContext resourceContext,
 			DomainResourceBuilderFactory builderFactory,
 			DomainResourceValidatorFactory validatorFactory,
 			ReadSecurityManager readSecurityManager,
-			GenericRepository genericRepository,
-			SessionFactoryImplementor sfi) throws Exception {
+			GenericRepository genericRepository) throws Exception {
 		// @formatter:on
 		super(resourceContext, builderFactory, validatorFactory);
 		this.readSecurityManager = readSecurityManager;

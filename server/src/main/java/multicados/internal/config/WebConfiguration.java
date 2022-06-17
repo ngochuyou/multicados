@@ -3,18 +3,10 @@
  */
 package multicados.internal.config;
 
-import static multicados.internal.helper.Utils.declare;
-
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -24,16 +16,10 @@ import org.hibernate.cfg.AvailableSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.FactoryBean;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
-import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter;
@@ -51,21 +37,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 
-import multicados.internal.context.ContextBuilder;
-import multicados.internal.context.ContextManager;
-import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.builder.DomainResourceBuilderFactory;
-import multicados.internal.domain.repository.DatabaseInitializer;
-import multicados.internal.domain.repository.GenericRepository;
-import multicados.internal.domain.validation.DomainResourceValidatorFactory;
-import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.image.ImageService;
-import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.TypeHelper;
-import multicados.internal.helper.Utils;
-import multicados.internal.security.CredentialFactory;
-import multicados.internal.service.crud.GenericCRUDService;
-import multicados.internal.service.crud.security.read.ReadSecurityManager;
 
 /**
  * @author Ngoc Huy
@@ -149,7 +121,7 @@ public class WebConfiguration implements WebMvcConfigurer {
 		}
 	}
 
-	@EventListener(ApplicationReadyEvent.class)
+	/*@EventListener(ApplicationReadyEvent.class)
 	private void doWhenReady() throws IllegalAccessException {
 		final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
 
@@ -305,6 +277,6 @@ public class WebConfiguration implements WebMvcConfigurer {
 		}
 
 		return buildersTypes;
-	}
+	}*/
 
 }

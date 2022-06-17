@@ -12,33 +12,35 @@ import java.util.Optional;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 
+import org.hibernate.SessionFactory;
 import org.hibernate.StatelessSession;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Component;
 
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.repository.Selector;
-import multicados.internal.helper.Utils.LazySupplier;
 import multicados.internal.security.DomainUserDetails;
 
 /**
  * @author Ngoc Huy
  *
  */
+@Component
 public class UserDetailsServiceImpl implements UserDetailsService {
 
 	/**
 	 * 
 	 */
 	private static final String USER_NOT_FOUND_TEMPLATE = "User %s not found";
-	private final LazySupplier<GenericRepository> repositorySupplier;
-	private final LazySupplier<SessionFactoryImplementor> sfiSupplier;
+	private final GenericRepository repository;
+	private final SessionFactoryImplementor sessionFactory;
 	// @formatter:off
 	private static final Selector<User, Tuple> SELECTOR = (root, query, builder) -> List.of(
 			root.get(User_.password).alias(User_.PASSWORD),
@@ -46,16 +48,17 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 			root.get(User_.credentialVersion).alias(User_.CREDENTIAL_VERSION),
 			root.get(User_.locked).alias(User_.LOCKED));
 	// @formatter:on
-	public UserDetailsServiceImpl() {
-		sfiSupplier = new LazySupplier<>(() -> ContextManager.getBean(SessionFactoryImplementor.class));
-		repositorySupplier = new LazySupplier<>(() -> ContextManager.getBean(GenericRepository.class));
+	@Autowired
+	public UserDetailsServiceImpl(SessionFactory sessionFactory, GenericRepository genericRepository) {
+		this.sessionFactory = sessionFactory.unwrap(SessionFactoryImplementor.class);
+		repository = genericRepository;
 	}
 
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		try {
-			StatelessSession session = sfiSupplier.get().openStatelessSession();
-			Optional<Tuple> optionalUser = repositorySupplier.get().findById(User.class, username, SELECTOR,
+			StatelessSession session = sessionFactory.openStatelessSession();
+			Optional<Tuple> optionalUser = repository.findById(User.class, username, SELECTOR,
 					LockModeType.PESSIMISTIC_WRITE, session);
 
 			if (optionalUser.isEmpty()) {

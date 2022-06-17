@@ -5,23 +5,15 @@ package multicados.internal.security;
 
 import static multicados.internal.helper.Utils.declare;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -36,8 +28,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
@@ -47,7 +37,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.locale.ZoneContext;
 import multicados.internal.security.jwt.JWTLogoutFilter;
@@ -66,8 +55,6 @@ import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
 @EnableGlobalMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
-	private static final Logger logger = LoggerFactory.getLogger(SecurityConfiguration.class);
-
 	private final Environment env;
 
 	private final UserDetailsService userDetailsService;
@@ -78,25 +65,16 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 	private final JWTRequestFilter jwtRequestFilter;
 
-	public SecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper) throws Exception {
+	public SecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper,
+			UserDetailsService userDetailsService) throws Exception {
 		this.env = env;
 		this.objectMapper = objectMapper;
 		onMemoryUserDetailsContext = new OnMemoryUserDetailsContextImpl();
 		jwtSecurityContext = new JWTSecurityContextImpl(env, zoneContext);
 		authenticationFailureHandler = new AuthenticationFailureHandlerImpl(objectMapper);
-		userDetailsService = locateUserDetailsService();
+		this.userDetailsService = userDetailsService;
 		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService, onMemoryUserDetailsContext, jwtSecurityContext,
 				objectMapper);
-	}
-
-	private UserDetailsService locateUserDetailsService() throws Exception {
-		// @formatter:off
-		return declare(new CustomUserDetailsServiceLocator())
-			.then(CustomUserDetailsServiceLocator::locate)
-			.then(Optional::ofNullable)
-			.then(optional -> optional.orElseGet(() -> super.userDetailsService()))
-			.get();
-		// @formatter:on
 	}
 
 	@Override
@@ -209,79 +187,6 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		http
 			.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 		// @formatter:on
-	}
-
-	private class CustomUserDetailsServiceLocator {
-
-		private CustomUserDetailsServiceLocator() {}
-
-		private ClassPathScanningCandidateComponentProvider getScanner() throws Exception {
-			return declare(new ClassPathScanningCandidateComponentProvider(false, env))
-					.consume(scanner -> scanner.addIncludeFilter(new AssignableTypeFilter(UserDetailsService.class)))
-					.get();
-		}
-
-		private Optional<BeanDefinition> scan(ClassPathScanningCandidateComponentProvider scanner) {
-			return scanner.findCandidateComponents(Settings.BASE_PACKAGE).stream().findFirst();
-		}
-
-		@SuppressWarnings("unchecked")
-		private UserDetailsService tryToLocateFromExistingContext(BeanDefinition beanDef) {
-			ApplicationContext applicationContext = SecurityConfiguration.super.getApplicationContext();
-
-			try {
-				Class<UserDetailsService> clazz = (Class<UserDetailsService>) Class.forName(beanDef.getBeanClassName());
-
-				if (clazz.isAnnotationPresent(Component.class) || clazz.isAnnotationPresent(Service.class)) {
-					return applicationContext.getBean(clazz);
-				}
-
-				return applicationContext.getBean(
-						Optional.ofNullable(beanDef.getFactoryBeanName()).orElse(beanDef.getBeanClassName()),
-						UserDetailsService.class);
-			} catch (Exception any) {
-				logger.trace(String.format("Unable to locate %s from application context, error: %s",
-						UserDetailsService.class.getSimpleName(), any.getMessage()));
-				return null;
-			}
-		}
-
-		private UserDetailsService tryToConstruct(BeanDefinition beanDef, UserDetailsService beanFromContext)
-				throws ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException,
-				InvocationTargetException, NoSuchMethodException, SecurityException {
-			if (beanFromContext != null) {
-				return beanFromContext;
-			}
-
-			return UserDetailsService.class
-					.cast(TypeHelper.constructFromNonArgs(Class.forName(beanDef.getBeanClassName())));
-		}
-
-		private UserDetailsService doLocate(Optional<BeanDefinition> optionalBeanDef) throws Exception {
-			if (optionalBeanDef.isEmpty()) {
-				return null;
-			}
-			// @formatter:off
-			return declare(optionalBeanDef.get())
-						.second(this::tryToLocateFromExistingContext)
-					.then(this::tryToConstruct)
-					.get();
-			// @formatter:on
-		}
-
-		public UserDetailsService locate() throws Exception {
-			// @formatter:off
-			return declare(getScanner())
-				.then(this::scan)
-				.then(this::doLocate)
-				.consume(bean -> logger.trace(bean == null
-							? String.format("No custom %s found", UserDetailsService.class.getSimpleName())
-							: String.format("Located one custom %s of type [%s]",
-									UserDetailsService.class.getSimpleName(), bean.getClass().getName())))
-				.get();
-			// @formatter:on
-		}
-
 	}
 
 	private class CorsConfigurer {

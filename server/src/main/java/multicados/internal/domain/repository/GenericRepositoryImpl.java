@@ -30,6 +30,7 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.query.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -59,8 +60,9 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	private final CriteriaBuilder criteriaBuilder;
 
+	@Autowired
 	@SuppressWarnings({ "unchecked" })
-	public GenericRepositoryImpl(DomainResourceContext resourceContextProvider, SessionFactoryImplementor sfi)
+	public GenericRepositoryImpl(SessionFactoryImplementor sfi, DomainResourceContext resourceContextProvider)
 			throws Exception {
 		Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
 				0);

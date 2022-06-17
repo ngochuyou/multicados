@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainComponentType;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
@@ -69,12 +68,19 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final Map<String, DomainAssociation> associationAttributes;
 	private final Map<String, ComponentPath> componentPaths;
 
-	public DomainResourceMetadataImpl(Class<T> resourceType, DomainResourceContext resourceContextProvider,
-			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap)
+	public DomainResourceMetadataImpl(
+	// @formatter:off
+			Class<T> resourceType,
+			DomainResourceContext resourceContextProvider,
+			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap,
+			SessionFactoryImplementor sfi,
+			FileManagement fileManagement)
 			throws Exception {
+		// @formatter:on
 		this.resourceType = resourceType;
 
-		Builder<T> builder = isHbmManaged(resourceType) ? new HibernateResourceMetadataBuilder<>(resourceType)
+		Builder<T> builder = isHbmManaged(resourceType)
+				? new HibernateResourceMetadataBuilder<>(resourceType, sfi, fileManagement)
 				: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider, metadatasMap);
 
 		attributeNames = unmodifiableList(builder.locateAttributeNames());
@@ -178,21 +184,21 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		private final EntityPersister persister;
 		private final EntityMetamodel metamodel;
 
-		private HibernateResourceMetadataBuilder(Class<D> resourceType) {
+		private HibernateResourceMetadataBuilder(Class<D> resourceType, SessionFactoryImplementor sfi,
+				FileManagement fileManagement) {
 			logger.trace("Building {} for Hibernate entity of type [{}]", DomainResourceMetadata.class.getSimpleName(),
 					resourceType.getName());
-			persister = locatePersister(resourceType);
+			persister = locatePersister(resourceType, sfi, fileManagement);
 			metamodel = persister.getEntityMetamodel();
 		}
 
-		private EntityPersister locatePersister(Class<D> resourceType) {
+		private EntityPersister locatePersister(Class<D> resourceType, SessionFactoryImplementor sfi,
+				FileManagement fileManagement) {
 			if (Entity.class.isAssignableFrom(resourceType)) {
-				return ContextManager.getBean(SessionFactoryImplementor.class).getMetamodel()
-						.entityPersister(resourceType);
+				return sfi.getMetamodel().entityPersister(resourceType);
 			}
 
-			return ContextManager.getBean(FileManagement.class).getSessionFactory().getMetamodel()
-					.entityPersister(resourceType);
+			return fileManagement.getSessionFactory().getMetamodel().entityPersister(resourceType);
 		}
 
 		@Override

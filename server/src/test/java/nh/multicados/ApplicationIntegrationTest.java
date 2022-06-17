@@ -5,11 +5,8 @@ package nh.multicados;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 
-import org.hibernate.Session;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
-import multicados.domain.entity.file.UserPhoto;
 import multicados.internal.config.WebConfiguration;
-import multicados.internal.context.ContextManager;
-import multicados.internal.file.engine.FileManagement;
 
 /**
  * @author Ngoc Huy
@@ -48,15 +42,7 @@ public class ApplicationIntegrationTest {
 
 	@Test
 	public void testSaveUserImage() throws IOException {
-		Session session = ContextManager.getBean(FileManagement.class).getSessionFactory().openSession();
-		UserPhoto photo = new UserPhoto();
 
-		photo.setContent(Files.readAllBytes(
-				new File("C:\\Users\\Ngoc Huy\\Pictures\\Saved Pictures\\revolt-164_6wVEHfI-unsplash.jpg").toPath()));
-		photo.setExtension("jpg");
-
-		session.save(photo);
-		session.flush();
 	}
 
 	@Test

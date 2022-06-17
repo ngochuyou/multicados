@@ -15,7 +15,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import multicados.domain.entity.Gender;
 import multicados.domain.entity.entities.User;
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.For;
 import multicados.internal.domain.builder.AbstractDomainResourceBuilder;
 
@@ -31,8 +30,8 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 
 	private final PasswordEncoder passwordEncoder;
 
-	public UserBuilder() {
-		passwordEncoder = ContextManager.getBean(PasswordEncoder.class);
+	public UserBuilder(PasswordEncoder passwordEncoder) {
+		this.passwordEncoder = passwordEncoder;
 	}
 
 	private User mandatoryBuild(User target, User model) {

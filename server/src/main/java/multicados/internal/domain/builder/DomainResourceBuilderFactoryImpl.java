@@ -13,6 +13,8 @@ import javax.persistence.EntityManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 
 import multicados.internal.domain.AbstractGraphWalkerFactory;
 import multicados.internal.domain.DomainResource;
@@ -30,9 +32,12 @@ import multicados.internal.helper.Utils;
 public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 		implements DomainResourceBuilderFactory {
 
-	public DomainResourceBuilderFactoryImpl(DomainResourceContext resourceContext) throws Exception {
+	@Autowired
+	public DomainResourceBuilderFactoryImpl(ApplicationContext applicationContext,
+			DomainResourceContext resourceContext) throws Exception {
 		// @formatter:off
 		super(
+				applicationContext,
 				DomainResourceBuilder.class,
 				resourceContext,
 				List.of(

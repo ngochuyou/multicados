@@ -12,12 +12,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
 import multicados.internal.helper.StringHelper;
 
 /**
@@ -28,7 +28,8 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 
 	private static final String FLAG_OFF = "off";
 
-	public DatabaseInitializerImpl(Environment env) throws Exception {
+	@Autowired
+	public DatabaseInitializerImpl(ApplicationContext applicationContext, Environment env) throws Exception {
 		String flagValue = Optional.ofNullable(env.getProperty(Settings.DUMMY_DATABASE_MODE))
 				.orElse(StringHelper.EMPTY_STRING).toLowerCase();
 
@@ -36,7 +37,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 			return;
 		}
 
-		invoke(scan());
+		invoke(scan(), applicationContext);
 	}
 
 	private Set<BeanDefinition> scan() {
@@ -50,7 +51,7 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 	}
 
 	@SuppressWarnings("unchecked")
-	private void invoke(Set<BeanDefinition> beanDefs) throws Exception {
+	private void invoke(Set<BeanDefinition> beanDefs, ApplicationContext applicationContext) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DatabaseInitializerImpl.class);
 
 		logger.trace("Invoking {} contributor(s)", beanDefs.size());
@@ -70,7 +71,8 @@ public class DatabaseInitializerImpl implements DatabaseInitializer {
 					for (Constructor<?> cons : contributorClass.getConstructors()) {
 						if (cons.isAnnotationPresent(Autowired.class)) {
 							constructor = (Constructor<DatabaseInitializerContributor>) cons;
-							args = Stream.of(constructor.getParameterTypes()).map(ContextManager::getBean).toArray();
+							args = Stream.of(constructor.getParameterTypes()).map(applicationContext::getBean)
+									.toArray();
 							break tryClause;
 						}
 					}

@@ -3,6 +3,11 @@
  */
 package nh.multicados;
 
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileLock;
+import java.nio.file.Files;
+
 /**
  * @author Ngoc Huy
  *
@@ -10,40 +15,41 @@ package nh.multicados;
 public class UnitTest {
 
 	public static void main(String[] args) throws Exception {
-//		BufferedImage original = ImageIO
-//				.read(new File("C:\\Users\\Ngoc Huy\\Pictures\\muticados\\user\\1655178790254_fBwpCLS.png"));
-//		int width = original.getWidth();
-//		int height = original.getHeight();
-//		double ratio = (width * 1.0) / (height * 1.0);
-//
-//		int nextWidth = 100;
-//		int nextHeight = Double.valueOf(nextWidth / ratio).intValue();
-//
-//		BufferedImage resized = new BufferedImage(nextWidth, nextHeight, original.getType());
-//		Graphics2D graphics = resized.createGraphics();
-//
-//		graphics.drawImage(original, 0, 0, nextWidth, nextHeight, null);
-//		graphics.dispose();
-//
-//		OutputStream os = new FileOutputStream(
-//				new File("C:\\Users\\Ngoc Huy\\Pictures\\muticados\\user\\1655178790254_fBwpCLS_S.png"));
-//
-//		Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
-//		ImageWriter writer = (ImageWriter) writers.next();
-//
-//		ImageOutputStream ios = ImageIO.createImageOutputStream(os);
-//		writer.setOutput(ios);
-//
-//		ImageWriteParam param = writer.getDefaultWriteParam();
-//
-//		param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-//		param.setCompressionQuality(0.7f); // Change the quality value you prefer
-//		writer.write(null, new IIOImage(resized, null, null), param);
-//
-//		os.close();
-//		ios.close();
-//		writer.dispose();
-		System.out.println("L_1655397664615_O105lZQ1".equals("L_1655397664615_O105lZQ1"));
+		String filePath = "C:\\Users\\Ngoc Huy\\Pictures\\muticados\\user\\L_1655397664615_O105lZQ1.jpg";
+
+		Thread blocker = new Thread(() -> {
+			System.out.println(Thread.currentThread().getName());
+			File file = new File(filePath);
+
+			try {
+				RandomAccessFile access = new RandomAccessFile(file, "rw");
+
+				access.getChannel();
+
+				FileLock lock = access.getChannel().lock();
+				System.out.println("Locking");
+				Thread.sleep(10000);
+				System.out.println("Realeasing");
+				lock.release();
+				access.close();
+			} catch (Exception any) {
+				any.printStackTrace();
+			}
+		});
+		Thread reader = new Thread(() -> {
+			try {
+				System.out.println(Thread.currentThread().getName());
+				Thread.sleep(2000);
+				System.out.println("Reading");
+				Files.readAllBytes(new File(filePath).toPath());
+				System.out.println("Read");
+			} catch (Exception any) {
+				any.printStackTrace();
+			}
+		});
+
+		blocker.start();
+		reader.start();
 	}
 
 }

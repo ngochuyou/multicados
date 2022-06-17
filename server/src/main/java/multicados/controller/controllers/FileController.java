@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
 import multicados.domain.entity.file.UserPhoto;
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileResourcePersister;
@@ -38,8 +37,6 @@ import multicados.internal.file.engine.FileResourceSessionFactory;
 import multicados.internal.file.engine.image.ManipulationContext;
 import multicados.internal.helper.Common;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils.HandledLazySupplier;
-import multicados.internal.helper.Utils.LazySupplier;
 
 /**
  * @author Ngoc Huy
@@ -51,28 +48,32 @@ public class FileController extends AbstractController {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 
-	private final LazySupplier<GenericRepository> genericRepositorySupplier;
+	private final GenericRepository genericRepository;
 	private final SessionFactoryImplementor mainSessionFactory;
-	private final LazySupplier<FileResourceSessionFactory> fileResourceSessionFactorySupplier;
 
-	private final HandledLazySupplier<String> userPhotoDirectorySupplier;
-	private final LazySupplier<ManipulationContext> manipulationContextSupplier;
+	private final String userPhotoDirectory;
+	private final ManipulationContext manipulationContext;
 
 	@Autowired
-	public FileController(SessionFactory sessionFactory) throws Exception {
+	public FileController(
+	// @formatter:off
+			SessionFactory sessionFactory,
+			GenericRepository genericRepository,
+			FileManagement fileManagement) throws Exception {
+		// @formatter:on
 		mainSessionFactory = SessionFactoryImplementor.class.cast(sessionFactory);
-		genericRepositorySupplier = new LazySupplier<>(() -> ContextManager.getBean(GenericRepository.class));
-		fileResourceSessionFactorySupplier = new LazySupplier<>(
-				() -> ContextManager.getBean(FileManagement.class).getSessionFactory());
+
+		FileResourceSessionFactory fileResourceSessionFactory = fileManagement.getSessionFactory();
+
+		this.genericRepository = genericRepository;
 		// @formatter:off
-		userPhotoDirectorySupplier = new HandledLazySupplier<>(() ->
-				declare(fileResourceSessionFactorySupplier.get())
-					.then(SessionFactoryImplementor::getMetamodel)
-					.then(metamodel -> metamodel.entityPersister(UserPhoto.class))
-					.then(FileResourcePersister.class::cast)
-					.then(FileResourcePersister::getDirectoryPath)
-					.get());
-		manipulationContextSupplier = new LazySupplier<>(() -> fileResourceSessionFactorySupplier.get().getServiceRegistry().requireService(ManipulationContext.class));
+		userPhotoDirectory = declare(fileResourceSessionFactory)
+				.then(SessionFactoryImplementor::getMetamodel)
+				.then(metamodel -> metamodel.entityPersister(UserPhoto.class))
+				.then(FileResourcePersister.class::cast)
+				.then(FileResourcePersister::getDirectoryPath)
+				.get();
+		manipulationContext = fileResourceSessionFactory.getServiceRegistry().requireService(ManipulationContext.class);
 		// @formatter:on
 	}
 
@@ -84,7 +85,7 @@ public class FileController extends AbstractController {
 			@RequestParam(name = "size", required = false, defaultValue = StringHelper.EMPTY_STRING) String size,
 			HttpServletRequest request) throws Exception {
 		// @formatter:on
-		Optional<Tuple> optionalTuple = genericRepositorySupplier.get().findById(User.class, username,
+		Optional<Tuple> optionalTuple = genericRepository.findById(User.class, username,
 				(root, query, builder) -> List.of(root.get(User_.photo).alias(User_.PHOTO)),
 				mainSessionFactory.getCurrentSession());
 
@@ -94,8 +95,8 @@ public class FileController extends AbstractController {
 		// @formatter:off
 		return declare(optionalTuple.get())
 				.then(tuple -> tuple.get(User_.PHOTO, String.class))
-					.prepend(userPhotoDirectorySupplier.get())
-				.then((directory, filename) -> directory + (size.isEmpty() ? filename : manipulationContextSupplier.get().resolveCompressionName(filename, size)))
+					.prepend(userPhotoDirectory)
+				.then((directory, filename) -> directory + (size.isEmpty() ? filename : manipulationContext.resolveCompressionName(filename, size)))
 					.prepend(request)
 				.then(this::doGetBytesDirectly)
 				.get();

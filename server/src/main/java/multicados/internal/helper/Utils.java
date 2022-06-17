@@ -563,7 +563,7 @@ public abstract class Utils {
 
 	}
 
-	public class LazyFunction<V, T> extends LazyLoader<V, Function<T, V>> {
+	public static class LazyFunction<T, V> extends LazyLoader<V, Function<T, V>> {
 
 		public LazyFunction(Function<T, V> producer) {
 			this.loader = new Function<>() {

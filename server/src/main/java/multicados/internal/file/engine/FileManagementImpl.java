@@ -81,20 +81,22 @@ import org.hibernate.service.spi.SessionFactoryServiceRegistryFactory;
 import org.jboss.jandex.IndexView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.file.engine.image.ManipulationContextImpl;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
+import multicados.internal.helper.Utils.LazyFunction;
 import multicados.internal.locale.ZoneContext;
 
 /**
@@ -107,7 +109,9 @@ public class FileManagementImpl implements FileManagement {
 
 	private final FileResourceSessionFactory sessionFactory;
 
-	public FileManagementImpl(SessionFactoryImplementor sfi, Environment env) throws Exception {
+	@Autowired
+	public FileManagementImpl(ApplicationContext applicationContext, Environment env, SessionFactoryImplementor sfi)
+			throws Exception {
 		// @formatter:off
 		logger.info("\n\n"
 				+ "\t\t\t\t\t\t========================================================\n"
@@ -116,7 +120,7 @@ public class FileManagementImpl implements FileManagement {
 		// @formatter:on
 		BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
 		StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi, bootstrapServiceRegistry,
-				new ProvidedServicesLocator(sfi, env));
+				new ProvidedServicesLocator(applicationContext, sfi, env));
 		MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(standardServiceRegistry);
 		BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry, metadataBuildingOptions);
 
@@ -140,7 +144,7 @@ public class FileManagementImpl implements FileManagement {
 				.then(MetadataBuildingProcess::build)
 					.second(getSessionFactoryOptionsBuilder(sfi, serviceRegistry, bootstrapContext))
 					.<QueryPlanCache.QueryPlanCreator>third(HQLQueryPlan::new)
-				.then(FileResourceSessionFactoryImpl::new)
+				.then((metadataImplementor, factoryOptions, planCreator) -> new FileResourceSessionFactoryImpl(env, metadataImplementor, factoryOptions, planCreator))
 				.get();
 	}
 
@@ -200,20 +204,20 @@ public class FileManagementImpl implements FileManagement {
 		// @formatter:off
 		@SuppressWarnings({ "rawtypes" })
 		private final List<ProvidedService> providedServices;
+
+		private static final String DEAULT_FILE_RESOURCE_ROOT_DIRECTORY = "files\\";
 		
 		@SuppressWarnings({ "rawtypes", "unchecked", "serial" })
-		public ProvidedServicesLocator(SessionFactoryImplementor sfi, Environment env) throws Exception {
+		public ProvidedServicesLocator(ApplicationContext applicationContext, SessionFactoryImplementor sfi, Environment env) throws Exception {
 			final List<ProvidedService> providedServices = new ArrayList<>();
 			final ServiceRegistryImplementor serviceRegistry = sfi.getServiceRegistry();
-
-			providedServices.add(new ProvidedService<>(
-					MutableIdentifierGeneratorFactory.class,
-					declare(serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class))
-						.consume(self -> self.register(FileIdentifierGenerator.NAME, FileIdentifierGenerator.class))
-						.get()));
+			
 			providedServices.add(new ProvidedService<>(JdbcServices.class, sfi.getJdbcServices()));
 			providedServices.add(new ProvidedService<>(JdbcEnvironment.class, sfi.getJdbcServices().getJdbcEnvironment()));
 			providedServices.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
+			
+			final String rootDirectory = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_ROOT_DIRECTORY, HandledFunction.identity(), DEAULT_FILE_RESOURCE_ROOT_DIRECTORY);
+			
 			providedServices.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
 					declare(new HashMap())
 						.consume(self -> self.putAll(serviceRegistry.requireService(ConfigurationService.class).getSettings()))
@@ -222,7 +226,8 @@ public class FileManagementImpl implements FileManagement {
 							AvailableSettings.HBM2DDL_SCRIPTS_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
 							AvailableSettings.HBM2DDL_DATABASE_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
 							AvailableSettings.USE_SECOND_LEVEL_CACHE, Boolean.TRUE,
-							AvailableSettings.STATEMENT_BATCH_SIZE, 0)))
+							AvailableSettings.STATEMENT_BATCH_SIZE, 0,
+							Settings.FILE_RESOURCE_ROOT_DIRECTORY, rootDirectory)))
 						.get())));
 			providedServices.add(new ProvidedService<>(ProxyFactoryFactory.class, serviceRegistry.requireService(ProxyFactoryFactory.class)));
 			providedServices.add(new ProvidedService<>(CfgXmlAccessService.class, serviceRegistry.requireService(CfgXmlAccessService.class)));
@@ -254,12 +259,18 @@ public class FileManagementImpl implements FileManagement {
 			}));
 			
 			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env);			
-			ImageService imageService = new ImageService(env, manipulationContext);
+			ImageService imageService = new ImageService(applicationContext, env, manipulationContext);
 			
 			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
 			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
 			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
-
+			providedServices.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
+			providedServices.add(new ProvidedService<>(
+					MutableIdentifierGeneratorFactory.class,
+					declare(serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class))
+						.consume(self -> self.register(FileIdentifierGenerator.NAME, FileIdentifierGenerator.class))
+						.get()));
+			
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
 		// @formatter:on
@@ -269,10 +280,13 @@ public class FileManagementImpl implements FileManagement {
 
 		public static final String NAME = "fileresource_identifier_generator";
 
-		private final ZoneId zoneId = ContextManager.getBean(ZoneContext.class).getZone();
+		private final LazyFunction<SharedSessionContractImplementor, ZoneId> zoneIdProducer = new LazyFunction<>(
+				session -> session.getFactory().getServiceRegistry().requireService(ZoneContext.class).getZone());
 
 		private static final String IDENTIFIER_PARTS_SEPERATOR = "_";
 		public static final int IDENTIFIER_LENGTH = 26; // extension included
+
+		public FileIdentifierGenerator() {}
 
 		@Override
 		public Serializable generate(SharedSessionContractImplementor session, Object instance)
@@ -280,7 +294,7 @@ public class FileManagementImpl implements FileManagement {
 			FileResource resource = (FileResource) instance;
 			// @formatter:off
 			try {
-				return declare(LocalDateTime.now().atZone(zoneId).toInstant().toEpochMilli())
+				return declare(LocalDateTime.now().atZone(zoneIdProducer.get(session)).toInstant().toEpochMilli())
 						.then(String::valueOf)
 						.then(StringBuilder::new)
 						.then(builder -> builder.append(IDENTIFIER_PARTS_SEPERATOR))

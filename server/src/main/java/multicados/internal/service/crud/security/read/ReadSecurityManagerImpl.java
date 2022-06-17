@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -49,8 +50,9 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	@SuppressWarnings("rawtypes")
 	private final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes;
 
-	public ReadSecurityManagerImpl(DomainResourceContext resourceContext) throws Exception {
-		ReadFailureExceptionHandler failureHandler = resolveFailureHandler();
+	@Autowired
+	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext) throws Exception {
+		ReadFailureExceptionHandler failureHandler = resolveFailureHandler(env);
 		// @formatter:off
 		securityNodes = Utils
 			.declare(scanForContributors())
@@ -159,12 +161,11 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		return configuredNodes;
 	}
 
-	private ReadFailureExceptionHandler resolveFailureHandler() {
+	private ReadFailureExceptionHandler resolveFailureHandler(Environment env) {
 		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
 
 		logger.debug("Resolving {}", ReadFailureExceptionHandler.class.getName());
 
-		Environment env = ContextManager.getBean(Environment.class);
 		String configuredStrategy = env.getProperty(Settings.READ_FAILURE_EXCEPTION_THROWING_STRATEGY);
 
 		try {

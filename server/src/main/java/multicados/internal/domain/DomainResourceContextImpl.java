@@ -17,24 +17,27 @@ import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.hibernate.SessionFactory;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl;
 import multicados.internal.domain.tuplizer.DomainEntityTuplizer;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.domain.Image;
+import multicados.internal.file.engine.FileManagement;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 
 /**
  * @author Ngoc Huy
@@ -47,19 +50,21 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
-	public DomainResourceContextImpl() throws Exception {
+	@Autowired
+	public DomainResourceContextImpl(SessionFactory sessionFactory, FileManagement fileManagement) throws Exception {
+		SessionFactoryImplementor sfi = sessionFactory.unwrap(SessionFactoryImplementor.class);
 		// @formatter:off
 		resourceGraph = declare(scan())
 				.then(this::buildGraph)
 				.consume(this::sealGraph)
 				.get();
-		metadatasMap = declare(resourceGraph)
-				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))
+		metadatasMap = declare(resourceGraph, sfi, fileManagement)
+					.map(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()), HandledFunction.identity(), HandledFunction.identity())
 				.then(this::buildMetadatas)
 				.then(Collections::unmodifiableMap)
 				.get();
-		tuplizersMap = declare(resourceGraph)
-				.then(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()))
+		tuplizersMap = declare(resourceGraph, sfi)
+					.map(resourceGraph -> resourceGraph.collect(DomainResourceGraphCollectors.toTypesSet()), HandledFunction.identity())
 				.then(this::buildTuplizers)
 				.then(Collections::unmodifiableMap)
 				.get();
@@ -68,7 +73,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> buildTuplizers(
-			Collection<Class<DomainResource>> entityTypes) throws Exception {
+			Collection<Class<DomainResource>> entityTypes, SessionFactoryImplementor sfi) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceTuplizer.class.getSimpleName());
@@ -83,8 +88,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 			if (Entity.class.isAssignableFrom(type) && !Modifier.isAbstract(type.getModifiers())) {
 				logger.trace("HBM {}", type.getName());
 
-				tuplizers.put(type, new DomainEntityTuplizer<>(type, getMetadata(type),
-						ContextManager.getBean(SessionFactoryImplementor.class)));
+				tuplizers.put(type, new DomainEntityTuplizer<>(type, getMetadata(type), sfi));
 				continue;
 			}
 		}
@@ -149,7 +153,8 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 	}
 
 	private Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> buildMetadatas(
-			Collection<Class<DomainResource>> resourceTypes) throws Exception {
+			Collection<Class<DomainResource>> resourceTypes, SessionFactoryImplementor sfi,
+			FileManagement fileManagement) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(DomainResourceContextImpl.class);
 
 		logger.trace("Building {}(s)", DomainResourceMetadata.class.getSimpleName());
@@ -164,7 +169,7 @@ public class DomainResourceContextImpl implements DomainResourceContext {
 			}
 
 			DomainResourceMetadataImpl<? extends DomainResource> metadata = new DomainResourceMetadataImpl<>(
-					resourceType, this, metadatasMap);
+					resourceType, this, metadatasMap, sfi, fileManagement);
 
 //			metadataEntries.notify(metadata);
 			metadatasMap.put(resourceType, metadata);

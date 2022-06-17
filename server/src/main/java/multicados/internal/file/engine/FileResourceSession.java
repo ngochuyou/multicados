@@ -12,8 +12,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 
-import multicados.internal.context.ContextManager;
-
 /**
  * @author Ngoc Huy
  *
@@ -28,8 +26,8 @@ public class FileResourceSession extends SessionImpl {
 	private static final Logger logger = LoggerFactory.getLogger(FileResourceSession.class);
 
 	@Autowired
-	public FileResourceSession() {
-		this(ContextManager.getBean(FileManagement.class).getSessionFactory());
+	public FileResourceSession(FileManagement fileManagement) {
+		this(fileManagement.getSessionFactory());
 	}
 
 	public FileResourceSession(FileResourceSessionFactory sessionFactory) {

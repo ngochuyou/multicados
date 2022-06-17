@@ -8,6 +8,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 
 import multicados.internal.domain.AbstractGraphWalkerFactory;
 import multicados.internal.domain.DomainResource;
@@ -17,10 +19,14 @@ import multicados.internal.domain.DomainResourceContext;
  * @author Ngoc Huy
  *
  */
-public class ValidatorFactoryImpl extends AbstractGraphWalkerFactory implements DomainResourceValidatorFactory {
+public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFactory
+		implements DomainResourceValidatorFactory {
 
-	public ValidatorFactoryImpl(DomainResourceContext resourceContextProvider) throws Exception {
-		super(DomainResourceValidator.class, resourceContextProvider, List.of(), () -> NO_OP_VALIDATOR);
+	@Autowired
+	public DomainResourceValidatorFactoryImpl(ApplicationContext applicationContext,
+			DomainResourceContext resourceContextProvider) throws Exception {
+		super(applicationContext, DomainResourceValidator.class, resourceContextProvider, List.of(),
+				() -> NO_OP_VALIDATOR);
 	}
 
 	@SuppressWarnings("unchecked")

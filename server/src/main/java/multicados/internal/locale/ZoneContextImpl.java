@@ -21,6 +21,11 @@ import multicados.internal.config.Settings;
 @Component
 public class ZoneContextImpl implements ZoneContext {
 
+	/**
+	 * 
+	 */
+	public static final long serialVersionUID = 1L;
+
 	private static final Logger logger = LoggerFactory.getLogger(ZoneContextImpl.class);
 
 	private static final String LOCAL_ZONE = "LOCAL";

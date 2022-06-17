@@ -3,6 +3,7 @@
  */
 package multicados.internal.domain;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,16 +14,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
 import multicados.internal.helper.CollectionHelper;
-import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
 /**
@@ -35,13 +38,15 @@ public abstract class AbstractGraphWalkerFactory {
 	protected final Map<Class, GraphWalker> walkersMap;
 
 	@SuppressWarnings("rawtypes")
-	public <W extends GraphWalker<?>> AbstractGraphWalkerFactory(Class<W> walkerType,
-			DomainResourceContext resourceContext, Collection<Map.Entry<Class, GraphWalker>> fixedLogics,
-			Supplier<GraphWalker> noopSupplier) throws Exception {
+	public <W extends GraphWalker<?>> AbstractGraphWalkerFactory(ApplicationContext applicationContext,
+			Class<W> walkerType, DomainResourceContext resourceContext,
+			Collection<Map.Entry<Class, GraphWalker>> fixedLogics, Supplier<GraphWalker> noopSupplier)
+			throws Exception {
 		// @formatter:off
 		this.walkersMap = Utils.declare(scan(walkerType))
 					.second(walkerType)
-					.biInverse()
+					.third(applicationContext)
+					.triInverse()
 				.then(this::contribute)
 					.second(fixedLogics)
 				.then(this::addFixedLogics)
@@ -67,9 +72,8 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private <W extends GraphWalker<?>> Map<Class, GraphWalker> contribute(Class<W> walkerType,
-			Set<BeanDefinition> beanDefs) throws ClassNotFoundException, InstantiationException, IllegalAccessException,
-			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+	private <W extends GraphWalker<?>> Map<Class, GraphWalker> contribute(ApplicationContext applicationContext,
+			Class<W> walkerType, Set<BeanDefinition> beanDefs) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 		final Map<Class, GraphWalker> walkersMap = new HashMap<>(8);
 
@@ -81,7 +85,7 @@ public abstract class AbstractGraphWalkerFactory {
 				throw new IllegalArgumentException(For.Message.getMissingMessage(walkerClass));
 			}
 
-			GraphWalker walker = TypeHelper.constructFromNonArgs(walkerClass);
+			GraphWalker walker = constructWalker(applicationContext, walkerClass);
 
 			walkersMap.put(anno.value(), walker);
 			logger.trace("Contributing {}", walker.getLoggableName());
@@ -90,6 +94,43 @@ public abstract class AbstractGraphWalkerFactory {
 		logger.trace("Contributed {} {}", walkersMap.size(), walkerType.getSimpleName());
 
 		return walkersMap;
+	}
+
+	@SuppressWarnings("rawtypes")
+	private GraphWalker constructWalker(ApplicationContext applicationContext, Class<GraphWalker> walkerClass)
+			throws Exception {
+		// @formatter:off
+		return Utils.declare(walkerClass)
+				.then(this::locateConstructor)
+					.prepend(applicationContext)
+				.then(this::construct)
+				.get();
+		// @formatter:on
+	}
+
+	@SuppressWarnings("rawtypes")
+	private GraphWalker construct(ApplicationContext applicationContext, Constructor constructor)
+			throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		return GraphWalker.class.cast(constructor
+				.newInstance(Stream.of(constructor.getParameterTypes()).map(applicationContext::getBean).toArray()));
+	}
+
+	@SuppressWarnings("rawtypes")
+	private Constructor locateConstructor(Class<GraphWalker> walkerClass) {
+		Constructor<?>[] constructors = walkerClass.getConstructors();
+
+		if (constructors.length == 1) {
+			return constructors[0];
+		}
+
+		for (Constructor<?> constructor : constructors) {
+			if (constructor.isAnnotationPresent(Autowired.class)) {
+				return constructor;
+			}
+		}
+
+		throw new IllegalArgumentException(String.format("Unable to locate any non-arg nor @%s construct in %s type %s",
+				Autowired.class.getSimpleName(), GraphWalker.class.getSimpleName(), walkerClass));
 	}
 
 	@SuppressWarnings("rawtypes")

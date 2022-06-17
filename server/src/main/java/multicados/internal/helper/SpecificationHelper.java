@@ -5,12 +5,11 @@ package multicados.internal.helper;
 
 import java.io.Serializable;
 
-import org.hibernate.SessionFactory;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.springframework.data.jpa.domain.Specification;
 
-import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResource;
 
 /**
@@ -29,10 +28,10 @@ public class SpecificationHelper {
 
 	public static <D extends DomainResource> Specification<D> hasId(Class<D> type, Serializable id,
 			SharedSessionContract session) {
-		return (root, query, builder) -> builder.equal(
-				root.get(ContextManager.getBean(SessionFactory.class).unwrap(SessionFactoryImplementor.class)
-						.getMetamodel().entityPersister(type).getEntityMetamodel().getIdentifierProperty().getName()),
-				id);
+		return (root, query,
+				builder) -> builder.equal(root.get(((SharedSessionContractImplementor) session).getFactory()
+						.unwrap(SessionFactoryImplementor.class).getMetamodel().entityPersister(type)
+						.getEntityMetamodel().getIdentifierProperty().getName()), id);
 	}
 
 }

@@ -9,10 +9,14 @@ import org.hibernate.Session;
 import org.hibernate.StatelessSessionBuilder;
 import org.hibernate.boot.spi.MetadataImplementor;
 import org.hibernate.boot.spi.SessionFactoryOptions;
+import org.hibernate.engine.config.spi.ConfigurationService;
 import org.hibernate.engine.query.spi.QueryPlanCache.QueryPlanCreator;
 import org.hibernate.engine.spi.SessionBuilderImplementor;
 import org.hibernate.internal.SessionCreationOptions;
 import org.hibernate.internal.SessionFactoryImpl;
+import org.springframework.core.env.Environment;
+
+import multicados.internal.config.Settings;
 
 /**
  * @author Ngoc Huy
@@ -27,9 +31,12 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	@SuppressWarnings("rawtypes")
 	private final StatelessSessionBuilder statelessSessionBuilder;
 
+	private final String rootDirectory;
+
 	@SuppressWarnings("rawtypes")
 	public FileResourceSessionFactoryImpl(
 	// @formatter:off
+			Environment env,
 			MetadataImplementor metadataImplementor,
 			SessionFactoryOptions factoryOptions,
 			QueryPlanCreator planCreator) throws Exception {
@@ -51,7 +58,8 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 			};
 
 		};
-
+		rootDirectory = getServiceRegistry().requireService(ConfigurationService.class).getSettings()
+				.get(Settings.FILE_RESOURCE_ROOT_DIRECTORY).toString();
 		registerEventListeners();
 	}
 
@@ -76,6 +84,11 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	@Override
 	public SessionCreationOptions getSessionCreationOptions() {
 		return SessionCreationOptions.class.cast(sessionCreationOptions);
+	}
+
+	@Override
+	public String getRootDirectory() {
+		return rootDirectory;
 	}
 
 }

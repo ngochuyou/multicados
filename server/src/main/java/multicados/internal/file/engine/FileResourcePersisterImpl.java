@@ -12,9 +12,11 @@ import java.nio.file.Paths;
 
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
+import org.hibernate.LockOptions;
 import org.hibernate.SessionFactory;
 import org.hibernate.cache.spi.access.EntityDataAccess;
 import org.hibernate.cache.spi.access.NaturalIdDataAccess;
+import org.hibernate.engine.config.spi.ConfigurationService;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.persister.entity.SingleTableEntityPersister;
@@ -22,15 +24,11 @@ import org.hibernate.persister.spi.PersisterCreationContext;
 import org.hibernate.proxy.HibernateProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
 import multicados.internal.file.domain.Directory;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.domain.Image;
-import multicados.internal.helper.SpringHelper;
-import multicados.internal.helper.Utils.HandledFunction;
 
 /**
  * @author Ngoc Huy
@@ -49,31 +47,52 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 	private final SaveStrategy saveStrategy;
 
 	@SuppressWarnings("unchecked")
-	public FileResourcePersisterImpl(PersistentClass persistentClass, EntityDataAccess cacheAccessStrategy,
-			NaturalIdDataAccess naturalIdRegionAccessStrategy, PersisterCreationContext creationContext)
+	public FileResourcePersisterImpl(
+	// @formatter:off
+			PersistentClass persistentClass,
+			EntityDataAccess cacheAccessStrategy,
+			NaturalIdDataAccess naturalIdRegionAccessStrategy,
+			PersisterCreationContext creationContext)
 			throws Exception {
+		// @formatter:on
 		super(persistentClass, cacheAccessStrategy, naturalIdRegionAccessStrategy, creationContext);
 		FileResourceSessionFactory sfi = FileResourceSessionFactory.class.cast(creationContext.getSessionFactory());
 
 		sfi.addObserver(this);
 		// @formatter:off
 		directoryPath = String.format("%s%s",
-				SpringHelper.getOrDefault(
-						ContextManager.getBean(Environment.class),
-						Settings.FILE_RESOURCE_ROOT_DIRECTORY,
-						HandledFunction.identity(),
-						Settings.DEAULT_FILE_RESOURCE_ROOT_DIRECTORY),
+				sfi.getServiceRegistry().requireService(ConfigurationService.class).getSettings()
+					.get(Settings.FILE_RESOURCE_ROOT_DIRECTORY).toString(),
 				declare(persistentClass)
 					.then(PersistentClass::getMappedClass)
 					.then(type -> type.getDeclaredAnnotation(Directory.class))
 					.then(Directory.class::cast)
 					.then(Directory::value)
 					.get());
-		
-		SaveStrategyResolver saveStrategyResolver = sfi.getServiceRegistry().requireService(SaveStrategyResolver.class);
-		
-		saveStrategy = Image.class.isAssignableFrom(getMappedClass()) ? saveStrategyResolver.getSaveStrategy(Image.class) : saveStrategyResolver.getSaveStrategy(FileResource.class);
 		// @formatter:on
+		SaveStrategyResolver saveStrategyResolver = sfi.getServiceRegistry().requireService(SaveStrategyResolver.class);
+
+		saveStrategy = Image.class.isAssignableFrom(getMappedClass())
+				? saveStrategyResolver.getSaveStrategy(Image.class)
+				: saveStrategyResolver.getSaveStrategy(FileResource.class);
+	}
+
+	@Override
+	public void delete(Serializable id, Object version, Object object, SharedSessionContractImplementor session)
+			throws HibernateException {
+		super.delete(id, version, object, session);
+	}
+
+	@Override
+	public void delete(Serializable id, Object version, int j, Object object, String sql,
+			SharedSessionContractImplementor session, Object[] loadedState) throws HibernateException {
+		delete(id, version, object, session);
+	}
+
+	@Override
+	public Object load(Serializable id, Object optionalObject, LockOptions lockOptions,
+			SharedSessionContractImplementor session) throws HibernateException {
+		return super.load(id, optionalObject, LockOptions.NONE, session);
 	}
 
 	@Override
@@ -122,16 +141,14 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 
 	private void createDirectory() {
 		Path path = Paths.get(directoryPath);
-		boolean doesExist = Files.exists(path);
-		boolean isDirectory = Files.isDirectory(path);
 
-		if (!doesExist) {
+		if (!Files.exists(path)) {
 			logger.debug("Creating new directory with path [{}]", path);
 			path.toFile().mkdir();
 			return;
 		}
 
-		if (isDirectory) {
+		if (Files.isDirectory(path)) {
 			return;
 		}
 

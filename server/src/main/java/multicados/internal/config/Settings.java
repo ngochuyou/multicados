@@ -41,6 +41,5 @@ public interface Settings {
 	public static final String FILE_RESOURCE_IMAGE_STANDARD_SQUARE = "multicados.file.image.standard.square";
 
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
-	public static final String DEAULT_FILE_RESOURCE_ROOT_DIRECTORY = "files\\";
 
 }
