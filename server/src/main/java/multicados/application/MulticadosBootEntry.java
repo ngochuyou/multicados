@@ -25,10 +25,10 @@ import multicados.internal.config.Settings;
 @EnableCaching(proxyTargetClass = true)
 // @formatter:on
 @Import(DomainLogicContextConfiguration.class)
-public class BootEntry {
+public class MulticadosBootEntry {
 
 	public static void main(String[] args) {
-		SpringApplication.run(BootEntry.class, args);
+		SpringApplication.run(MulticadosBootEntry.class, args);
 	}
 
 }

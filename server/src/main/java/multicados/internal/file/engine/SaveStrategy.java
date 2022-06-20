@@ -3,8 +3,6 @@
  */
 package multicados.internal.file.engine;
 
-import java.io.Serializable;
-
 import multicados.internal.file.domain.FileResource;
 
 /**
@@ -13,7 +11,7 @@ import multicados.internal.file.domain.FileResource;
  */
 public interface SaveStrategy {
 
-	<T extends FileResource> void save(FileResourcePersister persister, Serializable id, T object,
+	<T extends FileResource> String save(FileResourcePersister persister, String id, T object,
 			FileResourceSession session) throws Exception;
 
 }

@@ -14,6 +14,8 @@ import org.springframework.util.Assert;
  */
 public class Standard {
 
+	private final String name;
+
 	private final int numerator;
 	private final int denominator;
 
@@ -30,8 +32,10 @@ public class Standard {
 	private final float[] compressionFactors;
 	private final String[] compressionPrefixes;
 
-	public Standard(Fraction ratio, int originalWidth, float[] compressionQualities, float[] compressionFactors,
-			String[] compressionPrefixes) {
+	public Standard(String name, Fraction ratio, int originalWidth, float[] compressionQualities,
+			float[] compressionFactors, String[] compressionPrefixes) {
+		this.name = name;
+
 		numerator = ratio.getNumerator();
 		denominator = ratio.getDenominator();
 
@@ -51,7 +55,7 @@ public class Standard {
 		this.compressionQualities = compressionQualities;
 		this.compressionFactors = compressionFactors;
 		this.compressionPrefixes = compressionPrefixes;
-		batchSize = compressionQualities.length + 1;
+		batchSize = compressionQualities.length;
 	}
 
 	public int maintainHeight(int width) {
@@ -110,12 +114,16 @@ public class Standard {
 		return compressionPrefixes;
 	}
 
+	public String getName() {
+		return name;
+	}
+
 	@Override
 	public String toString() {
-		return "Standard [ratio=" + ratio + ", originalWidth=" + originalWidth + ", originalHeight=" + originalHeight
-				+ ", compressionQualities=" + Arrays.toString(compressionQualities) + ", compressionFactors="
-				+ Arrays.toString(compressionFactors) + ", compressionPrefixes=" + Arrays.toString(compressionPrefixes)
-				+ "]";
+		return "Standard [name=" + name + ", ratio=" + ratio + ", originalWidth=" + originalWidth + ", originalHeight="
+				+ originalHeight + ", compressionQualities=" + Arrays.toString(compressionQualities)
+				+ ", compressionFactors=" + Arrays.toString(compressionFactors) + ", compressionPrefixes="
+				+ Arrays.toString(compressionPrefixes) + "]";
 	}
 
 }

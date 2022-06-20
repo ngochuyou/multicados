@@ -28,14 +28,15 @@ public class StringHelper extends StringUtils {
 	public static final String COMMON_JOINER = ", ";
 
 	public static final String EMPTY_STRING = "";
-	
+
 	public static final String SPACE = "\s";
 	public static final String DOT = ".";
 	public static final String COMMA = ",";
 	public static final String COLON = ":";
+	public static final String SEMI_COLON = ";";
 	public static final String VERTICAL_BAR = "\\|";
 	public static final String UNDERSCORE = "_";
-	
+
 	public static final String NULL = "null";
 	public static final String VIETNAMESE_CHARACTERS = "ÁáÀàẢảÃãẠạĂăẮắẰằẲẳẴẵẶặÂâẤấẦầẨẩẪẫẬậĐđÉéÈèẺẻẼẽẸẹÊêỂểẾếỀềỄễỆệÍíÌìỊịỈỉĨĩỊịÓóÒòỎỏÕõỌọÔôỐốỒồỔổỖỗỘộƠơỚớỜờỞởỠỡỢợÚùÙùỦủŨũỤụƯưỨứỪừỬửỮữỰựÝýỲỳỶỷỸỹỴỵ";
 
@@ -79,8 +80,8 @@ public class StringHelper extends StringUtils {
 		return join(COMMON_JOINER, stringGetter, elements);
 	}
 
-	public static <T> String join(CharSequence joiner, Collection<String> elements) {
-		return elements.stream().collect(Collectors.joining(joiner));
+	public static <T> String join(CharSequence joiner, Collection<T> elements) {
+		return join(joiner, Object::toString, elements);
 	}
 
 	public static <T> String join(CharSequence joiner, Function<T, String> stringGetter, Collection<T> elements) {

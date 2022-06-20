@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import multicados.internal.config.Settings;
 import multicados.internal.file.domain.Directory;
 import multicados.internal.file.domain.FileResource;
-import multicados.internal.file.domain.Image;
 
 /**
  * @author Ngoc Huy
@@ -70,18 +69,13 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 					.then(Directory::value)
 					.get());
 		// @formatter:on
-		SaveStrategyResolver saveStrategyResolver = sfi.getServiceRegistry().requireService(SaveStrategyResolver.class);
-
-		saveStrategy = Image.class.isAssignableFrom(getMappedClass())
-				? saveStrategyResolver.getSaveStrategy(Image.class)
-				: saveStrategyResolver.getSaveStrategy(FileResource.class);
+		saveStrategy = sfi.getServiceRegistry().requireService(SaveStrategyResolver.class)
+				.getSaveStrategy(getMappedClass());
 	}
 
 	@Override
 	public void delete(Serializable id, Object version, Object object, SharedSessionContractImplementor session)
-			throws HibernateException {
-		super.delete(id, version, object, session);
-	}
+			throws HibernateException {}
 
 	@Override
 	public void delete(Serializable id, Object version, int j, Object object, String sql,
@@ -121,7 +115,9 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 				Hibernate.initialize(object);
 			}
 
-			saveStrategy.save(this, id, FileResource.class.cast(object), FileResourceSession.class.cast(session));
+			String manipulatedIdentifier = saveStrategy.save(this, id.toString(), FileResource.class.cast(object), FileResourceSession.class.cast(session));
+			
+			setIdentifier(object, manipulatedIdentifier, session);
 		} catch (Exception any) {
 			any.printStackTrace();
 			throw new HibernateException(any);

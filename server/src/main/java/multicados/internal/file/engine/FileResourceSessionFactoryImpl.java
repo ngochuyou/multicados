@@ -12,11 +12,17 @@ import org.hibernate.boot.spi.SessionFactoryOptions;
 import org.hibernate.engine.config.spi.ConfigurationService;
 import org.hibernate.engine.query.spi.QueryPlanCache.QueryPlanCreator;
 import org.hibernate.engine.spi.SessionBuilderImplementor;
+import org.hibernate.event.service.spi.EventListenerRegistry;
+import org.hibernate.event.spi.EventType;
 import org.hibernate.internal.SessionCreationOptions;
 import org.hibernate.internal.SessionFactoryImpl;
+import org.hibernate.service.spi.ServiceRegistryImplementor;
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
+import multicados.internal.file.engine.image.IdentifierGeneratingSaveEventListener;
+import multicados.internal.file.engine.image.ManipulationContext;
+import multicados.internal.locale.ZoneContext;
 
 /**
  * @author Ngoc Huy
@@ -64,9 +70,15 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 	}
 
 	private void registerEventListeners() {
-//		EventListenerRegistry listenerRegistry = getServiceRegistry().requireService(EventListenerRegistry.class);
-//
-//		listenerRegistry.prependListeners(eventType, listener);
+		ServiceRegistryImplementor serviceRegistry = getServiceRegistry();
+		EventListenerRegistry listenerRegistry = serviceRegistry.requireService(EventListenerRegistry.class);
+		// @formatter:off
+		listenerRegistry.prependListeners(EventType.SAVE,
+				new IdentifierGeneratingSaveEventListener(
+						serviceRegistry.requireService(ConfigurationService.class),
+						serviceRegistry.requireService(ManipulationContext.class),
+						serviceRegistry.requireService(ZoneContext.class)));
+		// @formatter:on
 	}
 
 	@Override

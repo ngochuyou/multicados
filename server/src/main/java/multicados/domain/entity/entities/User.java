@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import multicados.domain.entity.Gender;
 import multicados.domain.entity.PermanentEntity;
 import multicados.domain.entity.Role;
-import multicados.internal.file.engine.FileManagementImpl.FileIdentifierGenerator;
 
 /**
  * @author Ngoc Huy
@@ -66,7 +65,7 @@ public class User extends PermanentEntity<String> {
 	@Column(nullable = false)
 	private Boolean locked;
 
-	@Column(nullable = false, length = FileIdentifierGenerator.IDENTIFIER_LENGTH)
+	@Column(nullable = false, length = 40)
 	private String photo;
 
 	public String getId() {

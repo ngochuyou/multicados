@@ -5,6 +5,7 @@ package multicados.internal.file.engine.image;
 
 import java.awt.image.BufferedImage;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -18,6 +19,7 @@ import org.springframework.core.env.Environment;
 import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.HandledFunction;
 
 /**
@@ -26,59 +28,66 @@ import multicados.internal.helper.Utils.HandledFunction;
  */
 public class ManipulationContextImpl implements ManipulationContext {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
-
 	private static final Logger logger = LoggerFactory.getLogger(ManipulationContextImpl.class);
 
-	private final Map<Ratio, Standard> standardsMap;
-	private final Standard[] standardArrays;
+	private final Map<String, Standard> standardsMap;
+	private final Standard[] standardsArray;
+	private final String identifierDelimiter;
 
-	public ManipulationContextImpl(Environment env) throws Exception {
-		Standard portrait = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_PORTRAIT);
-		Standard landscape = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_LANDSCAPE);
-		Standard square = resolveStandard(env, Settings.FILE_RESOURCE_IMAGE_STANDARD_SQUARE);
+	private final int maximumIdentifierOccupancy;
 
-		standardsMap = Collections
-				.unmodifiableMap(Map.of(Ratio.PORTRAIT, portrait, Ratio.LANDSCAPE, landscape, Ratio.SQUARE, square));
-		standardArrays = Stream.of(portrait, landscape, square).sorted((one, two) -> one.compareRatio(two.getRatio()))
+	public ManipulationContextImpl(Environment env, String identifierDelimiter) throws Exception {
+		standardsMap = resolveStandards(env);
+		standardsArray = standardsMap.values().stream().sorted((one, two) -> one.compareRatio(two.getRatio()))
 				.toArray(Standard[]::new);
+		maximumIdentifierOccupancy = standardsMap.values().stream().map(Standard::getName).map(String::length)
+				.max(Integer::compare).get();
+		this.identifierDelimiter = identifierDelimiter;
 
 		if (logger.isDebugEnabled()) {
-			logger.debug("Ordered {}(s) are {}", Standard.class.getSimpleName(),
-					StringHelper.join(List.of(standardArrays)));
+			logger.debug("Ordered {}(s) are\n\t{}", Standard.class.getSimpleName(),
+					StringHelper.join("\n\t", List.of(standardsArray)));
 		}
 	}
 
-	private Standard resolveStandard(Environment env, String envPropName) throws Exception {
-		String configuration = SpringHelper.getOrThrow(env, envPropName, HandledFunction.identity(),
-				() -> new IllegalArgumentException(
-						String.format("Unable to locate any %s configuration", envPropName)));
+	private Map<String, Standard> resolveStandards(Environment env) throws Exception {
+		final Map<String, Standard> standards = new HashMap<>();
 
+		for (String configuration : SpringHelper.getOrThrow(env, Settings.FILE_RESOURCE_IMAGE_STANDARD,
+				HandledFunction.identity(),
+				() -> new IllegalArgumentException(
+						String.format("Unable to locate any %s configuration", Settings.FILE_RESOURCE_IMAGE_STANDARD)))
+				.split(StringHelper.SEMI_COLON)) {
+			// @formatter:off
+			Utils.declare(resolveStandard(configuration))
+				.flat(Standard::getName, HandledFunction.identity())
+				.consume(standards::put);
+			// @formatter:on
+		}
+
+		return Collections.unmodifiableMap(standards);
+	}
+
+	private Standard resolveStandard(String configuration) throws Exception {
 		String[] components = configuration.split(StringHelper.VERTICAL_BAR);
-		String[] ratioPair = components[0].split(StringHelper.COLON);
+		String name = components[0];
+		String[] ratioPair = components[1].split(StringHelper.COLON);
 
 		if (ratioPair.length < 2) {
 			throw new IllegalArgumentException("Expect ratio parts to be 2 in length");
 		}
-
 		// @formatter:off
 		return new Standard(
+				name,
 				Fraction.getFraction(Integer.valueOf(ratioPair[0]), Integer.valueOf(ratioPair[1])),
-				Integer.valueOf(components[1]),
-				ArrayUtils.toPrimitive(Stream.of(components[2].split(StringHelper.COMMA)).map(Float::parseFloat)
-						.toArray(Float[]::new)),
+				Integer.valueOf(components[2]),
 				ArrayUtils.toPrimitive(Stream.of(components[3].split(StringHelper.COMMA)).map(Float::parseFloat)
 						.toArray(Float[]::new)),
-				components[4].split(StringHelper.COMMA));
+				ArrayUtils.toPrimitive(Stream.of(components[4].split(StringHelper.COMMA)).map(Float::parseFloat)
+						.toArray(Float[]::new)),
+				components[5].split(StringHelper.COMMA));
 		// @formatter:on
-	}
-
-	@Override
-	public Standard getStandard(Ratio ratio) {
-		return standardsMap.get(ratio);
 	}
 
 	@Override
@@ -87,23 +96,38 @@ public class ManipulationContextImpl implements ManipulationContext {
 		final float ratio = Double.valueOf((bufferedImage.getWidth() * 1.0) / (bufferedImage.getHeight() * 1.0))
 				.floatValue();
 
-		if (standardArrays[0].greaterThan(ratio)) {
-			return standardArrays[0];
+		if (standardsArray[0].greaterThan(ratio) || standardsArray[0].equalsTo(ratio)) {
+			return standardsArray[0];
 		}
 
 		for (int i = 1; i < size - 1; i++) {
-			if (standardArrays[i - 1].lessThan(ratio)
-					&& (standardArrays[i].greaterThan(ratio) || standardArrays[i].equalsTo(ratio))) {
-				return standardArrays[i];
+			if (standardsArray[i - 1].lessThan(ratio)
+					&& (standardsArray[i].greaterThan(ratio) || standardsArray[i].equalsTo(ratio))) {
+				return standardsArray[i];
 			}
 		}
 
-		return standardArrays[size - 1];
+		return standardsArray[size - 1];
 	}
 
 	@Override
 	public String resolveCompressionName(String filename, String prefix) {
-		return prefix + StringHelper.UNDERSCORE + filename;
+		return prefix + identifierDelimiter + filename;
+	}
+
+	@Override
+	public int getMaximumIdentifierOccupancy() {
+		return maximumIdentifierOccupancy;
+	}
+
+	@Override
+	public List<Standard> getStandards() {
+		return List.of(standardsArray);
+	}
+
+	@Override
+	public Standard locateStandard(String filename) {
+		return standardsMap.get(filename.split(identifierDelimiter)[0]);
 	}
 
 }

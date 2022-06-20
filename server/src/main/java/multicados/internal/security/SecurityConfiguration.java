@@ -10,21 +10,23 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -53,7 +55,7 @@ import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(securedEnabled = true)
-public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+public class SecurityConfiguration {
 
 	private final Environment env;
 
@@ -77,8 +79,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 				objectMapper);
 	}
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		// @formatter:off
 		declare(http)
 			.consume(this::csrf)
@@ -89,16 +91,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 			.consume(this::noLogout)
 			.consume(this::jwt);
 		// @formatter:on
-	}
-
-	@Override
-	protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-		auth.userDetailsService(userDetailsService());
-	}
-
-	@Override
-	protected UserDetailsService userDetailsService() {
-		return userDetailsService;
+		return http.build();
 	}
 
 	@Bean
@@ -107,14 +100,30 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 	}
 
 	@Bean
-	public AbstractAuthenticationProcessingFilter jwtUsernamePasswordAuthenticationFilter() throws Exception {
-		return new JWTUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
-				authenticationFailureHandler, authenticationManager(), objectMapper);
+	public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
+		AuthenticationManagerBuilder authenticationManagerBuilder = http
+				.getSharedObject(AuthenticationManagerBuilder.class);
+
+		authenticationManagerBuilder.userDetailsService(userDetailsService);
+
+		AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
+
+		http.authenticationManager(authenticationManager);
+
+		return authenticationManager;
 	}
 
 	@Bean
-	public AbstractAuthenticationProcessingFilter jwtLogoutFilter() throws Exception {
-		return new JWTLogoutFilter(jwtSecurityContext, authenticationManager());
+	public AbstractAuthenticationProcessingFilter jwtUsernamePasswordAuthenticationFilter(
+			ApplicationContext applicationContext, HttpSecurity http) throws Exception {
+		return new JWTUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
+				authenticationFailureHandler, applicationContext.getBean(AuthenticationManager.class), objectMapper);
+	}
+
+	@Bean
+	public AbstractAuthenticationProcessingFilter jwtLogoutFilter(ApplicationContext applicationContext,
+			HttpSecurity http) throws Exception {
+		return new JWTLogoutFilter(jwtSecurityContext, applicationContext.getBean(AuthenticationManager.class));
 	}
 
 	private boolean isInDevMode() {

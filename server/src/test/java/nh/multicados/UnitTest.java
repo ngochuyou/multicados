@@ -3,10 +3,10 @@
  */
 package nh.multicados;
 
-import java.io.File;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileLock;
-import java.nio.file.Files;
+import java.io.IOException;
+
+import org.apache.commons.lang3.RandomUtils;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Ngoc Huy
@@ -14,42 +14,64 @@ import java.nio.file.Files;
  */
 public class UnitTest {
 
-	public static void main(String[] args) throws Exception {
-		String filePath = "C:\\Users\\Ngoc Huy\\Pictures\\muticados\\user\\L_1655397664615_O105lZQ1.jpg";
+	private void swap(int[] arr, int i, int j) {
+		int t = arr[i];
 
-		Thread blocker = new Thread(() -> {
-			System.out.println(Thread.currentThread().getName());
-			File file = new File(filePath);
+		arr[i] = arr[j];
+		arr[j] = t;
+	}
 
-			try {
-				RandomAccessFile access = new RandomAccessFile(file, "rw");
+	private void heapify(int[] arr, int n, int i) {
+		int j = 2 * i + 1;
 
-				access.getChannel();
+		if (j >= n) {
+			return;
+		}
 
-				FileLock lock = access.getChannel().lock();
-				System.out.println("Locking");
-				Thread.sleep(10000);
-				System.out.println("Realeasing");
-				lock.release();
-				access.close();
-			} catch (Exception any) {
-				any.printStackTrace();
+		if (j + 1 < n) {
+			if (arr[j + 1] > arr[j]) {
+				j++;
 			}
-		});
-		Thread reader = new Thread(() -> {
-			try {
-				System.out.println(Thread.currentThread().getName());
-				Thread.sleep(2000);
-				System.out.println("Reading");
-				Files.readAllBytes(new File(filePath).toPath());
-				System.out.println("Read");
-			} catch (Exception any) {
-				any.printStackTrace();
-			}
-		});
+		}
 
-		blocker.start();
-		reader.start();
+		if (arr[i] >= arr[j]) {
+			return;
+		}
+
+		swap(arr, i, j);
+		// propagate
+		heapify(arr, n, j);
+	}
+
+	@Test
+	public void test() throws IOException {
+		int n = 20;
+		int[] arr = new int[n];
+
+		for (int i = 0; i < n; i++) {
+			arr[i] = RandomUtils.nextInt(0, 10);
+		}
+
+		show(arr);
+
+		for (int i = n / 2 - 1; i >= 0; i--) {
+			heapify(arr, n, i);
+		}
+
+		for (int i = n - 1; i >= 0; i--) {
+			swap(arr, 0, i);
+			heapify(arr, i, 0);
+		}
+
+		show(arr);
+	}
+
+	private void show(int[] arr) {
+		for (int i = 0; i < arr.length; i++) {
+			System.out.print(arr[i] + "\s");
+		}
+
+		System.out.println();
 	}
 
 }

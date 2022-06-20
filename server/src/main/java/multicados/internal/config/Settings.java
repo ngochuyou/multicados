@@ -34,11 +34,10 @@ public interface Settings {
 	public static final String SECURITY_JWT_EXPIRATION_DURATION = "multicados.security.jwt.expiration";
 	public static final String SECURITY_DEV_CLIENT_PORTS = "multicados.security.dev.client.ports";
 
+	public static final String FILE_RESOURCE_IDENTIFIER_LENGTH = "multicados.file.id.length";
+	public static final String FILE_RESOURCE_IDENTIFIER_DELIMITER = "multicados.file.id.delimiter";
 	public static final String FILE_RESOURCE_ROOT_DIRECTORY = "multicados.file.directory";
-
-	public static final String FILE_RESOURCE_IMAGE_STANDARD_LANDSCAPE = "multicados.file.image.standard.landscape";
-	public static final String FILE_RESOURCE_IMAGE_STANDARD_PORTRAIT = "multicados.file.image.standard.portrait";
-	public static final String FILE_RESOURCE_IMAGE_STANDARD_SQUARE = "multicados.file.image.standard.square";
+	public static final String FILE_RESOURCE_IMAGE_STANDARD = "multicados.file.image.standard";
 
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
 

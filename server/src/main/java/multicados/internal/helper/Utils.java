@@ -59,7 +59,7 @@ public abstract class Utils {
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg);
 
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(Declaration<SECOND> declaration);
-		
+
 		<SECOND> BiDeclaration<SECOND, FIRST> prepend(HandledFunction<FIRST, SECOND, Exception> fnc) throws Exception;
 
 		<SECOND> BiDeclaration<FIRST, SECOND> second(SECOND second) throws Exception;
@@ -178,10 +178,10 @@ public abstract class Utils {
 		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(SECOND secondArg) {
 			return new BiDeclaration<>(secondArg, firstArg);
 		}
-		
+
 		@Override
 		public <SECOND> BiDeclaration<SECOND, FIRST> prepend(Declaration<SECOND> declaration) {
-			return new BiDeclaration<>(declaration.get(), firstArg);
+			return new BiDeclaration<>(declaration.firstArg, firstArg);
 		}
 
 		@Override

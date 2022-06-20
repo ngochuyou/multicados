@@ -5,9 +5,6 @@ package multicados.internal.file.engine;
 
 import static multicados.internal.helper.Utils.declare;
 
-import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,9 +14,7 @@ import java.util.Map;
 
 import javax.persistence.SharedCacheMode;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.hibernate.EntityMode;
-import org.hibernate.HibernateException;
 import org.hibernate.MultiTenancyStrategy;
 import org.hibernate.annotations.common.reflection.ReflectionManager;
 import org.hibernate.annotations.common.reflection.java.JavaReflectionManager;
@@ -66,8 +61,6 @@ import org.hibernate.engine.jdbc.spi.JdbcServices;
 import org.hibernate.engine.query.spi.HQLQueryPlan;
 import org.hibernate.engine.query.spi.QueryPlanCache;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
-import org.hibernate.id.IdentifierGenerator;
 import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
 import org.hibernate.persister.spi.PersisterFactory;
 import org.hibernate.property.access.internal.PropertyAccessStrategyFieldImpl;
@@ -96,7 +89,6 @@ import multicados.internal.file.engine.image.ManipulationContextImpl;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
-import multicados.internal.helper.Utils.LazyFunction;
 import multicados.internal.locale.ZoneContext;
 
 /**
@@ -217,17 +209,22 @@ public class FileManagementImpl implements FileManagement {
 			providedServices.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
 			
 			final String rootDirectory = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_ROOT_DIRECTORY, HandledFunction.identity(), DEAULT_FILE_RESOURCE_ROOT_DIRECTORY);
+			final String identifierDelimiter = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, HandledFunction.identity(), StringHelper.UNDERSCORE);
 			
 			providedServices.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
 					declare(new HashMap())
 						.consume(self -> self.putAll(serviceRegistry.requireService(ConfigurationService.class).getSettings()))
-						.consume(self -> self.putAll(Map.of(
-							AvailableSettings.HBM2DDL_AUTO, CONFIGURATION_FRIENDLY_NONE_VALUE,
-							AvailableSettings.HBM2DDL_SCRIPTS_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
-							AvailableSettings.HBM2DDL_DATABASE_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
-							AvailableSettings.USE_SECOND_LEVEL_CACHE, Boolean.TRUE,
-							AvailableSettings.STATEMENT_BATCH_SIZE, 0,
-							Settings.FILE_RESOURCE_ROOT_DIRECTORY, rootDirectory)))
+						.consume(self -> {
+							self.putAll(Map.of(
+								AvailableSettings.HBM2DDL_AUTO, CONFIGURATION_FRIENDLY_NONE_VALUE,
+								AvailableSettings.HBM2DDL_SCRIPTS_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
+								AvailableSettings.HBM2DDL_DATABASE_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
+								AvailableSettings.USE_SECOND_LEVEL_CACHE, Boolean.TRUE,
+								AvailableSettings.STATEMENT_BATCH_SIZE, 0,
+								Settings.FILE_RESOURCE_ROOT_DIRECTORY, rootDirectory,
+								Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, identifierDelimiter,
+								Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, Integer::valueOf, 30)));
+						})
 						.get())));
 			providedServices.add(new ProvidedService<>(ProxyFactoryFactory.class, serviceRegistry.requireService(ProxyFactoryFactory.class)));
 			providedServices.add(new ProvidedService<>(CfgXmlAccessService.class, serviceRegistry.requireService(CfgXmlAccessService.class)));
@@ -258,58 +255,18 @@ public class FileManagementImpl implements FileManagement {
 				}
 			}));
 			
-			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env);			
-			ImageService imageService = new ImageService(applicationContext, env, manipulationContext);
+			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env, identifierDelimiter);
+			ImageService imageService = new ImageService(applicationContext, env);
 			
 			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
 			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
 			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
 			providedServices.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
-			providedServices.add(new ProvidedService<>(
-					MutableIdentifierGeneratorFactory.class,
-					declare(serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class))
-						.consume(self -> self.register(FileIdentifierGenerator.NAME, FileIdentifierGenerator.class))
-						.get()));
+			providedServices.add(new ProvidedService<>(MutableIdentifierGeneratorFactory.class, serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class)));
 			
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
 		// @formatter:on
-	}
-
-	public static class FileIdentifierGenerator implements IdentifierGenerator {
-
-		public static final String NAME = "fileresource_identifier_generator";
-
-		private final LazyFunction<SharedSessionContractImplementor, ZoneId> zoneIdProducer = new LazyFunction<>(
-				session -> session.getFactory().getServiceRegistry().requireService(ZoneContext.class).getZone());
-
-		private static final String IDENTIFIER_PARTS_SEPERATOR = "_";
-		public static final int IDENTIFIER_LENGTH = 26; // extension included
-
-		public FileIdentifierGenerator() {}
-
-		@Override
-		public Serializable generate(SharedSessionContractImplementor session, Object instance)
-				throws HibernateException {
-			FileResource resource = (FileResource) instance;
-			// @formatter:off
-			try {
-				return declare(LocalDateTime.now().atZone(zoneIdProducer.get(session)).toInstant().toEpochMilli())
-						.then(String::valueOf)
-						.then(StringBuilder::new)
-						.then(builder -> builder.append(IDENTIFIER_PARTS_SEPERATOR))
-						.then(builder -> builder.append(RandomStringUtils.randomAlphanumeric(IDENTIFIER_LENGTH - builder.length() - resource.getExtension().length() - 1)))
-						.then(builder -> builder.append(StringHelper.DOT))
-						.then(builder -> builder.append(resource.getExtension()))
-						.then(Object::toString)
-						.get();
-			} catch (Exception any) {
-				any.printStackTrace();
-				return null;
-			}
-			// @formatter:on
-		}
-
 	}
 
 	private class MetadataBuildingOptionsImpl implements MetadataBuildingOptions, JpaOrmXmlPersistenceUnitDefaultAware {

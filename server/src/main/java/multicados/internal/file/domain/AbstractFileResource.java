@@ -3,13 +3,8 @@
  */
 package multicados.internal.file.domain;
 
-import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.MappedSuperclass;
-
-import org.hibernate.annotations.GenericGenerator;
-
-import multicados.internal.file.engine.FileManagementImpl.FileIdentifierGenerator;
 
 /**
  * @author Ngoc Huy
@@ -19,8 +14,6 @@ import multicados.internal.file.engine.FileManagementImpl.FileIdentifierGenerato
 public abstract class AbstractFileResource implements FileResource {
 
 	@Id
-	@GeneratedValue(generator = FileIdentifierGenerator.NAME)
-	@GenericGenerator(strategy = FileIdentifierGenerator.NAME, name = FileIdentifierGenerator.NAME)
 	private String id;
 
 	private byte[] content;

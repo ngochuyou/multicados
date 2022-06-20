@@ -18,9 +18,9 @@ import org.hibernate.persister.entity.EntityPersister;
  */
 public interface FileResourcePersister extends EntityPersister, SessionFactoryObserver {
 
-	String getDirectoryPath() throws Exception;
+	String getDirectoryPath();
 
-	String resolvePath(String id) throws Exception;
+	String resolvePath(String id);
 
 	@Override
 	default Object load(Serializable id, Object optionalObject, LockMode lockMode,
