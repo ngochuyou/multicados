@@ -9,15 +9,15 @@ package multicados.internal.domain.validation;
  */
 public class Error {
 
-	private final int code;
+	private final Integer code;
 	private final String message;
 
-	public Error(int code, String message) {
+	public Error(Integer code, String message) {
 		this.code = code;
 		this.message = message;
 	}
 
-	public int getCode() {
+	public Integer getCode() {
 		return code;
 	}
 

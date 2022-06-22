@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.web.context.request.WebRequest;
 
 /**
  * @author Ngoc Huy
@@ -31,16 +32,24 @@ public interface HttpHelper {
 				.orElse(false);
 		// @formatter:on
 	}
-
-	public static boolean isJsonAccepted(HttpServletRequest request) {
+	
+	private static boolean hasJson(String headerValue) {
 		// @formatter:off
-		return Optional.ofNullable(request.getHeader(HttpHeaders.ACCEPT))
+		return Optional.ofNullable(headerValue)
 				.map(value -> value.contains(MediaType.ALL_VALUE)
 						|| value.contains(MediaType.APPLICATION_JSON_VALUE)
 						|| value.contains(MediaType.APPLICATION_NDJSON_VALUE)
 						|| value.contains(MediaType.APPLICATION_PROBLEM_JSON_VALUE))
 				.orElse(false);
 		// @formatter:on
+	}
+
+	public static boolean isJsonAccepted(HttpServletRequest request) {
+		return hasJson(request.getHeader(HttpHeaders.ACCEPT));
+	}
+	
+	public static boolean isJsonAccepted(WebRequest request) {
+		return hasJson(request.getHeader(HttpHeaders.ACCEPT));
 	}
 
 	public static HttpServletResponse all(HttpServletResponse response) {

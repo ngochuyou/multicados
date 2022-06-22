@@ -11,9 +11,9 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -27,6 +27,8 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 import multicados.internal.config.Settings;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.HandledConsumer;
+import multicados.internal.helper.Utils.HandledSupplier;
 
 /**
  * @author Ngoc Huy
@@ -34,15 +36,21 @@ import multicados.internal.helper.Utils;
  */
 public abstract class AbstractGraphWalkerFactory {
 
+	public static interface FixedLogic {
+	}
+
 	@SuppressWarnings("rawtypes")
 	protected final Map<Class, GraphWalker> walkersMap;
 
+	// @formatter:off
 	@SuppressWarnings("rawtypes")
-	public <W extends GraphWalker<?>> AbstractGraphWalkerFactory(ApplicationContext applicationContext,
-			Class<W> walkerType, DomainResourceContext resourceContext,
-			Collection<Map.Entry<Class, GraphWalker>> fixedLogics, Supplier<GraphWalker> noopSupplier)
+	public <W extends GraphWalker<?>> AbstractGraphWalkerFactory(
+			ApplicationContext applicationContext,
+			Class<W> walkerType,
+			DomainResourceContext resourceContext,
+			Collection<Map.Entry<Class, GraphWalker>> fixedLogics,
+			Supplier<GraphWalker> noopSupplier)
 			throws Exception {
-		// @formatter:off
 		this.walkersMap = Utils.declare(scan(walkerType))
 					.second(walkerType)
 					.third(applicationContext)
@@ -56,8 +64,24 @@ public abstract class AbstractGraphWalkerFactory {
 				.then(this::join)
 				.then(Collections::unmodifiableMap)
 				.get();
-		// @formatter:on
 	}
+	
+	@SuppressWarnings("rawtypes")
+	public <W extends GraphWalker<?>> AbstractGraphWalkerFactory(
+			ApplicationContext applicationContext,
+			Class<W> walkerType,
+			DomainResourceContext resourceContext,
+			HandledSupplier<Collection<Map.Entry<Class, GraphWalker>>, Exception> fixedLogicsSupplier,
+			Supplier<GraphWalker> noopSupplier)
+			throws Exception {
+		this(
+				applicationContext,
+				walkerType,
+				resourceContext,
+				fixedLogicsSupplier.get(),
+				noopSupplier);
+	}
+	// @formatter:on
 
 	private <W extends GraphWalker<?>> Set<BeanDefinition> scan(Class<W> walkerType) {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -79,6 +103,11 @@ public abstract class AbstractGraphWalkerFactory {
 
 		for (BeanDefinition beanDef : beanDefs) {
 			Class<GraphWalker> walkerClass = (Class<GraphWalker>) Class.forName(beanDef.getBeanClassName());
+
+			if (FixedLogic.class.isAssignableFrom(walkerClass)) {
+				continue;
+			}
+
 			For anno = walkerClass.getDeclaredAnnotation(For.class);
 
 			if (anno == null) {
@@ -134,36 +163,86 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, GraphWalker> addFixedLogics(Map<Class, GraphWalker> contributions,
-			Collection<Map.Entry<Class, GraphWalker>> fixedLogics) {
+	private Map<Class, LinkedHashSet<GraphWalker>> addFixedLogics(Map<Class, GraphWalker> contributions,
+			Collection<Map.Entry<Class, GraphWalker>> fixedLogics) throws Exception {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace("Adding fixed logics");
 
-		contributions.putAll(fixedLogics.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+		Map<Class, LinkedHashSet<GraphWalker>> finalContributions = new HashMap<>();
+		HandledConsumer<Collection<Entry<Class, GraphWalker>>, Exception> finalContributionBuilder = (
+				walkerEntries) -> {
+			for (Entry<Class, GraphWalker> walkerEntry : walkerEntries) {
+				final Class resourceType = walkerEntry.getKey();
+				final GraphWalker walker = walkerEntry.getValue();
 
-		return contributions;
+				if (finalContributions.containsKey(resourceType)) {
+					finalContributions.get(resourceType).add(walker);
+					continue;
+				}
+
+				// @formatter:off
+				Utils.declare(new LinkedHashSet<GraphWalker>())
+					.consume(walkers -> walkers.add(walker))
+					.prepend(resourceType)
+					.consume(finalContributions::put);
+				// @formatter:on
+			}
+		};
+
+		finalContributionBuilder.accept(fixedLogics);
+		finalContributionBuilder.accept(contributions.entrySet());
+
+		return finalContributions;
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<GraphWalker>> buildCollection(Map<Class, GraphWalker> mappedWalkers,
+	private Map<Class, LinkedHashSet<GraphWalker>> buildCollection(Map<Class, LinkedHashSet<GraphWalker>> mappedWalkers,
 			DomainResourceContext resourceContext, Supplier<GraphWalker> noopSupplier) {
+		final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+		logger.trace("Building collections");
+
 		final Map<Class, LinkedHashSet<GraphWalker>> walkersCollections = new HashMap<>();
 
 		for (DomainResourceGraph graph : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toGraphsList())) {
 			Class resourceType = graph.getResourceType();
-			GraphWalker walker = mappedWalkers.get(resourceType);
 
-			if (!walkersCollections.containsKey(resourceType)) {
-				buildWithoutExsitingCollection(graph, walkersCollections, walker, noopSupplier);
+			if (!mappedWalkers.containsKey(resourceType)) {
+				if (!walkersCollections.containsKey(resourceType)) {
+					buildWithoutExsitingCollection(graph, walkersCollections, null, noopSupplier);
+					continue;
+				}
+
+				buildWithExsitingCollection(graph, walkersCollections, null, noopSupplier);
 				continue;
 			}
 
-			buildWithExsitingCollection(graph, walkersCollections, walker, noopSupplier);
-		}
+			LinkedHashSet<GraphWalker> scopedWalkers = mappedWalkers.get(resourceType);
 
-		return walkersCollections;
+			for (GraphWalker walker : scopedWalkers) {
+				if (!walkersCollections.containsKey(resourceType)) {
+					buildWithoutExsitingCollection(graph, walkersCollections, walker, noopSupplier);
+					continue;
+				}
+
+				buildWithExsitingCollection(graph, walkersCollections, walker, noopSupplier);
+			}
+		}
+		// @formatter:off
+		return walkersCollections.entrySet()
+			.stream()
+			.map(entry -> Map.entry(
+					entry.getKey(),
+					entry.getValue().size() > 1
+						? entry.getValue()
+							.stream()
+							.filter(walker -> !walker.equals(noopSupplier.get()))
+							.<LinkedHashSet<GraphWalker>>collect(LinkedHashSet::new, (set, walker) -> set.add(walker), LinkedHashSet::addAll)
+						: entry.getValue()))
+			.collect(CollectionHelper.toMap());
+		// @formatter:on
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -172,11 +251,6 @@ public abstract class AbstractGraphWalkerFactory {
 			Supplier<GraphWalker> noopSupplier) {
 		Class resourceType = graph.getResourceType();
 		LinkedHashSet<GraphWalker> exsitingWalkersCollection = walkersCollections.get(resourceType);
-
-		if (isNoop(exsitingWalkersCollection, noopSupplier)) {
-			buildWithoutExsitingCollection(graph, walkersCollections, contribution, noopSupplier);
-			return;
-		}
 
 		if (graph.getParent() == null) {
 			if (contribution == null) {
@@ -191,10 +265,6 @@ public abstract class AbstractGraphWalkerFactory {
 				.get(graph.getParent().getResourceType());
 
 		if (contribution == null) {
-			if (isNoop(parentWalkersCollection, noopSupplier)) {
-				return;
-			}
-
 			walkersCollections.put(resourceType, addAll(parentWalkersCollection, exsitingWalkersCollection));
 			return;
 		}
@@ -227,18 +297,8 @@ public abstract class AbstractGraphWalkerFactory {
 			return;
 		}
 
-		if (isNoop(parentWalkersCollection, noopSupplier)) {
-			graphCollections.put(resourceType, from(contribution));
-			return;
-		}
-
 		graphCollections.put(resourceType, addAll(parentWalkersCollection, from(contribution)));
 		return;
-	}
-
-	@SuppressWarnings({ "rawtypes" })
-	private boolean isNoop(LinkedHashSet<GraphWalker> candidate, Supplier<GraphWalker> noopSupplier) {
-		return candidate.size() == 1 && candidate.contains(noopSupplier.get());
 	}
 
 	@SuppressWarnings("rawtypes")

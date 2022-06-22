@@ -1,7 +1,7 @@
 /**
  * 
  */
-package multicados.domain.entity.builders;
+package multicados.domain.entity.builder;
 
 import static java.util.Optional.ofNullable;
 import static multicados.internal.helper.StringHelper.normalizeString;

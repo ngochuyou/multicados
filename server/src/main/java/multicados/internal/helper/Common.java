@@ -10,8 +10,7 @@ import static multicados.internal.helper.StringHelper.join;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import org.hibernate.internal.util.collections.CollectionHelper;
+import java.util.stream.Collectors;
 
 /**
  * @author Ngoc Huy
@@ -22,6 +21,8 @@ public abstract class Common {
 	private Common() {}
 
 	private static final String COMMON_TEMPLATE = "%s %s";
+	private static final String INVALID_PATTERN_TEMPLATE = "Invalid pattern, expect following characters: %s";
+	private static final String NOT_FOUND_TEMPLATE = "%s not found";
 
 	private static final String NOT_EMPTY = "must not be empty";
 
@@ -35,7 +36,6 @@ public abstract class Common {
 
 	private static final String GENERAL_OK_MESSAGE = "Successfully done";
 	private static final String UNKNOWN_ERROR = "Unknown error";
-	private static final String NOT_FOUND_TEMPLATE = "%s not found";
 
 	public static String notEmpty(String... prefix) {
 		return String.format(COMMON_TEMPLATE, StringHelper.join(List.of(prefix)), NOT_EMPTY);
@@ -69,8 +69,19 @@ public abstract class Common {
 		return String.format(NOT_FOUND_TEMPLATE, join(SPACE, preficies));
 	}
 
+	public static String invalidPattern(Collection<Character> characters) {
+		return invalidPattern(
+				characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)));
+	}
+
+	public static String invalidPattern(String acceptedMessage) {
+		return String.format(INVALID_PATTERN_TEMPLATE, acceptedMessage);
+	}
+
 	// @formatter:off
-	static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
+	private static final Map<Character, String> SYMBOL_NAMES = Map.ofEntries(
+			entry('L', "alphabetical characters"),
+			entry('N', "numeric characters"),
 			entry('|', "vertical bar"),
 			entry(';', "semicolon"),
 			entry(':', "colon"),
@@ -92,7 +103,28 @@ public abstract class Common {
 			entry('%', "percent sign"),
 			entry('&', "ampersand"),
 			entry('*', "asterisk"),
-			entry('?', "question mark"));
+			entry('?', "question mark"),
+			entry('[', "opening hard brackets"),
+			entry(']', "closing hard brackets"),
+			entry('+', "plus sign"),
+			entry('=', "equal sign"),
+			entry('^', "caret"));
+	private static final Map<String, Character> SYMBOLS = CollectionHelper.inverse(SYMBOL_NAMES);
 	// @formatter:on
+	public static Character symbol(String symbolName) {
+		if (!SYMBOLS.containsKey(symbolName)) {
+			throw new IllegalArgumentException(String.format("Unknown name %s", symbolName));
+		}
+
+		return SYMBOLS.get(symbolName);
+	}
+
+	public static String name(Character symbol) {
+		if (!SYMBOL_NAMES.containsKey(symbol)) {
+			throw new IllegalArgumentException(String.format("Unknown symbol %s", symbol));
+		}
+
+		return SYMBOL_NAMES.get(symbol);
+	}
 
 }

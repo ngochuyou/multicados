@@ -397,6 +397,91 @@ public abstract class Utils {
 
 	}
 
+	public interface AsIf {
+
+		AsIf then(HandledConsumer<Boolean, Exception> whenTrue);
+
+		<T> AsIf then(HandledSupplier<T, Exception> whenTrue) throws Exception;
+
+		void orElse(HandledConsumer<Boolean, Exception> whenFalse) throws Exception;
+
+		<T> T orElse(HandledSupplier<T, Exception> whenFalse) throws Exception;
+
+		void elseThrow(Supplier<Exception> exceptionSupplier) throws Exception;
+
+		<T> T elseThrowAndReturn(Supplier<Exception> exceptionSupplier) throws Exception;
+
+	}
+
+	private static class AsIfImpl implements AsIf {
+
+		private final boolean predicate;
+
+		private Object whenTrue;
+
+		public AsIfImpl(boolean predicate) {
+			this.predicate = predicate;
+		}
+
+		@Override
+		public AsIf then(HandledConsumer<Boolean, Exception> whenTrue) {
+			this.whenTrue = whenTrue;
+			return this;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void orElse(HandledConsumer<Boolean, Exception> whenFalse) throws Exception {
+			if (predicate == true) {
+				HandledConsumer.class.cast(whenTrue).accept(true);
+				return;
+			}
+
+			whenFalse.accept(false);
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public void elseThrow(Supplier<Exception> exceptionSupplier) throws Exception {
+			if (predicate == false) {
+				throw exceptionSupplier.get();
+			}
+
+			HandledConsumer.class.cast(whenTrue).accept(true);
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public <T> T elseThrowAndReturn(Supplier<Exception> exceptionSupplier) throws Exception {
+			if (predicate == false) {
+				throw exceptionSupplier.get();
+			}
+
+			return (T) HandledSupplier.class.cast(whenTrue).get();
+		}
+
+		@Override
+		public <T> AsIf then(HandledSupplier<T, Exception> whenTrue) throws Exception {
+			this.whenTrue = whenTrue;
+			return this;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <T> T orElse(HandledSupplier<T, Exception> whenFalse) throws Exception {
+			if (predicate == true) {
+				return (T) HandledSupplier.class.cast(whenTrue).get();
+			}
+
+			return whenFalse.get();
+		}
+
+	}
+
+	public static AsIf asIf(boolean predicate) {
+		return new AsIfImpl(predicate);
+	}
+
 	private static final String CLOSED_ACCESS_MESSAGE_TEMPLATE = "Access to %s was closed";
 	private static final String CLOSING_ACCESS_MESSAGE_TEMPLATE = "Closing access to %s";
 

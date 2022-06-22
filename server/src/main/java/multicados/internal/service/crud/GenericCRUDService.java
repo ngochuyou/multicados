@@ -15,14 +15,14 @@ import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.service.Service;
+import multicados.internal.service.DomainService;
 import multicados.internal.service.ServiceResult;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Service, ContextBuilder {
+public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends DomainService, ContextBuilder {
 
 	default <E extends DomainResource> ServiceResult create(Serializable id, E model, Class<E> type, EM entityManager) {
 		return create(id, model, type, entityManager, false);

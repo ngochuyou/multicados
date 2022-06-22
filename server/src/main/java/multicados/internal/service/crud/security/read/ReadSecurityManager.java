@@ -34,7 +34,9 @@ public interface ReadSecurityManager extends ContextBuilder {
 
 		WithAttribute<D> attributes(String... attributes);
 
-		WithCredential<D> credentials(GrantedAuthority credential);
+		WithAttribute<D> but(String... attributes);
+		
+		WithCredential<D> credentials(GrantedAuthority... credential);
 
 		WithCredential<D> mask();
 

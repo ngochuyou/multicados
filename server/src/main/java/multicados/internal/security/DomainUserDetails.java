@@ -5,6 +5,7 @@ package multicados.internal.security;
 
 import java.time.LocalDateTime;
 
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
@@ -14,5 +15,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 public interface DomainUserDetails extends UserDetails {
 
 	LocalDateTime getVersion();
+
+	GrantedAuthority getCRUDAuthority();
 
 }

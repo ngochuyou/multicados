@@ -62,12 +62,12 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	@Autowired
 	@SuppressWarnings({ "unchecked" })
-	public GenericRepositoryImpl(SessionFactoryImplementor sfi, DomainResourceContext resourceContextProvider)
+	public GenericRepositoryImpl(SessionFactoryImplementor sfi, DomainResourceContext resourceContext)
 			throws Exception {
 		Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
 				0);
 
-		for (DomainResourceGraph<DomainResource> node : resourceContextProvider.getResourceGraph()
+		for (DomainResourceGraph<DomainResource> node : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toGraphsSet())) {
 			Class<? extends DomainResource> entityType = (Class<? extends DomainResource>) node.getResourceType();
 

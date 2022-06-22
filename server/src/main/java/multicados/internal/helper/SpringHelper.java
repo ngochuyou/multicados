@@ -6,8 +6,11 @@ package multicados.internal.helper;
 import java.util.function.Supplier;
 
 import org.springframework.core.env.Environment;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
 import multicados.internal.helper.Utils.HandledFunction;
+import multicados.internal.security.DomainUserDetails;
 
 /**
  * @author Ngoc Huy
@@ -48,6 +51,14 @@ public class SpringHelper {
 		}
 
 		return producer.apply(configuredValue);
+	}
+
+	public static DomainUserDetails getUserDetails(Authentication authentication) {
+		if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
+			return null;
+		}
+
+		return DomainUserDetails.class.cast(authentication.getPrincipal());
 	}
 
 }

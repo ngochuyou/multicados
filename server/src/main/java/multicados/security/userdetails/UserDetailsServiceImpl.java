@@ -4,8 +4,6 @@
 package multicados.security.userdetails;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +15,7 @@ import org.hibernate.StatelessSession;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -46,6 +45,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 			root.get(User_.password).alias(User_.PASSWORD),
 			root.get(User_.active).alias(User_.ACTIVE),
 			root.get(User_.credentialVersion).alias(User_.CREDENTIAL_VERSION),
+			root.get(User_.role).alias(User_.ROLE),
 			root.get(User_.locked).alias(User_.LOCKED));
 	// @formatter:on
 	@Autowired
@@ -73,7 +73,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 					tuple.get(User_.ACTIVE, Boolean.class),
 					!tuple.get(User_.LOCKED, Boolean.class),
 					tuple.get(User_.CREDENTIAL_VERSION, LocalDateTime.class),
-					Collections.emptyList());
+					List.of(new SimpleGrantedAuthority(tuple.get(User_.ROLE, String.class))));
 			// @formatter:on
 		} catch (Exception any) {
 			any.printStackTrace();
@@ -81,11 +81,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		}
 	}
 
-	public class DomainUser extends org.springframework.security.core.userdetails.User implements DomainUserDetails {
+	public static class DomainUser extends org.springframework.security.core.userdetails.User
+			implements DomainUserDetails {
 
 		private static final long serialVersionUID = 1L;
 
-		private LocalDateTime version;
+		private final LocalDateTime version;
 
 		// @formatter:off
 		public DomainUser(
@@ -94,7 +95,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 				boolean enabled,
 				boolean accountNonLocked,
 				LocalDateTime version,
-				Collection<? extends GrantedAuthority> authorities) {
+				List<? extends GrantedAuthority> authorities) {
 			super(username, password, enabled, true, true, accountNonLocked,
 					authorities);
 			this.version = version;
@@ -103,6 +104,11 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		@Override
 		public LocalDateTime getVersion() {
 			return version;
+		}
+
+		@Override
+		public GrantedAuthority getCRUDAuthority() {
+			return getAuthorities().stream().findFirst().orElse(null);
 		}
 
 	}

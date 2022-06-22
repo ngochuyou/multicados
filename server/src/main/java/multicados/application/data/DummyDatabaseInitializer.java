@@ -3,6 +3,8 @@
  */
 package multicados.application.data;
 
+import java.util.stream.Collectors;
+
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
@@ -13,10 +15,12 @@ import org.springframework.core.env.Environment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.domain.entity.entities.User;
+import multicados.domain.entity.entities.Category;
 import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.repository.DatabaseInitializer.DatabaseInitializerContributor;
+import multicados.internal.helper.Utils.HandledConsumer;
+import multicados.internal.service.ServiceResult;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
 
 /**
@@ -65,11 +69,24 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 			return;
 		}
 
-		createBatch(User.class, "dummy_users.json", session, ex -> logger.error(ex.getMessage()));
+//		createBatch(User.class, "dummy_users.json", session, ex -> logger.error(ex.getMessage()));
 	}
 
 	private void createNonProductStrictDummies(final Logger logger, Session session) throws Exception {
-//		createBatch(Category.class, "dummy_categories.json", session, ex -> logger.error(ex.getMessage()));
+		HandledConsumer<ServiceResult, Exception> exceptionHandler = result -> {
+			if (result.isOk()) {
+				return;
+			}
+
+			if (result.getException() != null) {
+				throw result.getException();
+			}
+
+			logger.error("\n" + result.getValidation().getErrors().entrySet().stream()
+					.map(entry -> String.format("%s:\t%s", entry.getKey(), entry.getValue().getMessage()))
+					.collect(Collectors.joining("\n\t")));
+		};
+		createBatch(Category.class, "dummy_categories.json", session, exceptionHandler);
 //		createBatch(Province.class, "dummy_provinces.json", session, ex -> logger.error(ex.getMessage()));
 //		createBatch(District.class, "dummy_districts.json", session, ex -> logger.error(ex.getMessage()));
 	}

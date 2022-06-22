@@ -134,7 +134,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 
 			if (isMasked) {
 				if (publicAttributesByCredential.contains(name)) {
-					logger.debug(String.format("[%s-%s-%s] Overriding visibility of [PUBLISHED] with [MASKED]",
+					logger.trace(String.format("[%s-%s-%s] Overriding visibility of [PUBLISHED] with [MASKED]",
 							owningType.getSimpleName(), credential, name));
 					publicAttributesByCredential.remove(name);
 				}
@@ -143,7 +143,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 			}
 
 			if (!publicAttributesByCredential.contains(name)) {
-				logger.debug(String.format("[%s-%s-%s] Overriding visiblity of [MASKED] with [PUBLISHED]",
+				logger.trace(String.format("[%s-%s-%s] Overriding visiblity of [MASKED] with [PUBLISHED]",
 						owningType.getSimpleName(), credential, name));
 				publicAttributesByCredential.add(name);
 			}

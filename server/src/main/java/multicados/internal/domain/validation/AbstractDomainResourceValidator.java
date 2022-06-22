@@ -11,14 +11,14 @@ import multicados.internal.domain.DomainResource;
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractValidator<T extends DomainResource> implements DomainResourceValidator<T> {
+public abstract class AbstractDomainResourceValidator<T extends DomainResource> implements DomainResourceValidator<T> {
 
 	@Override
 	public <E extends T> DomainResourceValidator<E> and(DomainResourceValidator<E> next) {
 		return new CompositeValidator<>(this, next);
 	}
 
-	private class CompositeValidator<E extends T> extends AbstractValidator<E> {
+	private class CompositeValidator<E extends T> extends AbstractDomainResourceValidator<E> {
 
 		private final DomainResourceValidator<T> left;
 		private final DomainResourceValidator<E> right;

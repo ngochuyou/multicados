@@ -69,14 +69,13 @@ public class FileResourceConfiguration {
 	}
 
 	@Bean
-	public DataSource dataSource() {
+	public DataSource dataSource(Environment env) {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 
-		dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
-		dataSource.setUrl(
-				"jdbc:mysql://localhost:3306/multicados?serverTimezone=UTC&useUnicode=yes&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&jdbcCompliantTruncation=false&serverTimezone=GMT%2B7&useLegacyDatetimeCode=false");
-		dataSource.setUsername("root");
-		dataSource.setPassword("root");
+		dataSource.setDriverClassName(env.getProperty("spring.datasource.driver-class-name"));
+		dataSource.setUrl(env.getProperty("spring.datasource.url"));
+		dataSource.setUsername(env.getProperty("spring.datasource.username"));
+		dataSource.setPassword(env.getProperty("spring.datasource.password"));
 
 		return dataSource;
 	}

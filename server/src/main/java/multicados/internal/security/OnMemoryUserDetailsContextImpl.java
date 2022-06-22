@@ -69,7 +69,7 @@ public class OnMemoryUserDetailsContextImpl implements OnMemoryUserDetailsContex
 		}
 
 		@Override
-		protected boolean removeEldestEntry(java.util.Map.Entry<String, Mutex> eldest) {
+		protected synchronized boolean removeEldestEntry(java.util.Map.Entry<String, Mutex> eldest) {
 			return size() == MAX_SIZE;
 		}
 

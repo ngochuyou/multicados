@@ -34,6 +34,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.context.ContextManager;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -52,10 +53,15 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	@Autowired
 	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext) throws Exception {
+		this(env, resourceContext, null);
+	}
+
+	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext,
+			List<ReadSecurityContributor> contributors) throws IllegalAccessException, Exception {
 		ReadFailureExceptionHandler failureHandler = resolveFailureHandler(env);
 		// @formatter:off
 		securityNodes = Utils
-			.declare(scanForContributors())
+			.declare(!CollectionHelper.isEmpty(contributors) ? contributors : scanForContributors())
 				.second(new CRUDSecurityManagerBuilderImpl(resourceContext))
 			.then(this::doContribute)
 				.second(resourceContext)
@@ -177,11 +183,11 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 					.orElse(ExceptionHandlingStrategy.IGNORE);
 			// @formatter:on
 			if (strategy.equals(ExceptionHandlingStrategy.IGNORE)) {
-				logger.debug("Using {} for read failure", IgnoreStrategy.class.getName());
+				logger.trace("Using {} for read failure", IgnoreStrategy.class.getName());
 				return new IgnoreStrategy();
 			}
 
-			logger.debug("Using {} for read failure", ThrowExceptionStrategy.class.getName());
+			logger.trace("Using {} for read failure", ThrowExceptionStrategy.class.getName());
 			return new ThrowExceptionStrategy();
 		} catch (IllegalArgumentException iae) {
 			throw new IllegalArgumentException(
@@ -332,7 +338,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 			public WithTypeImpl(Class<D> type) {
 				this.type = Objects.requireNonNull(type);
-				logger.debug(String.format("With type %s", type.getSimpleName()));
+				logger.trace(String.format("With type %s", type.getSimpleName()));
 			}
 
 			@Override
@@ -364,11 +370,11 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						credentialList.add(credential.getAuthority());
 					}
 
-					logger.debug(String.format("With Credentials[%s]",
+					logger.trace(String.format("With Credentials[%s]",
 							credentialList.stream().collect(Collectors.joining(","))));
 				}
 
-				private void removeRemainingFields(String... fields) {
+				private void removeFromRemainingFields(String... fields) {
 					remainingFields.removeAll(List.of(fields));
 
 					if (logger.isTraceEnabled()) {
@@ -379,13 +385,20 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 				@Override
 				public WithAttribute<D> attributes(String... attributes) {
-					removeRemainingFields(attributes);
-
+					removeFromRemainingFields(attributes);
 					return new WithAttributeImpl(this, attributes);
 				}
 
 				@Override
-				public WithCredential<D> credentials(GrantedAuthority credential) {
+				public WithAttribute<D> but(String... attributes) {
+					Set<String> excludedFields = new HashSet<>(List.of(attributes));
+
+					return attributes(remainingFields.stream().filter(field -> !excludedFields.contains(field))
+							.toArray(String[]::new));
+				}
+
+				@Override
+				public WithCredential<D> credentials(GrantedAuthority... credentials) {
 					return owningType.credentials(credentials);
 				}
 
@@ -401,7 +414,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						}
 					}
 
-					logger.debug("Mask all");
+					logger.trace("Mask all");
 
 					return this;
 				}
@@ -418,7 +431,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						}
 					}
 
-					logger.debug("Publish all");
+					logger.trace("Publish all");
 
 					return this;
 				}
@@ -438,7 +451,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						this.attributes = Stream.of(requireNonNull(attributes)).map(Objects::requireNonNull)
 								.toArray(String[]::new);
 
-						logger.debug(String.format("With fields %s",
+						logger.trace(String.format("With fields %s",
 								Stream.of(attributes).collect(Collectors.joining(", "))));
 					}
 
@@ -462,7 +475,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							}
 						}
 
-						logger.debug(
+						logger.trace(
 								String.format("Using alias %s", Stream.of(alias).collect(Collectors.joining(","))));
 
 						return this;
@@ -481,7 +494,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							}
 						}
 
-						logger.debug(isMasked ? "Mask" : "Publish");
+						logger.trace(isMasked ? "Mask" : "Publish");
 
 						return this;
 					}
@@ -657,7 +670,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		@Override
 		public void doOnUnauthorizedAttribute(Class<?> resourceType, String credential,
 				List<String> unauthorizedAttributeNames) throws UnknownAttributesException {
-			throw new UnknownAttributesException(unauthorizedAttributeNames, resourceType.getName());
+			throw new UnknownAttributesException(unauthorizedAttributeNames);
 		};
 
 	}

@@ -39,6 +39,13 @@ public interface Settings {
 	public static final String FILE_RESOURCE_ROOT_DIRECTORY = "multicados.file.directory";
 	public static final String FILE_RESOURCE_IMAGE_STANDARD = "multicados.file.image.standard";
 
+	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS = "multicados.domain.resource.named.chars";
+	public static final String DOMAIN_NAMED_RESOURCE_MAX_LENGTH = "multicados.domain.resource.named.length";
+	public static final String DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME = "multicados.domain.resource.named.field";
+	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET = "multicados.domain.resource.named.alphabet";
+	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC = "multicados.domain.resource.named.numeric";
+	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL = "multicados.domain.resource.named.literal";
+	
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
 
 }

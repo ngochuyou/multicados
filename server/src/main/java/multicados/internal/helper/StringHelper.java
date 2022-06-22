@@ -42,7 +42,7 @@ public class StringHelper extends StringUtils {
 
 	// @formatter:on
 	public static final String symbolNamesOf(Character... characters) {
-		return Stream.of(characters).map(Common.SYMBOL_NAMES::get).filter(Objects::nonNull)
+		return Stream.of(characters).map(Common::name).filter(Objects::nonNull)
 				.collect(Collectors.joining(COMMON_JOINER));
 	}
 

@@ -105,6 +105,7 @@ public class ImageService implements Service {
 			return new Dimension(requestedWidth, standard.maintainHeight(requestedWidth));
 		}
 
+		@Async
 		private void propagate(BufferedImage toBePropagatedImage) throws Exception {
 			int propagationBatchSize = standard.getBatchSize() - 1;
 			@SuppressWarnings("unchecked")

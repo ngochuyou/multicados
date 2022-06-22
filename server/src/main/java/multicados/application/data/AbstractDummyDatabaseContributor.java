@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -34,6 +33,7 @@ import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.HandledConsumer;
 import multicados.internal.service.ServiceResult;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
 
@@ -164,7 +164,7 @@ public abstract class AbstractDummyDatabaseContributor {
 	}
 
 	protected <S extends Serializable, E extends AbstractEntity<S>> void createBatch(Class<E> type, String path,
-			Session entityManager, Consumer<Exception> exceptionConsumer) throws Exception {
+			Session entityManager, HandledConsumer<ServiceResult, Exception> resultConsumer) throws Exception {
 		// @formatter:off
 		List<E> instances = Utils.declare(getPath(path))
 				.then(this::getArray)
@@ -180,7 +180,7 @@ public abstract class AbstractDummyDatabaseContributor {
 				continue;
 			}
 
-			exceptionConsumer.accept(result.getException());
+			resultConsumer.accept(result);
 		}
 		// @formatter:on
 	}
