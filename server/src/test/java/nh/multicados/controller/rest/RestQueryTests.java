@@ -1,13 +1,12 @@
 /**
  * 
  */
-package nh.multicados.internal.service.crud.security;
+package nh.multicados.controller.rest;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
@@ -26,6 +25,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import multicados.domain.entity.entities.Category_;
+import multicados.domain.entity.entities.District_;
 import multicados.internal.config.WebConfiguration;
 import multicados.internal.security.SecurityConfiguration;
 import nh.multicados.AbstractTest;
@@ -39,33 +39,36 @@ import nh.multicados.AbstractTest;
 @ContextConfiguration(classes = { WebConfiguration.class, SecurityConfiguration.class })
 @TestPropertySource(locations = "classpath:application.properties")
 @AutoConfigureMockMvc
-public class ReadSecurityTests extends AbstractTest {
+public class RestQueryTests extends AbstractTest {
 
 	private final MockMvc mvc;
 
 	@Autowired
-	public ReadSecurityTests(ObjectMapper objectMapper, MockMvc mvc) {
+	public RestQueryTests(ObjectMapper objectMapper, MockMvc mvc) {
 		super(objectMapper);
 		this.mvc = mvc;
 	}
 
 	@Test
-	public void notEvenHeadCanReadActive() throws Exception {
+	public void canRequestSpecificAttributes() throws Exception {
 		// @formatter:off
-		final MockHttpServletRequestBuilder reqBuilder = MockMvcRequestBuilders.get("/rest/category")
-				.param("attributes", Category_.ACTIVE, Category_.ID, Category_.NAME)
+		MockHttpServletRequestBuilder reqBuilder = MockMvcRequestBuilders.get("/rest/category")
+				.param("attributes", Category_.ID, Category_.NAME, Category_.DESCRIPTION)
 				.with(user(AbstractTest.HEAD_NGOCHUYOU))
 				.accept(MediaType.APPLICATION_JSON_VALUE);
+		
+		mvc.perform(reqBuilder).andExpect(status().isOk())
+				.andDo(result -> logJson(result.getResponse().getContentAsString(), List.class));
 		// @formatter:on
-		mvc.perform(reqBuilder).andExpect(status().isBadRequest())
-				.andDo(result -> logJson(result.getResponse().getContentAsString(), Map.class));
 	}
 
 	@Test
-	public void anonymousCanReadCategories() throws Exception {
+	public void canRequestSpecificAttributesAndCanBePaged() throws Exception {
 		// @formatter:off
-		final MockHttpServletRequestBuilder reqBuilder = MockMvcRequestBuilders.get("/rest/category")
-				.with(user(AbstractTest.ANONYMOUS))
+		MockHttpServletRequestBuilder reqBuilder = MockMvcRequestBuilders.get("/rest/location/district")
+				.param("attributes", District_.ID, District_.NAME)
+				.param("page.size", "2")
+				.param("page.num", "10").with(user(AbstractTest.HEAD_NGOCHUYOU))
 				.accept(MediaType.APPLICATION_JSON_VALUE);
 		// @formatter:on
 		mvc.perform(reqBuilder).andExpect(status().isOk())
