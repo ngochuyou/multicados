@@ -36,6 +36,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.ClassUtils;
 
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
@@ -48,7 +49,7 @@ import multicados.internal.helper.Utils;
  * @author Ngoc Huy
  *
  */
-public class GenericRepositoryImpl implements GenericRepository {
+public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder implements GenericRepository {
 
 	private static final Logger logger = LoggerFactory.getLogger(GenericRepositoryImpl.class);
 
@@ -64,16 +65,18 @@ public class GenericRepositoryImpl implements GenericRepository {
 	@SuppressWarnings({ "unchecked" })
 	public GenericRepositoryImpl(SessionFactoryImplementor sfi, DomainResourceContext resourceContext)
 			throws Exception {
-		Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
+		if (logger.isTraceEnabled()) {
+			logger.trace("Instantiating {}", GenericRepositoryImpl.class.getName());
+		}
+
+		final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
 				0);
 
-		for (DomainResourceGraph<DomainResource> node : resourceContext.getResourceGraph()
+		for (final DomainResourceGraph<DomainResource> node : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toGraphsSet())) {
-			Class<? extends DomainResource> entityType = (Class<? extends DomainResource>) node.getResourceType();
+			final Class<? extends DomainResource> entityType = (Class<? extends DomainResource>) node.getResourceType();
 
 			if (Modifier.isAbstract(entityType.getModifiers())) {
-				logger.trace("Skipping abstract {} type {}", DomainResource.class.getSimpleName(),
-						entityType.getName());
 				continue;
 			}
 			// @formatter:off
@@ -92,14 +95,19 @@ public class GenericRepositoryImpl implements GenericRepository {
 	}
 
 	private <D extends DomainResource> Set<Class<?>> getAllInterfaces(Class<D> entityType) {
-		logger.trace("Finding all interfaces of {} type [{}]", DomainResource.class.getSimpleName(),
-				entityType.getSimpleName());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Finding all interfaces of {} type [{}]", DomainResource.class.getSimpleName(),
+					entityType.getName());
+		}
 
 		return ClassUtils.getAllInterfacesForClassAsSet(entityType);
 	}
 
 	private Set<Class<?>> filterOutNonTargetedTypes(Set<Class<?>> interfaces) {
-		logger.trace("Filtering fixed interfaces");
+		if (logger.isTraceEnabled()) {
+			logger.trace("Filtering fixed interfaces");
+		}
+
 		return interfaces.stream().filter(FIXED_SPECIFICATIONS::containsKey).collect(Collectors.toSet());
 	}
 
@@ -109,7 +117,9 @@ public class GenericRepositoryImpl implements GenericRepository {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private Specification chainFixedSpecifications(List<Class<?>> interfaces) {
-		logger.trace("Chaining {}(s)", Specification.class.getSimpleName());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Chaining {}(s)", Specification.class.getSimpleName());
+		}
 		// shouldn't be null here
 		if (interfaces.isEmpty()) {
 			return SpecificationHelper.none();

@@ -11,8 +11,8 @@ import java.time.temporal.TemporalAccessor;
  */
 public interface SpannedResource<T extends TemporalAccessor> extends DomainResource {
 
-	T getAppliedTimestamp();
+	T getStartTimestamp();
 
-	T getDroppedTimestamp();
+	T getEndTimestamp();
 
 }

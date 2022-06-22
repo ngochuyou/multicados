@@ -3,6 +3,7 @@
  */
 package multicados.internal.domain.validation;
 
+import static java.util.Map.entry;
 import static multicados.internal.helper.Utils.asIf;
 import static multicados.internal.helper.Utils.declare;
 
@@ -10,6 +11,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -44,6 +46,8 @@ import multicados.internal.helper.Utils.HandledFunction;
 public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFactory
 		implements DomainResourceValidatorFactory {
 
+	public static final Logger logger = LoggerFactory.getLogger(DomainResourceValidatorFactoryImpl.class);
+
 	private static final String NAMED_RESOURCE_DEFAULT_LITERAL_KEY_FOR_VIETNAMESE = "vi";
 	private static final String NAMED_RESOURCE_DEFAULT_FIELD_NAME = "name";
 	private static final Map<String, String> AVAILABLE_LITERALS = Map
@@ -76,9 +80,9 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 									.<String>elseThrowAndReturn(() -> new IllegalArgumentException(String.format("Unknown literal key %s", configuredLiteralKey))))
 							.get();
 					final NamedResourceValidator defaultNamedResourceValidator = new NamedResourceValidator(fieldName, maxLength, literal, acceptedCharacters, isNaturalAlphabeticAccepted, isNaturalNumericAccepted);
-					final List<Map.Entry<Class, GraphWalker>> fixedLogics = new ArrayList<>();
+					final List<Map.Entry<Class, Map.Entry<Class, GraphWalker>>> fixedLogics = new ArrayList<>();
 
-					for (Class<DomainResource> resourceType: resourceContextProvider.getResourceGraph().collect(DomainResourceGraphCollectors.toTypesSet())) {
+					for (final Class<DomainResource> resourceType: resourceContextProvider.getResourceGraph().collect(DomainResourceGraphCollectors.toTypesSet())) {
 						if (!NamedResource.class.isAssignableFrom(resourceType)) {
 							continue;
 						}
@@ -86,7 +90,7 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 						if (!resourceType.isAnnotationPresent(Exclude.class) ||
 								!resourceType.getDeclaredAnnotation(Exclude.class)
 									.value().equals(NamedResource.class)) {
-							fixedLogics.add(Map.entry(resourceType, defaultNamedResourceValidator));
+							fixedLogics.add(entry(resourceType, entry(NamedResource.class, defaultNamedResourceValidator)));
 							continue;
 						}
 					}
@@ -97,10 +101,6 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 		// @formatter:on
 	}
 
-	public DomainResourceValidator<NamedResource> getDefault() {
-		return null;
-	}
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends DomainResource> DomainResourceValidator<T> getValidator(Class<T> resourceType) {
@@ -108,15 +108,15 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 	}
 
 	@Override
-	public void summary() throws Exception {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-		walkersMap.entrySet().forEach(
-				entry -> logger.debug("{} -> {}", entry.getKey().getName(), entry.getValue().getLoggableName()));
+	public void summary() {
+		for (@SuppressWarnings("rawtypes")
+		final Entry<Class, GraphWalker> entry : walkersMap.entrySet()) {
+			logger.debug("Using {} for {}", entry.getValue().getLoggableName(), entry.getKey().getSimpleName());
+		}
 	}
 
 	@SuppressWarnings("rawtypes")
-	private static final DomainResourceValidator NO_OP_VALIDATOR = new DomainResourceValidator() {
+	private static final DomainResourceValidator NO_OP_VALIDATOR = new AbstractDomainResourceValidator<DomainResource>() {
 
 		@Override
 		public Validation isSatisfiedBy(DomainResource resource) {
@@ -128,6 +128,7 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 			return Validation.success();
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public DomainResourceValidator and(DomainResourceValidator next) {
 			throw new UnsupportedOperationException();
@@ -155,6 +156,10 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 				List<Character> acceptedCharacters,
 				boolean acceptNaturalAlphabet,
 				boolean acceptNaturalNumeric) throws Exception {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Instantiating {}", NamedResourceValidator.class.getName());
+			}
+			
 			pattern = Pattern.compile(declare(RegexHelper.start())
 					.then(RegexBuilder::group)
 					.then(self -> StringHelper.hasLength(literal) ? self.literal(literal) : self)
@@ -173,6 +178,10 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 					.consume(characters -> asIf(acceptNaturalNumeric).then(f -> characters.add('N')).orElse(f -> {}))
 					.then(characters -> characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)))
 					.get();
+			
+			if (logger.isDebugEnabled()) {
+				logger.debug("Compliant pattern is {} for field [{}]", pattern, fieldName);
+			}
 		}
 		// @formatter:on
 

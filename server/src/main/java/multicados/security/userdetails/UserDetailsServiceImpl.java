@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
+import multicados.domain.entity.Role;
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
 import multicados.internal.domain.repository.GenericRepository;
@@ -73,7 +74,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 					tuple.get(User_.ACTIVE, Boolean.class),
 					!tuple.get(User_.LOCKED, Boolean.class),
 					tuple.get(User_.CREDENTIAL_VERSION, LocalDateTime.class),
-					List.of(new SimpleGrantedAuthority(tuple.get(User_.ROLE, String.class))));
+					List.of(new SimpleGrantedAuthority(tuple.get(User_.ROLE, Role.class).name())));
 			// @formatter:on
 		} catch (Exception any) {
 			any.printStackTrace();

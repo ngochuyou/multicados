@@ -83,6 +83,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.file.engine.image.ManipulationContextImpl;
@@ -95,7 +96,7 @@ import multicados.internal.locale.ZoneContext;
  * @author Ngoc Huy
  *
  */
-public class FileManagementImpl implements FileManagement {
+public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder implements FileManagement {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileManagementImpl.class);
 
@@ -129,6 +130,10 @@ public class FileManagementImpl implements FileManagement {
 			StandardServiceRegistry serviceRegistry,
 			BootstrapContext bootstrapContext,
 			MetadataBuildingOptions metadataBuildingOptions) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Building {}", FileResourceSessionFactory.class.getName());
+		}
+		
 		return declare(serviceRegistry, env)
 				.then(this::scanForMetadataSources)
 					.second(bootstrapContext)
@@ -142,6 +147,9 @@ public class FileManagementImpl implements FileManagement {
 
 	private SessionFactoryOptionsBuilder getSessionFactoryOptionsBuilder(SessionFactoryImplementor sfi,
 			StandardServiceRegistry serviceRegistry, BootstrapContext bootstrapContext) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Creating {}", SessionFactoryOptionsBuilder.class.getName());
+		}
 		// @formatter:off
 		return declare(serviceRegistry, bootstrapContext)
 				.then(SessionFactoryOptionsBuilder::new)
@@ -153,6 +161,10 @@ public class FileManagementImpl implements FileManagement {
 	// @formatter:on
 	private MetadataSources scanForMetadataSources(StandardServiceRegistry serviceRegistry, Environment env)
 			throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Scanning for {}", MetadataSources.class.getName());
+		}
+
 		MetadataSources metadataSources = new MetadataSources(serviceRegistry, true);
 		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
 
@@ -166,12 +178,19 @@ public class FileManagementImpl implements FileManagement {
 			metadataSources.addAnnotatedClassName(clazz.getName());
 		}
 
+		if (logger.isDebugEnabled()) {
+			logger.debug("Found {} annotated classes", metadataSources.getAnnotatedClasses().size());
+		}
+
 		return metadataSources;
 	}
 
 	private StandardServiceRegistry createStandardServiceRegistry(SessionFactoryImplementor sfi,
 			BootstrapServiceRegistry bootstrapServiceRegistry, ProvidedServicesLocator providedServicesLocator)
 			throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Creating {} ", StandardServiceRegistry.class.getName());
+		}
 		// @formatter:off
 		return new StandardServiceRegistryImpl(
 				bootstrapServiceRegistry,
@@ -182,6 +201,9 @@ public class FileManagementImpl implements FileManagement {
 	}
 
 	private BootstrapServiceRegistry createBootstrapServiceRegistry(SessionFactoryImplementor sfi) {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Creating {} ", BootstrapServiceRegistry.class.getName());
+		}
 		// @formatter:off
 		return new BootstrapServiceRegistryBuilder()
 				.enableAutoClose()
@@ -241,6 +263,10 @@ public class FileManagementImpl implements FileManagement {
 				@Override
 				public SessionFactoryServiceRegistry buildServiceRegistry(SessionFactoryImplementor theSfiThatBeingBuilt,
 						SessionFactoryOptions sfiOptions) {
+					if (logger.isTraceEnabled()) {
+						logger.trace("Creating {} ", SessionFactoryServiceRegistry.class.getName());
+					}
+					
 					try {
 						return new SessionFactoryServiceRegistryImpl(
 								serviceRegistry, // we want to use the service registry from the original SessionFactoryImpl as the parent

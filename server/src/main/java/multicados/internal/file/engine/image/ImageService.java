@@ -41,10 +41,17 @@ public class ImageService implements Service {
 	private final PropagationWorker worker;
 
 	public ImageService(ApplicationContext applicationContext, Environment env) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Instantiating {}", ImageService.class.getName());
+		}
+
 		worker = instantiatePropagationWorker(applicationContext);
 	}
 
 	private PropagationWorker instantiatePropagationWorker(ApplicationContext applicationContext) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Registering {} as a Spring Bean", PropagationWorker.class.getName());
+		}
 		// @formatter:off
 		return declare(applicationContext, PropagationWorker.class, new GenericBeanDefinition())
 				.consume((appContext, type, bean) -> bean.setLazyInit(false))
@@ -135,8 +142,8 @@ public class ImageService implements Service {
 		public CompletableFuture<byte[]> propagate(BufferedImage originalImage, String extension, int nextWidth,
 				int nextHeight, float qualityFactor) throws Exception {
 			if (logger.isDebugEnabled()) {
-				logger.debug("Executing propagation in thread {}, info: width:{}, height:{}, quality factor:{}",
-						Thread.currentThread().getName(), nextWidth, nextHeight, qualityFactor);
+				logger.debug("Executing propagation with: width:{}, height:{}, quality factor:{}", nextWidth,
+						nextHeight, qualityFactor);
 			}
 			// @formatter:off
 			return CompletableFuture.completedFuture(

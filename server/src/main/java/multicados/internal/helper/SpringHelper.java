@@ -54,8 +54,12 @@ public class SpringHelper {
 	}
 
 	public static DomainUserDetails getUserDetails(Authentication authentication) {
+		return getUserDetails(authentication, null);
+	}
+
+	public static DomainUserDetails getUserDetails(Authentication authentication, DomainUserDetails anonymousProfile) {
 		if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
-			return null;
+			return anonymousProfile;
 		}
 
 		return DomainUserDetails.class.cast(authentication.getPrincipal());

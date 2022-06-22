@@ -8,12 +8,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import org.springframework.util.Assert;
 
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -28,41 +25,17 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 	private final Class<T> resourceType;
 	private Set<DomainResourceGraph<? extends T>> childrens;
 
+	private final int depth;
+
 	public DomainResourceGraphImpl(Class<T> resourceType) {
 		this(null, resourceType);
 	}
 
 	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType) {
-		this(parent, resourceType, new LinkedHashSet<>(0));
-	}
-
-	public DomainResourceGraphImpl(Class<T> resourceType, Set<DomainResourceGraph<? extends T>> childrens) {
-		this(null, resourceType, childrens);
-	}
-
-	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType,
-			Set<DomainResourceGraph<? extends T>> childrens) {
 		this.parent = parent;
+		depth = parent == null ? 0 : parent.getDepth() + 1;
 		this.resourceType = resourceType;
-
-		if (childrens == null) {
-			this.childrens = new LinkedHashSet<>();
-			return;
-		}
-
-		Set<DomainResourceGraph<? extends T>> associationSafeChildrens = new LinkedHashSet<>();
-
-		for (DomainResourceGraph<? extends T> child : childrens) {
-			associationSafeChildrens.add(new DomainResourceGraphImpl<>(this, child));
-		}
-
-		this.childrens = associationSafeChildrens;
-	}
-
-	private DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, DomainResourceGraph<T> child) {
-		this.parent = parent;
-		resourceType = child.getResourceType();
-		childrens = child.getChildrens();
+		this.childrens = new LinkedHashSet<>();
 	}
 
 	@Override
@@ -85,23 +58,48 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 			throws Exception {
 		consumer.accept(this);
 
-		for (DomainResourceGraph<? extends T> children : childrens) {
+		for (final DomainResourceGraph<? extends T> children : childrens) {
 			children.forEach(consumer);
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public void add(Class<? extends DomainResource> resourceType) {
-		Assert.notNull(resourceType, "Resource must not be null");
+	public DomainResourceGraph<? extends T> add(Class<? extends DomainResource> childType) {
+		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
+			final DomainResourceGraphImpl<? extends T> newChild = new DomainResourceGraphImpl<>(this,
+					(Class<? extends T>) childType);
 
-		if (this.resourceType.equals(resourceType.getSuperclass())
-				|| TypeHelper.isImplementedFrom(resourceType, this.resourceType)) {
-			childrens.add(new DomainResourceGraphImpl<>(this, (Class<? extends T>) resourceType));
+			childrens.add(newChild);
+
+			return newChild;
+		}
+
+		DomainResourceGraph<? extends T> posibleChild = null;
+
+		for (final DomainResourceGraph<? extends T> child : childrens) {
+			if (posibleChild == null) {
+				posibleChild = child.add(childType);
+				continue;
+			}
+
+			child.add((DomainResourceGraph) posibleChild);
+		}
+
+		return posibleChild;
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Override
+	public void add(DomainResourceGraph<? extends T> child) {
+		Class<? extends T> childType = child.getResourceType();
+
+		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
+			childrens.add(child);
 			return;
 		}
 
-		childrens.forEach(node -> node.add(resourceType));
+		childrens.forEach(childNode -> childNode.add((DomainResourceGraph) child));
 	}
 
 	@Override
@@ -133,7 +131,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 
 		collection.addAll(List.of(mapper.apply(this)));
 
-		for (DomainResourceGraph<? extends T> child : childrens) {
+		for (final DomainResourceGraph<? extends T> child : childrens) {
 			collection.addAll(child.collect(factory, mapper));
 		}
 
@@ -151,15 +149,13 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 	}
 
 	@Override
-	public String toString() {
-		return String.format("%s(parent=%s, type=%s, childrens=%d)", this.getClass().getSimpleName(),
-				Optional.ofNullable(parent).map(p -> p.getResourceType().getName()).orElse("none"),
-				resourceType.getName(), childrens.size());
+	public int hashCode() {
+		return resourceType.hashCode();
 	}
 
 	@Override
-	public int hashCode() {
-		return resourceType.hashCode();
+	public int getDepth() {
+		return depth;
 	}
 
 	@SuppressWarnings("rawtypes")

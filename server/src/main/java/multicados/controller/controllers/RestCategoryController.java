@@ -36,8 +36,9 @@ public class RestCategoryController extends AbstractController {
 	@GetMapping
 	@Transactional(readOnly = true)
 	public ResponseEntity<?> getCategories(CategoryQuery query, Authentication authentication) throws Exception {
-		return ResponseEntity.ok(crudService.readAll(query,
-				SpringHelper.getUserDetails(authentication).getCRUDAuthority(), sessionFactory.getCurrentSession()));
+		return ResponseEntity.ok(
+				crudService.readAll(query, SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(),
+						sessionFactory.getCurrentSession()));
 	}
 
 }

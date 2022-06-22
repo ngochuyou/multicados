@@ -38,7 +38,7 @@ public class ManipulationContextImpl implements ManipulationContext {
 	private final int maximumIdentifierOccupancy;
 
 	public ManipulationContextImpl(Environment env, String identifierDelimiter) throws Exception {
-		standardsMap = resolveStandards(env);
+		standardsMap = locateStandardsConfiguration(env);
 		standardsArray = standardsMap.values().stream().sorted((one, two) -> one.compareRatio(two.getRatio()))
 				.toArray(Standard[]::new);
 		maximumIdentifierOccupancy = standardsMap.values().stream().map(Standard::getName).map(String::length)
@@ -48,10 +48,16 @@ public class ManipulationContextImpl implements ManipulationContext {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Ordered {}(s) are\n\t{}", Standard.class.getSimpleName(),
 					StringHelper.join("\n\t", List.of(standardsArray)));
+			logger.debug("maximumIdentifierOccupancy is {}", maximumIdentifierOccupancy);
+			logger.debug("identifierDelimiter is {}", identifierDelimiter);
 		}
 	}
 
-	private Map<String, Standard> resolveStandards(Environment env) throws Exception {
+	private Map<String, Standard> locateStandardsConfiguration(Environment env) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Locating manipulation standards");
+		}
+
 		final Map<String, Standard> standards = new HashMap<>();
 
 		for (String configuration : SpringHelper.getOrThrow(env, Settings.FILE_RESOURCE_IMAGE_STANDARD,
@@ -70,6 +76,11 @@ public class ManipulationContextImpl implements ManipulationContext {
 	}
 
 	private Standard resolveStandard(String configuration) throws Exception {
+		if (logger.isDebugEnabled()) {
+			logger.debug("Constructing an instance of {} with configuration {}", Standard.class.getName(),
+					configuration);
+		}
+
 		String[] components = configuration.split(StringHelper.VERTICAL_BAR);
 		String name = components[0];
 		String[] ratioPair = components[1].split(StringHelper.COLON);

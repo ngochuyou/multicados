@@ -33,8 +33,6 @@ import org.hibernate.type.CollectionType;
 import org.hibernate.type.ComponentType;
 import org.hibernate.type.EntityType;
 import org.hibernate.type.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
@@ -70,16 +68,16 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	public DomainResourceMetadataImpl(
 	// @formatter:off
-			Class<T> resourceType,
-			DomainResourceContext resourceContextProvider,
-			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap,
-			SessionFactoryImplementor sfi,
-			FileManagement fileManagement)
+			final Class<T> resourceType,
+			final DomainResourceContext resourceContextProvider,
+			final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap,
+			final SessionFactoryImplementor sfi,
+			final FileManagement fileManagement)
 			throws Exception {
 		// @formatter:on
 		this.resourceType = resourceType;
 
-		Builder<T> builder = isHbmManaged(resourceType)
+		final Builder<T> builder = isHbmManaged(resourceType)
 				? new HibernateResourceMetadataBuilder<>(resourceType, sfi, fileManagement)
 				: new NonHibernateResourceMetadataBuilder<>(resourceType, resourceContextProvider, metadatasMap);
 
@@ -178,16 +176,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	@SuppressWarnings({ "rawtypes" })
 	private class HibernateResourceMetadataBuilder<D extends DomainResource> implements Builder<D> {
 
-		private static final Logger logger = LoggerFactory
-				.getLogger(DomainResourceMetadataImpl.HibernateResourceMetadataBuilder.class);
-
 		private final EntityPersister persister;
 		private final EntityMetamodel metamodel;
 
-		private HibernateResourceMetadataBuilder(Class<D> resourceType, SessionFactoryImplementor sfi,
-				FileManagement fileManagement) {
-			logger.trace("Building {} for Hibernate entity of type [{}]", DomainResourceMetadata.class.getSimpleName(),
-					resourceType.getName());
+		private HibernateResourceMetadataBuilder(final Class<D> resourceType, final SessionFactoryImplementor sfi,
+				final FileManagement fileManagement) {
 			persister = locatePersister(resourceType, sfi, fileManagement);
 			metamodel = persister.getEntityMetamodel();
 		}
@@ -604,20 +597,13 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	private class NonHibernateResourceMetadataBuilder<D extends DomainResource> implements Builder<D> {
 
-		private static final Logger logger = LoggerFactory
-				.getLogger(DomainResourceMetadataImpl.NonHibernateResourceMetadataBuilder.class);
-
 		private final Class<D> resourceType;
 
 		private final DomainResourceContext resourceContextProvider;
 		private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
 
-//		private ObservableMetadataEntries observableMetadataEntries;
-
 		public NonHibernateResourceMetadataBuilder(Class<D> resourceType, DomainResourceContext resourceContextProvider,
 				Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap) {
-			logger.trace("Building {} for resource of type [{}]", DomainResourceMetadata.class.getSimpleName(),
-					resourceType.getName());
 			this.resourceType = resourceType;
 			this.resourceContextProvider = resourceContextProvider;
 			this.metadatasMap = metadatasMap;

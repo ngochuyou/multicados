@@ -9,6 +9,6 @@ package multicados.internal.context;
  */
 public interface ContextBuildListener {
 
-	void doAfterContextBuild();
+	void doAfterContextBuild() throws IllegalAccessException;
 	
 }

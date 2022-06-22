@@ -9,6 +9,7 @@ import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.builder.DomainResourceBuilder;
@@ -23,7 +24,8 @@ import multicados.internal.service.crud.event.ServiceEventListenerGroups;
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractGenericHibernateCUDService<TUPLE> implements GenericCRUDService<TUPLE, Session> {
+public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextBuilder.AbstractContextBuilder
+		implements GenericCRUDService<TUPLE, Session> {
 
 	private static final Logger logger = LoggerFactory.getLogger(AbstractGenericHibernateCUDService.class);
 
@@ -98,7 +100,7 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> implements Gener
 	}
 
 	@Override
-	public void summary() throws Exception {
+	public void summary() {
 		final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 		logger.trace(eventListenerGroups.toString());

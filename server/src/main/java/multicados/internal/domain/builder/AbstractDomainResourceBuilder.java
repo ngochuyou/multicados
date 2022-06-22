@@ -59,7 +59,7 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		}
 
 		@Override
-		public void doAfterContextBuild() {
+		public void doAfterContextBuild() throws IllegalAccessException {
 			parentBuilder.doAfterContextBuild();
 			childBuilder.doAfterContextBuild();
 		}
@@ -67,9 +67,9 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 	}
 
 	@Override
-	public synchronized void doAfterContextBuild() {
+	public synchronized void doAfterContextBuild() throws IllegalAccessException {
 		if (access == null) {
-			return;
+			throw new IllegalAccessException(Access.getClosedMessage(this));
 		}
 
 		LoggerFactory.getLogger(this.getClass()).trace(Access.getClosingMessage(this));

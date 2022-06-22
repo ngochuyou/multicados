@@ -3,6 +3,8 @@
  */
 package multicados.internal.domain;
 
+import static java.util.Map.entry;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -25,6 +27,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.HandledConsumer;
@@ -34,10 +37,9 @@ import multicados.internal.helper.Utils.HandledSupplier;
  * @author Ngoc Huy
  *
  */
-public abstract class AbstractGraphWalkerFactory {
+public abstract class AbstractGraphWalkerFactory extends ContextBuilder.AbstractContextBuilder {
 
-	public static interface FixedLogic {
-	}
+	private static final Logger logger = LoggerFactory.getLogger(AbstractGraphWalkerFactory.class);
 
 	@SuppressWarnings("rawtypes")
 	protected final Map<Class, GraphWalker> walkersMap;
@@ -48,7 +50,7 @@ public abstract class AbstractGraphWalkerFactory {
 			ApplicationContext applicationContext,
 			Class<W> walkerType,
 			DomainResourceContext resourceContext,
-			Collection<Map.Entry<Class, GraphWalker>> fixedLogics,
+			Collection<Map.Entry<Class, Map.Entry<Class, GraphWalker>>> fixedLogics,
 			Supplier<GraphWalker> noopSupplier)
 			throws Exception {
 		this.walkersMap = Utils.declare(scan(walkerType))
@@ -60,7 +62,10 @@ public abstract class AbstractGraphWalkerFactory {
 				.then(this::addFixedLogics)
 					.second(resourceContext)
 					.third(noopSupplier)
-				.then(this::buildCollection)
+				.thenPrepend(this::buildCollection)
+				.then(this::filterNoop)
+					.second(resourceContext)
+				.then(this::sort)
 				.then(this::join)
 				.then(Collections::unmodifiableMap)
 				.get();
@@ -71,7 +76,7 @@ public abstract class AbstractGraphWalkerFactory {
 			ApplicationContext applicationContext,
 			Class<W> walkerType,
 			DomainResourceContext resourceContext,
-			HandledSupplier<Collection<Map.Entry<Class, GraphWalker>>, Exception> fixedLogicsSupplier,
+			HandledSupplier<Collection<Map.Entry<Class, Map.Entry<Class, GraphWalker>>>, Exception> fixedLogicsSupplier,
 			Supplier<GraphWalker> noopSupplier)
 			throws Exception {
 		this(
@@ -84,11 +89,12 @@ public abstract class AbstractGraphWalkerFactory {
 	// @formatter:on
 
 	private <W extends GraphWalker<?>> Set<BeanDefinition> scan(Class<W> walkerType) {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Scanning for {}", walkerType.getSimpleName());
+		}
 
-		logger.trace("Scanning for {}", walkerType.getSimpleName());
-
-		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+		final ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(
+				false);
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(walkerType));
 
@@ -96,31 +102,31 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private <W extends GraphWalker<?>> Map<Class, GraphWalker> contribute(ApplicationContext applicationContext,
-			Class<W> walkerType, Set<BeanDefinition> beanDefs) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
-		final Map<Class, GraphWalker> walkersMap = new HashMap<>(8);
+	private <W extends GraphWalker<?>> Map<Class, Map.Entry<Class, GraphWalker>> contribute(
+			ApplicationContext applicationContext, Class<W> walkerType, Set<BeanDefinition> beanDefs) throws Exception {
+		final Map<Class, Map.Entry<Class, GraphWalker>> walkersMap = new HashMap<>(8);
 
-		for (BeanDefinition beanDef : beanDefs) {
-			Class<GraphWalker> walkerClass = (Class<GraphWalker>) Class.forName(beanDef.getBeanClassName());
+		for (final BeanDefinition beanDef : beanDefs) {
+			final Class<GraphWalker> walkerClass = (Class<GraphWalker>) Class.forName(beanDef.getBeanClassName());
 
 			if (FixedLogic.class.isAssignableFrom(walkerClass)) {
 				continue;
 			}
 
-			For anno = walkerClass.getDeclaredAnnotation(For.class);
+			final For anno = walkerClass.getDeclaredAnnotation(For.class);
 
 			if (anno == null) {
 				throw new IllegalArgumentException(For.Message.getMissingMessage(walkerClass));
 			}
 
-			GraphWalker walker = constructWalker(applicationContext, walkerClass);
+			final GraphWalker walker = constructWalker(applicationContext, walkerClass);
 
-			walkersMap.put(anno.value(), walker);
-			logger.trace("Contributing {}", walker.getLoggableName());
+			walkersMap.put(anno.value(), entry(anno.value(), walker));
+
+			if (logger.isDebugEnabled()) {
+				logger.debug("Contributing {}", walker.getLoggableName());
+			}
 		}
-
-		logger.trace("Contributed {} {}", walkersMap.size(), walkerType.getSimpleName());
 
 		return walkersMap;
 	}
@@ -163,26 +169,26 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<GraphWalker>> addFixedLogics(Map<Class, GraphWalker> contributions,
-			Collection<Map.Entry<Class, GraphWalker>> fixedLogics) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
+	private Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> addFixedLogics(
+			Map<Class, Map.Entry<Class, GraphWalker>> contributions,
+			Collection<Map.Entry<Class, Map.Entry<Class, GraphWalker>>> fixedLogics) throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Adding fixed logics");
+		}
 
-		logger.trace("Adding fixed logics");
-
-		Map<Class, LinkedHashSet<GraphWalker>> finalContributions = new HashMap<>();
-		HandledConsumer<Collection<Entry<Class, GraphWalker>>, Exception> finalContributionBuilder = (
+		final Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> finalContributions = new HashMap<>();
+		final HandledConsumer<Collection<Entry<Class, Map.Entry<Class, GraphWalker>>>, Exception> finalContributionBuilder = (
 				walkerEntries) -> {
-			for (Entry<Class, GraphWalker> walkerEntry : walkerEntries) {
+			for (final Entry<Class, Map.Entry<Class, GraphWalker>> walkerEntry : walkerEntries) {
 				final Class resourceType = walkerEntry.getKey();
-				final GraphWalker walker = walkerEntry.getValue();
+				final Map.Entry<Class, GraphWalker> walker = walkerEntry.getValue();
 
 				if (finalContributions.containsKey(resourceType)) {
 					finalContributions.get(resourceType).add(walker);
 					continue;
 				}
-
 				// @formatter:off
-				Utils.declare(new LinkedHashSet<GraphWalker>())
+				Utils.declare(new LinkedHashSet<Map.Entry<Class, GraphWalker>>())
 					.consume(walkers -> walkers.add(walker))
 					.prepend(resourceType)
 					.consume(finalContributions::put);
@@ -197,17 +203,18 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<GraphWalker>> buildCollection(Map<Class, LinkedHashSet<GraphWalker>> mappedWalkers,
+	private Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> buildCollection(
+			Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> mappedWalkers,
 			DomainResourceContext resourceContext, Supplier<GraphWalker> noopSupplier) {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Building collections");
+		}
 
-		logger.trace("Building collections");
+		final Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> walkersCollections = new HashMap<>();
 
-		final Map<Class, LinkedHashSet<GraphWalker>> walkersCollections = new HashMap<>();
-
-		for (DomainResourceGraph graph : resourceContext.getResourceGraph()
+		for (final DomainResourceGraph graph : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toGraphsList())) {
-			Class resourceType = graph.getResourceType();
+			final Class resourceType = graph.getResourceType();
 
 			if (!mappedWalkers.containsKey(resourceType)) {
 				if (!walkersCollections.containsKey(resourceType)) {
@@ -219,9 +226,9 @@ public abstract class AbstractGraphWalkerFactory {
 				continue;
 			}
 
-			LinkedHashSet<GraphWalker> scopedWalkers = mappedWalkers.get(resourceType);
+			final LinkedHashSet<Map.Entry<Class, GraphWalker>> scopedWalkers = mappedWalkers.get(resourceType);
 
-			for (GraphWalker walker : scopedWalkers) {
+			for (final Map.Entry<Class, GraphWalker> walker : scopedWalkers) {
 				if (!walkersCollections.containsKey(resourceType)) {
 					buildWithoutExsitingCollection(graph, walkersCollections, walker, noopSupplier);
 					continue;
@@ -230,27 +237,70 @@ public abstract class AbstractGraphWalkerFactory {
 				buildWithExsitingCollection(graph, walkersCollections, walker, noopSupplier);
 			}
 		}
+
+		return walkersCollections;
+	}
+
+	@SuppressWarnings("rawtypes")
+	private Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> filterNoop(
+			Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> builtWalkers,
+			DomainResourceContext resourceContext, Supplier<GraphWalker> noopSupplier) {
 		// @formatter:off
-		return walkersCollections.entrySet()
+		return builtWalkers.entrySet()
 			.stream()
 			.map(entry -> Map.entry(
 					entry.getKey(),
 					entry.getValue().size() > 1
 						? entry.getValue()
 							.stream()
-							.filter(walker -> !walker.equals(noopSupplier.get()))
-							.<LinkedHashSet<GraphWalker>>collect(LinkedHashSet::new, (set, walker) -> set.add(walker), LinkedHashSet::addAll)
+							.filter(walker -> !walker.getValue().equals(noopSupplier.get()))
+							.<LinkedHashSet<Map.Entry<Class, GraphWalker>>>collect(LinkedHashSet::new, (set, walker) -> set.add(walker), LinkedHashSet::addAll)
 						: entry.getValue()))
 			.collect(CollectionHelper.toMap());
 		// @formatter:on
 	}
 
 	@SuppressWarnings("rawtypes")
+	private Map<Class, LinkedHashSet<GraphWalker>> sort(
+			Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> builtWalkers,
+			DomainResourceContext resourceContext) {
+		DomainResourceGraph<DomainResource> graph = resourceContext.getResourceGraph();
+		Map<Class, Integer> depthMap = new HashMap<>();
+		// @formatter:off
+		return builtWalkers.entrySet().stream()
+				.map(entry -> entry(
+						entry.getKey(),
+						entry.getValue().stream()
+							.sorted((one, two) -> Integer.compare(locateDepth(one, graph, depthMap), locateDepth(two, graph, depthMap)))
+							.map(walkerEntry -> walkerEntry.getValue())
+							.<LinkedHashSet<GraphWalker>>collect(LinkedHashSet::new, (set, walker) -> set.add(walker), LinkedHashSet::addAll)))
+				.collect(CollectionHelper.toMap());
+		// @formatter:on
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private int locateDepth(Map.Entry<Class, GraphWalker> walkerEntry, DomainResourceGraph<DomainResource> graph,
+			Map<Class, Integer> depthMap) {
+		Class walkerClass = walkerEntry.getKey();
+
+		if (depthMap.containsKey(walkerClass)) {
+			return depthMap.get(walkerClass);
+		}
+
+		int newDepth = graph.locate(walkerClass).getDepth();
+
+		depthMap.put(walkerClass, newDepth);
+
+		return newDepth;
+	}
+
+	@SuppressWarnings("rawtypes")
 	private void buildWithExsitingCollection(DomainResourceGraph graph,
-			Map<Class, LinkedHashSet<GraphWalker>> walkersCollections, GraphWalker contribution,
-			Supplier<GraphWalker> noopSupplier) {
-		Class resourceType = graph.getResourceType();
-		LinkedHashSet<GraphWalker> exsitingWalkersCollection = walkersCollections.get(resourceType);
+			Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> walkersCollections,
+			Map.Entry<Class, GraphWalker> contribution, Supplier<GraphWalker> noopSupplier) {
+		final Class resourceType = graph.getResourceType();
+		final LinkedHashSet<Map.Entry<Class, GraphWalker>> exsitingWalkersCollection = walkersCollections
+				.get(resourceType);
 
 		if (graph.getParent() == null) {
 			if (contribution == null) {
@@ -261,7 +311,7 @@ public abstract class AbstractGraphWalkerFactory {
 			return;
 		}
 
-		LinkedHashSet<GraphWalker> parentWalkersCollection = walkersCollections
+		final LinkedHashSet<Map.Entry<Class, GraphWalker>> parentWalkersCollection = walkersCollections
 				.get(graph.getParent().getResourceType());
 
 		if (contribution == null) {
@@ -276,9 +326,9 @@ public abstract class AbstractGraphWalkerFactory {
 
 	@SuppressWarnings("rawtypes")
 	private void buildWithoutExsitingCollection(DomainResourceGraph graph,
-			Map<Class, LinkedHashSet<GraphWalker>> graphCollections, GraphWalker contribution,
-			Supplier<GraphWalker> noopSupplier) {
-		Class resourceType = graph.getResourceType();
+			Map<Class, LinkedHashSet<Map.Entry<Class, GraphWalker>>> graphCollections,
+			Map.Entry<Class, GraphWalker> contribution, Supplier<GraphWalker> noopSupplier) {
+		final Class resourceType = graph.getResourceType();
 
 		if (graph.getParent() == null) {
 			if (contribution == null) {
@@ -290,7 +340,8 @@ public abstract class AbstractGraphWalkerFactory {
 			return;
 		}
 
-		LinkedHashSet<GraphWalker> parentWalkersCollection = graphCollections.get(graph.getParent().getResourceType());
+		final LinkedHashSet<Map.Entry<Class, GraphWalker>> parentWalkersCollection = graphCollections
+				.get(graph.getParent().getResourceType());
 
 		if (contribution == null) {
 			graphCollections.put(resourceType, parentWalkersCollection);
@@ -302,19 +353,20 @@ public abstract class AbstractGraphWalkerFactory {
 	}
 
 	@SuppressWarnings("rawtypes")
-	private LinkedHashSet<GraphWalker> noop(Supplier<GraphWalker> noopSupplier) {
-		return new LinkedHashSet<>(List.of(noopSupplier.get()));
+	private LinkedHashSet<Map.Entry<Class, GraphWalker>> noop(Supplier<GraphWalker> noopSupplier) {
+		return new LinkedHashSet<>(List.of(Map.entry(DomainResource.class, noopSupplier.get())));
 	}
 
 	@SuppressWarnings("rawtypes")
-	private LinkedHashSet<GraphWalker> from(GraphWalker walker) {
+	private LinkedHashSet<Map.Entry<Class, GraphWalker>> from(Map.Entry<Class, GraphWalker> walker) {
 		return new LinkedHashSet<>(List.of(walker));
 	}
 
 	@SuppressWarnings("rawtypes")
-	private LinkedHashSet<GraphWalker> addAll(LinkedHashSet<GraphWalker> walkersCollection,
-			LinkedHashSet<GraphWalker> entry) {
-		LinkedHashSet<GraphWalker> copy = new LinkedHashSet<>(walkersCollection);
+	private LinkedHashSet<Map.Entry<Class, GraphWalker>> addAll(
+			LinkedHashSet<Map.Entry<Class, GraphWalker>> walkersCollection,
+			LinkedHashSet<Map.Entry<Class, GraphWalker>> entry) {
+		final LinkedHashSet<Map.Entry<Class, GraphWalker>> copy = new LinkedHashSet<>(walkersCollection);
 
 		copy.addAll(entry);
 
@@ -328,11 +380,15 @@ public abstract class AbstractGraphWalkerFactory {
 				.stream()
 				.map(entry -> Map.entry(
 						entry.getKey(),
-						entry.getValue().stream()
+						entry.getValue()
+							.stream()
 							.reduce((product, walker) -> product.and(walker))
 							.get()))
 				.collect(CollectionHelper.toMap());
 		// @formatter:on
+	}
+
+	public static interface FixedLogic {
 	}
 
 }

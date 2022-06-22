@@ -18,13 +18,14 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.helper.StringHelper;
 
 /**
  * @author Ngoc Huy
  *
  */
-public class DatabaseInitializerImpl implements DatabaseInitializer {
+public class DatabaseInitializerImpl extends ContextBuilder.AbstractContextBuilder implements DatabaseInitializer {
 
 	private static final String FLAG_OFF = "off";
 

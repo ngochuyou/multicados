@@ -3,18 +3,18 @@
  */
 package multicados.internal.service.crud.security.read;
 
+import static multicados.internal.helper.StringHelper.EMPTY_STRING;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
@@ -43,14 +43,13 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 			DomainResourceContext modelContext,
 			List<SecuredAttribute<D>> attributes,
 			ReadFailureExceptionHandler exceptionThrower) throws Exception {
-		// @formatter:on
 		super(modelContext.getMetadata(type), exceptionThrower);
-		// @formatter:off
-		List<SecuredAttribute<D>> sortedAttributes = Utils
+		
+		final List<SecuredAttribute<D>> sortedAttributes = Utils
 				.declare(attributes)
 				.then(this::sort)
 				.get();
-		DomainResourceMetadata<D> metadata = getMetadata();
+		final DomainResourceMetadata<D> metadata = getMetadata();
 		
 		authorizedAttributes = Utils
 				.declare(sortedAttributes)
@@ -90,7 +89,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	}
 
 	private Map<String, String> getAlias(List<SecuredAttribute<D>> attributes, DomainResourceMetadata<D> metadata) {
-		Map<String, String> aliasMap = metadata.getAttributeNames().stream()
+		final Map<String, String> aliasMap = metadata.getAttributeNames().stream()
 				.map(attribute -> Map.entry(attribute, attribute))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
@@ -111,18 +110,17 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	private Map<String, Set<String>> seal(Map<String, Set<String>> publicAttributes) {
 		return publicAttributes.entrySet().stream()
 				.map(entry -> Map.entry(entry.getKey(), Collections.unmodifiableSet(entry.getValue())))
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+				.collect(CollectionHelper.toMap());
 	}
 
 	private Map<String, Set<String>> getPublicAttributes(List<SecuredAttribute<D>> attributes, Class<D> owningType)
 			throws CredentialException {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityNodeImpl.class);
-		Map<String, Set<String>> publicAttributes = new HashMap<>();
+		final Map<String, Set<String>> publicAttributes = new HashMap<>();
 
-		for (SecuredAttribute<D> attribute : attributes) {
-			String name = attribute.getName();
-			boolean isMasked = Optional.ofNullable(attribute.isMasked()).orElse(true);
-			String credential = attribute.getCredential().getAuthority();
+		for (final SecuredAttribute<D> attribute : attributes) {
+			final String name = attribute.getName();
+			final boolean isMasked = Optional.ofNullable(attribute.isMasked()).orElse(true);
+			final String credential = attribute.getCredential().getAuthority();
 
 			if (credential == null) {
 				throw new IllegalArgumentException(String.format("Credential was empty on property [%s]", name));
@@ -130,12 +128,10 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 
 			publicAttributes.putIfAbsent(credential, new HashSet<>());
 
-			Set<String> publicAttributesByCredential = publicAttributes.get(credential);
+			final Set<String> publicAttributesByCredential = publicAttributes.get(credential);
 
 			if (isMasked) {
 				if (publicAttributesByCredential.contains(name)) {
-					logger.trace(String.format("[%s-%s-%s] Overriding visibility of [PUBLISHED] with [MASKED]",
-							owningType.getSimpleName(), credential, name));
 					publicAttributesByCredential.remove(name);
 				}
 
@@ -143,8 +139,6 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 			}
 
 			if (!publicAttributesByCredential.contains(name)) {
-				logger.trace(String.format("[%s-%s-%s] Overriding visiblity of [MASKED] with [PUBLISHED]",
-						owningType.getSimpleName(), credential, name));
 				publicAttributesByCredential.add(name);
 			}
 		}
@@ -170,16 +164,22 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	@Override
 	public String toString() {
 		// @formatter:off
-		return String.format("%s<%s>[\n\t%s\n]",			
+		return String.format("%s<%s>[\n\t%s\n]",
 				this.getClass().getSimpleName(), getMetadata().getResourceType().getSimpleName(),
 				authorizedAttributes.entrySet()
 					.stream()
-					.map(entry -> entry.getValue()
-							.stream()
-							.map(attribute -> String.format("%s: %s", entry.getKey(), attribute))
-							.collect(Collectors.joining("\n\t")))
+					.map(entry -> joinOrEmpty(entry))
+					.filter(string -> !string.equals(EMPTY_STRING))
 					.collect(Collectors.joining("\n\t")));
 		// @formatter:on
+	}
+
+	private String joinOrEmpty(Entry<String, Set<String>> entry) {
+		if (entry.getValue().isEmpty()) {
+			return EMPTY_STRING;
+		}
+
+		return String.format("%s:\t%s", entry.getKey(), StringHelper.join(StringHelper.COMMA, entry.getValue()));
 	}
 
 }

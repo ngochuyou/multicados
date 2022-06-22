@@ -3,11 +3,14 @@
  */
 package multicados.internal.domain.builder;
 
+import static java.util.Map.entry;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.persistence.EntityManager;
 
@@ -19,6 +22,7 @@ import org.springframework.context.ApplicationContext;
 import multicados.internal.domain.AbstractGraphWalkerFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.GraphWalker;
 import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
@@ -32,6 +36,8 @@ import multicados.internal.helper.Utils;
 public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 		implements DomainResourceBuilderFactory {
 
+	private static final Logger logger = LoggerFactory.getLogger(DomainResourceBuilderFactoryImpl.class);
+
 	@Autowired
 	public DomainResourceBuilderFactoryImpl(ApplicationContext applicationContext,
 			DomainResourceContext resourceContext) throws Exception {
@@ -41,9 +47,9 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 				DomainResourceBuilder.class,
 				resourceContext,
 				List.of(
-						Map.entry(IdentifiableResource.class, IDENTIFIABLE_RESOURCE_BUILDER),
-						Map.entry(NamedResource.class, NAMED_RESOURCE_BUILDER),
-						Map.entry(PermanentResource.class, PERMANENT_RESOURCE_BUILDER)),
+						entry(IdentifiableResource.class, entry(IdentifiableResource.class, IDENTIFIABLE_RESOURCE_BUILDER)),
+						entry(NamedResource.class, entry(NamedResource.class, NAMED_RESOURCE_BUILDER)),
+						entry(PermanentResource.class, entry(PermanentResource.class, PERMANENT_RESOURCE_BUILDER))),
 				() -> NO_OP_BUILDER);
 		// @formatter:on
 	}
@@ -56,11 +62,11 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 	}
 
 	@Override
-	public void summary() throws Exception {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
-
-		walkersMap.entrySet().forEach(
-				entry -> logger.debug("{} -> {}", entry.getKey().getName(), entry.getValue().getLoggableName()));
+	public void summary() {
+		for (@SuppressWarnings("rawtypes")
+		final Entry<Class, GraphWalker> entry : walkersMap.entrySet()) {
+			logger.debug("Using {} for {}", entry.getValue().getLoggableName(), entry.getKey().getSimpleName());
+		}
 	}
 
 	private static final AbstractDomainResourceBuilder<NamedResource> NAMED_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
@@ -143,12 +149,10 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 				return resource;
 			}
 			// @formatter:off
-			id = HANDLER_RESOLVERS
+			resource.setId(HANDLER_RESOLVERS
 					.get(TYPE_KEY_RESOLVERS.get(id.getClass()))
-					.apply(id);
+					.apply(id));
 			// @formatter:on
-			resource.setId(id);
-
 			return resource;
 		}
 

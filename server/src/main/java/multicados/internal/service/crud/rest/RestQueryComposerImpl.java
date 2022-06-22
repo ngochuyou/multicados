@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
@@ -49,6 +51,8 @@ import multicados.internal.service.crud.security.read.ReadSecurityManager;
  */
 public class RestQueryComposerImpl implements RestQueryComposer {
 
+	private static final Logger logger = LoggerFactory.getLogger(RestQueryComposerImpl.class);
+
 	private final DomainResourceContext resourceContext;
 
 	private final ReadSecurityManager readSecurityManager;
@@ -60,21 +64,25 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 	public RestQueryComposerImpl(DomainResourceContext resourceContext, ReadSecurityManager readSecurityManager)
 			throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Instantiating {}", RestQueryComposerImpl.class.getName());
+		}
+
 		this.resourceContext = resourceContext;
 		this.readSecurityManager = readSecurityManager;
 		// @formatter:off
-		Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryClasses = scan();
+		final Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryClasses = scan();
 		
 		queryMetadatasMap = Utils
 				.declare(resourceContext)
 					.second(queryClasses)
-				.then(this::resolveQueriesMetadatas)
+				.then(this::constructQueryMetadatas)
 				.then(Collections::unmodifiableMap)
 				.get();
 		filtersAccessors = Utils
 				.declare(resourceContext)
 					.second(queryClasses)
-				.then(this::resolveFiltersAccessors)
+				.then(this::constructFiltersAccessors)
 				.then(Collections::unmodifiableMap)
 				.get();
 		// @formatter:on
@@ -82,15 +90,20 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 	@SuppressWarnings("unchecked")
 	private Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> scan() throws ClassNotFoundException {
-		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+		if (logger.isTraceEnabled()) {
+			logger.trace("Scanning for {}", RestQuery.class.getName());
+		}
+
+		final ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(
+				false);
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(RestQuery.class));
 		scanner.addExcludeFilter(new AssignableTypeFilter(ComposedRestQuery.class));
 
-		Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryClassesMap = new HashMap<>();
+		final Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryClassesMap = new HashMap<>();
 
-		for (BeanDefinition beanDefinition : scanner.findCandidateComponents(Settings.BASE_PACKAGE)) {
-			Class<? extends RestQuery<?>> type = (Class<? extends RestQuery<?>>) Class
+		for (final BeanDefinition beanDefinition : scanner.findCandidateComponents(Settings.BASE_PACKAGE)) {
+			final Class<? extends RestQuery<?>> type = (Class<? extends RestQuery<?>>) Class
 					.forName(beanDefinition.getBeanClassName());
 
 			if (!type.isAnnotationPresent(For.class)) {
@@ -103,26 +116,30 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		return queryClassesMap;
 	}
 
-	private Map<Class<? extends DomainResource>, Map<String, Accessor>> resolveFiltersAccessors(
+	private Map<Class<? extends DomainResource>, Map<String, Accessor>> constructFiltersAccessors(
 	// @formatter:off
 				DomainResourceContext resourceContext,
 				Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryTypesMap)
 				throws Exception {
 		// @formatter:on
-		Map<Class<? extends DomainResource>, Map<String, Accessor>> filterAccessors = new HashMap<>();
+		if (logger.isTraceEnabled()) {
+			logger.trace("Constructing {} for filters", Accessor.class.getSimpleName());
+		}
+		
+		final Map<Class<? extends DomainResource>, Map<String, Accessor>> filterAccessors = new HashMap<>();
 
-		for (Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (!queryTypesMap.containsKey(resourceType)) {
 				continue;
 			}
 
-			Queue<Class<? super DomainResource>> classStack = Utils.declare(TypeHelper.getClassQueue(resourceType))
-					.consume(Queue::poll).get();
-			Map<String, Accessor> scopedAccessors = new HashMap<>();
+			final Queue<Class<? super DomainResource>> classStack = Utils
+					.declare(TypeHelper.getClassQueue(resourceType)).consume(Queue::poll).get();
+			final Map<String, Accessor> scopedAccessors = new HashMap<>();
 
 			while (!classStack.isEmpty()) {
-				Class<? super DomainResource> superClass = classStack.poll();
+				final Class<? super DomainResource> superClass = classStack.poll();
 
 				if (filterAccessors.containsKey(superClass)) {
 					scopedAccessors.putAll(filterAccessors.get(superClass));
@@ -130,9 +147,9 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				}
 			}
 
-			Class<? extends RestQuery<?>> queryType = queryTypesMap.get(resourceType);
+			final Class<? extends RestQuery<?>> queryType = queryTypesMap.get(resourceType);
 
-			for (Field field : queryType.getDeclaredFields()) {
+			for (final Field field : queryType.getDeclaredFields()) {
 				if (!Filter.class.isAssignableFrom(field.getType())) {
 					continue;
 				}
@@ -147,28 +164,32 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<Class<? extends DomainResource>, QueryMetadata> resolveQueriesMetadatas(
+	private Map<Class<? extends DomainResource>, QueryMetadata> constructQueryMetadatas(
 	// @formatter:off
 			DomainResourceContext resourceContext,
 			Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryTypesMap)
 			throws Exception {
 		// @formatter:on
-		Map<Class<? extends DomainResource>, QueryMetadata> metadatasMap = new HashMap<>();
+		if (logger.isTraceEnabled()) {
+			logger.trace("Constructing {}", QueryMetadata.class.getName());
+		}
 
-		for (Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		final Map<Class<? extends DomainResource>, QueryMetadata> metadatasMap = new HashMap<>();
+
+		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (!queryTypesMap.containsKey(resourceType)) {
 				continue;
 			}
 
-			DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType);
-			List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
-			List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
-			Queue<Class<? super DomainResource>> classStack = Utils.declare(TypeHelper.getClassQueue(resourceType))
-					.consume(Queue::poll).get();
+			final DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType);
+			final List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
+			final List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
+			final Queue<Class<? super DomainResource>> classStack = Utils
+					.declare(TypeHelper.getClassQueue(resourceType)).consume(Queue::poll).get();
 
 			while (!classStack.isEmpty()) {
-				Class<? super DomainResource> superClass = classStack.poll();
+				final Class<? super DomainResource> superClass = classStack.poll();
 
 				if (metadatasMap.containsKey(superClass)) {
 					// @formatter:off
@@ -180,28 +201,26 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				}
 			}
 
-			Class<? extends RestQuery<?>> queryType = queryTypesMap.get(resourceType);
+			final Class<? extends RestQuery<?>> queryType = queryTypesMap.get(resourceType);
 
-			for (Field field : queryType.getDeclaredFields()) {
+			for (final Field field : queryType.getDeclaredFields()) {
 				if (!RestQuery.class.isAssignableFrom(field.getType())) {
 					continue;
 				}
 
-				Class<? extends RestQuery<?>> associationQueryType = (Class<? extends RestQuery<?>>) field.getType();
-				String associationName = field.getName();
+				final Class<? extends RestQuery<?>> associationQueryType = (Class<? extends RestQuery<?>>) field
+						.getType();
+				final String associationName = field.getName();
 
 				Assert.isTrue(metadata.isAssociation(associationName),
 						String.format("[%s.%s] is not an association", queryType.getSimpleName(), associationName));
 
-				Class<? extends DomainResource> associationType = associationQueryType.getDeclaredAnnotation(For.class)
-						.value();
+				final Class<? extends DomainResource> associationType = associationQueryType
+						.getDeclaredAnnotation(For.class).value();
 
-				Assert.isTrue(associationType.equals(metadata.getAttributeType(associationName)), String.format(
-						"[%s.%s] type mismatch between rest query generic type and registered resource type: [%s><%s]",
-						queryType.getSimpleName(), associationName, associationType,
-						metadata.getAttributeType(associationName)));
+				assertAssociationTypeEquality(metadata, queryType, associationName, associationType);
 
-				Entry<String, Accessor> associationAccessorEntry = Map.entry(associationName,
+				final Entry<String, Accessor> associationAccessorEntry = Map.entry(associationName,
 						AccessorFactory.standard(queryType, associationName));
 
 				if (metadata.getAssociationType(associationName) == AssociationType.ENTITY) {
@@ -219,6 +238,30 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		return metadatasMap;
 	}
 
+	@SuppressWarnings("unchecked")
+	private void assertAssociationTypeEquality(
+	// @formatter:off
+			DomainResourceMetadata<? extends DomainResource> metadata,
+			Class<? extends RestQuery<?>> queryType,
+			String associationName,
+			Class<? extends DomainResource> associationTypeInQuery) throws NoSuchFieldException, SecurityException {
+		// @formatter:on
+		if (metadata.getAssociationType(associationName) == AssociationType.ENTITY) {
+			Assert.isTrue(associationTypeInQuery.equals(metadata.getAttributeType(associationName)), String.format(
+					"[%s.%s] type mismatch between rest query generic type and registered resource type: [%s><%s]",
+					queryType.getSimpleName(), associationName, associationTypeInQuery,
+					metadata.getAttributeType(associationName)));
+			return;
+		}
+
+		final Class<? extends DomainResource> associationTypeInResourceType = (Class<? extends DomainResource>) TypeHelper
+				.getGenericType(metadata.getResourceType().getDeclaredField(associationName));
+
+		Assert.isTrue(associationTypeInQuery.equals(associationTypeInResourceType), String.format(
+				"[%s.%s] type mismatch between rest query generic type and registered resource type: [%s><%s]",
+				queryType.getSimpleName(), associationName, associationTypeInQuery, associationTypeInResourceType));
+	}
+
 	@Override
 	public <D extends DomainResource> ComposedRestQuery<D> compose(RestQuery<D> restQuery, GrantedAuthority credential,
 			boolean isBatching) throws Exception {
@@ -228,13 +271,13 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	private <D extends DomainResource> ComposedRestQuery<D> compose(Integer associatedPosition,
 			RestQuery<D> owningQuery, GrantedAuthority credential, boolean isBatching) throws Exception {
 		// @formatter:off
-		TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> checkedResult = declare(owningQuery)
+		final TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> checkedResult = declare(owningQuery)
 				.second(locateAssociationQueries(owningQuery, isBatching))
 				.third(credential)
 			.then(this::check)
 			.consume(internal -> owningQuery.setAttributes(internal.getFirst()))
 			.get();
-		BiDeclaration<List<ComposedNonBatchingRestQuery<?>>, List<ComposedRestQuery<?>>> composedResult =
+		final BiDeclaration<List<ComposedNonBatchingRestQuery<?>>, List<ComposedRestQuery<?>>> composedResult =
 			declare(checkedResult.getSecond())
 				.second(checkedResult.getThird())
 			.then((one, two) -> List.of(one, two))
@@ -243,7 +286,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				.third(credential)
 			.then((query, rawQueries, cred) -> composeAssociationQuery(query, rawQueries, cred, isBatching))
 			.get();
-		Map<String, Filter<?>> filters = resolveFilters(owningQuery);
+		final Map<String, Filter<?>> filters = resolveFilters(owningQuery);
 
 		if (isBatching) {
 			return new ComposedRestQueryImpl<>(
@@ -275,15 +318,15 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			GrantedAuthority credential,
 			boolean isBatching) throws Exception {
 		// @formatter:on
-		List<RestQuery<?>> rawNonBatchingQueries = associationQueries.get(NON_BATCHING_COLLECTION_INDEX);
-		List<ComposedNonBatchingRestQuery<?>> composedNonBatchingQueries = new ArrayList<>(
+		final List<RestQuery<?>> rawNonBatchingQueries = associationQueries.get(NON_BATCHING_COLLECTION_INDEX);
+		final List<ComposedNonBatchingRestQuery<?>> composedNonBatchingQueries = new ArrayList<>(
 				rawNonBatchingQueries.size());
 		int index = owningQuery.getAttributes().size();
-		DomainResourceMetadata<?> resourceMetadata = resourceContext.getMetadata(owningQuery.getResourceType());
+		final DomainResourceMetadata<?> resourceMetadata = resourceContext.getMetadata(owningQuery.getResourceType());
 
 		for (RestQuery<?> rawNonBatchingQuery : rawNonBatchingQueries) {
 			// @formatter:off
-			ComposedNonBatchingRestQuery<?> composedNonBatchingQuery = (ComposedNonBatchingRestQuery<?>) compose(
+			final ComposedNonBatchingRestQuery<?> composedNonBatchingQuery = (ComposedNonBatchingRestQuery<?>) compose(
 					index,
 					rawNonBatchingQuery,
 					credential,
@@ -293,16 +336,14 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			index += composedNonBatchingQuery.getPropertySpan();
 		}
 
-		composedNonBatchingQueries = Collections.unmodifiableList(composedNonBatchingQueries);
-
 		if (isBatching) {
 			return declare(composedNonBatchingQueries, Collections.emptyList());
 		}
-		// TODO: test this out
-		List<RestQuery<?>> rawBatchingQueries = associationQueries.get(BATCHING_COLLECTION_INDEX);
-		List<ComposedRestQuery<?>> composedBatchingQueries = new ArrayList<>(rawBatchingQueries.size());
 
-		for (RestQuery<?> rawBatchingQuery : rawBatchingQueries) {
+		final List<RestQuery<?>> rawBatchingQueries = associationQueries.get(BATCHING_COLLECTION_INDEX);
+		final List<ComposedRestQuery<?>> composedBatchingQueries = new ArrayList<>(rawBatchingQueries.size());
+
+		for (final RestQuery<?> rawBatchingQuery : rawBatchingQueries) {
 			// @formatter:off
 			declare(compose(					
 					index,
@@ -321,7 +362,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			RestQuery<D> owningQuery, List<List<RestQuery<?>>> associationQueries, GrantedAuthority credential)
 			throws Exception {
 		// @formatter:off
-		Set<String> basicAttributes = declare(owningQuery.getResourceType())
+		final Set<String> basicAttributes = declare(owningQuery.getResourceType())
 				.second(owningQuery.getAttributes())
 				.third(credential)
 			.then(readSecurityManager::check)
@@ -338,7 +379,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				.third(credential)
 			.consume(readSecurityManager::check);
 		// @formatter:on
-		Set<String> collisions = checkForCollisions(basicAttributes, associationQueries);
+		final Set<String> collisions = checkForCollisions(basicAttributes, associationQueries);
 
 		if (!collisions.isEmpty()) {
 			throw new DuplicateRequestedAttributeException(collisions);
@@ -351,10 +392,10 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	private <D extends DomainResource> TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> filterAssociationsFromBasicAttributes(
 			RestQuery<?> owningQuery, Set<String> basicAttributes, List<List<RestQuery<?>>> associationQueries)
 			throws Exception {
-		DomainResourceMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType());
-		List<String> filteredBasicAttributes = new ArrayList<>(basicAttributes.size());
+		final DomainResourceMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType());
+		final List<String> filteredBasicAttributes = new ArrayList<>(basicAttributes.size());
 
-		for (String attribute : basicAttributes) {
+		for (final String attribute : basicAttributes) {
 			if (metadata.isAssociation(attribute)) {
 				// @formatter:off
 				associationQueries
@@ -383,13 +424,13 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 	private <D extends DomainResource> Set<String> checkForCollisions(Set<String> basicAttributes,
 			List<List<RestQuery<?>>> associationQueries) {
-		Set<String> collidedAttributes = new HashSet<>();
-		List<RestQuery<?>> joinedQueries = CollectionHelper.join(Collectors.toList(),
+		final Set<String> collidedAttributes = new HashSet<>();
+		final List<RestQuery<?>> joinedQueries = CollectionHelper.join(Collectors.toList(),
 				associationQueries.get(NON_BATCHING_COLLECTION_INDEX),
 				associationQueries.get(BATCHING_COLLECTION_INDEX));
 
-		for (RestQuery<?> associationQuery : joinedQueries) {
-			String associationName = associationQuery.getAssociationName();
+		for (final RestQuery<?> associationQuery : joinedQueries) {
+			final String associationName = associationQuery.getAssociationName();
 
 			if (basicAttributes.contains(associationName)) {
 				if (!CollectionHelper.isEmpty(associationQuery.getAttributes())) {
@@ -406,26 +447,26 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 	private <D extends DomainResource> List<List<RestQuery<?>>> locateAssociationQueries(RestQuery<D> restQuery,
 			boolean isBatching) throws Exception {
-		QueryMetadata queryMetadata = queryMetadatasMap.get(restQuery.getResourceType());
-
-		List<RestQuery<?>> nonBatchingQueries = locateQueries(restQuery,
+		final QueryMetadata queryMetadata = queryMetadatasMap.get(restQuery.getResourceType());
+		final List<RestQuery<?>> nonBatchingQueries = locateQueries(restQuery,
 				queryMetadata.getNonBatchingQueriesAccessors());
 
 		if (isBatching) {
 			return List.of(nonBatchingQueries, Collections.emptyList());
 		}
 
-		List<RestQuery<?>> batchingQueries = locateQueries(restQuery, queryMetadata.getBatchingQueriesAccessors());
+		final List<RestQuery<?>> batchingQueries = locateQueries(restQuery,
+				queryMetadata.getBatchingQueriesAccessors());
 
 		return List.of(nonBatchingQueries, batchingQueries);
 	}
 
 	private <D extends DomainResource> List<RestQuery<?>> locateQueries(RestQuery<D> restQuery,
 			List<Entry<String, Accessor>> accessorsEntries) throws Exception {
-		List<RestQuery<?>> queries = new ArrayList<>();
+		final List<RestQuery<?>> queries = new ArrayList<>();
 
-		for (Entry<String, Accessor> accessorEntry : accessorsEntries) {
-			RestQuery<?> associationQuery = (RestQuery<?>) accessorEntry.getValue().get(restQuery);
+		for (final Entry<String, Accessor> accessorEntry : accessorsEntries) {
+			final RestQuery<?> associationQuery = (RestQuery<?>) accessorEntry.getValue().get(restQuery);
 
 			if (associationQuery == null) {
 				continue;
@@ -439,11 +480,12 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	}
 
 	private <D extends DomainResource> Map<String, Filter<?>> resolveFilters(RestQuery<D> restQuery) throws Exception {
-		Map<String, Filter<?>> filters = new HashMap<>();
+		final Map<String, Filter<?>> filters = new HashMap<>();
 
-		for (Entry<String, Accessor> accessorEntry : filtersAccessors.get(restQuery.getResourceType()).entrySet()) {
-			Filter<?> filter = Optional.ofNullable(accessorEntry.getValue().get(restQuery)).map(Filter.class::cast)
-					.orElse(null);
+		for (final Entry<String, Accessor> accessorEntry : filtersAccessors.get(restQuery.getResourceType())
+				.entrySet()) {
+			final Filter<?> filter = Optional.ofNullable(accessorEntry.getValue().get(restQuery))
+					.map(Filter.class::cast).orElse(null);
 
 			if (filter == null || filter.getExpressionProducers().isEmpty()) {
 				continue;

@@ -24,17 +24,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.ContextManager;
+import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.helper.CollectionHelper;
+import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -46,22 +45,24 @@ import multicados.internal.service.crud.security.UnauthorizedCredentialException
  * @author Ngoc Huy
  *
  */
-public class ReadSecurityManagerImpl implements ReadSecurityManager {
+public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuilder implements ReadSecurityManager {
+
+	private static final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
 
 	@SuppressWarnings("rawtypes")
 	private final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes;
 
 	@Autowired
-	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext) throws Exception {
-		this(env, resourceContext, null);
-	}
+	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext)
+			throws IllegalAccessException, Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Instantiating {}", ReadSecurityManagerImpl.class.getName());
+		}
 
-	public ReadSecurityManagerImpl(Environment env, DomainResourceContext resourceContext,
-			List<ReadSecurityContributor> contributors) throws IllegalAccessException, Exception {
-		ReadFailureExceptionHandler failureHandler = resolveFailureHandler(env);
+		final ReadFailureExceptionHandler failureHandler = resolveFailureHandler(env);
 		// @formatter:off
 		securityNodes = Utils
-			.declare(!CollectionHelper.isEmpty(contributors) ? contributors : scanForContributors())
+			.declare(scanForContributors())
 				.second(new CRUDSecurityManagerBuilderImpl(resourceContext))
 			.then(this::doContribute)
 				.second(resourceContext)
@@ -101,30 +102,28 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private Map<Class<? extends DomainResource>, ReadSecurityNode> constructConfiguredNodes(
 			CRUDSecurityManagerBuilder builder, DomainResourceContext resourceContext,
 			ReadFailureExceptionHandler exceptionThrower) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
-		Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes = new HashMap<>();
-		Set<SecuredAttribute> contributedAttributes = builder.getContributedAttributes();
+		if (logger.isTraceEnabled()) {
+			logger.trace("Constructing contributed nodes");
+		}
 
-		logger.debug("Constructing contributed nodes");
+		final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes = new HashMap<>();
+		final Set<SecuredAttribute> contributedAttributes = builder.getContributedAttributes();
 
-		resourceContext.getResourceGraph().forEach(node -> {
-			Class<? extends DomainResource> resourceType = node.getResourceType();
-
-			if (!shouldConstructNode(resourceType) || securityNodes.containsKey(resourceType)) {
-				return;
+		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+				.collect(DomainResourceGraphCollectors.toTypesSet())) {
+			if (!shouldConstructNode(resourceType)) {
+				continue;
 			}
 			// @formatter:off
-			List<SecuredAttribute> scopedAttributes = contributedAttributes
+			final List<SecuredAttribute> scopedAttributes = contributedAttributes
 				.stream()
 				.filter(attribute -> TypeHelper.isParentOf(attribute.getOwningType(), resourceType))
 				.collect(Collectors.toList());
 			
 			if (scopedAttributes.isEmpty()) {
-				return;
+				continue;
 			}
-			
-			logger.trace("Building from contributed attributes, resource type: [{}]", resourceType.getName());
-			
+
 			securityNodes.put(
 					resourceType,
 					new ReadSecurityNodeImpl(
@@ -133,7 +132,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							scopedAttributes,
 							exceptionThrower));
 			// @formatter:on
-		});
+		}
 
 		return securityNodes;
 	}
@@ -142,19 +141,15 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	private Map<Class<? extends DomainResource>, ReadSecurityNode> constructEmptyNodes(
 			Map<Class<? extends DomainResource>, ReadSecurityNode> configuredNodes,
 			DomainResourceContext resourceContext, ReadFailureExceptionHandler exceptionThrower) throws Exception {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
+		if (logger.isTraceEnabled()) {
+			logger.trace("Constructing empty nodes");
+		}
 
-		logger.debug("Constructing empty nodes");
-
-		resourceContext.getResourceGraph().forEach(node -> {
-			Class<? extends DomainResource> resourceType = node.getResourceType();
-
-			if (!shouldConstructNode(resourceType) || configuredNodes.containsKey(resourceType)) {
-				return;
+		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+				.collect(DomainResourceGraphCollectors.toTypesSet())) {
+			if (configuredNodes.containsKey(resourceType) || !shouldConstructNode(resourceType)) {
+				continue;
 			}
-
-			logger.trace("Using {} for resource type: [{}]", DefaultReadSecurityNode.class.getName(),
-					resourceType.getName());
 			// @formatter:off
 			configuredNodes.put(
 					resourceType,
@@ -162,32 +157,37 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							resourceContext.getMetadata(resourceType),
 							exceptionThrower));
 			// @formatter:on
-		});
+		}
 
 		return configuredNodes;
 	}
 
 	private ReadFailureExceptionHandler resolveFailureHandler(Environment env) {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
+		if (logger.isTraceEnabled()) {
+			logger.trace("Resolving {}", ReadFailureExceptionHandler.class.getName());
+		}
 
-		logger.debug("Resolving {}", ReadFailureExceptionHandler.class.getName());
-
-		String configuredStrategy = env.getProperty(Settings.READ_FAILURE_EXCEPTION_THROWING_STRATEGY);
+		final String configuredStrategy = env.getProperty(Settings.READ_FAILURE_EXCEPTION_THROWING_STRATEGY);
 
 		try {
 			// @formatter:off
-			ExceptionHandlingStrategy strategy = Optional.ofNullable(configuredStrategy)
+			final ExceptionHandlingStrategy strategy = Optional.ofNullable(configuredStrategy)
 					.map(String::toUpperCase)
 					.map(String::trim)
 					.map(ExceptionHandlingStrategy::valueOf)
 					.orElse(ExceptionHandlingStrategy.IGNORE);
 			// @formatter:on
 			if (strategy.equals(ExceptionHandlingStrategy.IGNORE)) {
-				logger.trace("Using {} for read failure", IgnoreStrategy.class.getName());
+				if (logger.isDebugEnabled()) {
+					logger.debug("Using {} for read failure", IgnoreStrategy.class.getName());
+				}
+
 				return new IgnoreStrategy();
 			}
 
-			logger.trace("Using {} for read failure", ThrowExceptionStrategy.class.getName());
+			if (logger.isDebugEnabled()) {
+				logger.debug("Using {} for read failure", ThrowExceptionStrategy.class.getName());
+			}
 			return new ThrowExceptionStrategy();
 		} catch (IllegalArgumentException iae) {
 			throw new IllegalArgumentException(
@@ -198,40 +198,42 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	private CRUDSecurityManagerBuilder doContribute(List<ReadSecurityContributor> contributors,
 			CRUDSecurityManagerBuilder builder) {
-		LoggerFactory.getLogger(ReadSecurityManagerImpl.class).debug("Doing contributions");
+		if (logger.isTraceEnabled()) {
+			logger.trace("Doing contributions");
+		}
 
 		contributors.stream().forEach(contributor -> contributor.contribute(builder));
 
 		return builder;
 	}
 
-	private List<ReadSecurityContributor> scanForContributors() throws IllegalAccessException {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
-		List<ReadSecurityContributor> contributors = new ArrayList<>();
-		ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+	private List<ReadSecurityContributor> scanForContributors() throws Exception {
+		if (logger.isTraceEnabled()) {
+			logger.trace("Scanning for {}", ReadSecurityContributor.class.getSimpleName());
+		}
+
+		final List<ReadSecurityContributor> contributors = new ArrayList<>();
+		final ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(
+				false);
 
 		scanner.addIncludeFilter(new AssignableTypeFilter(ReadSecurityContributor.class));
 
-		logger.debug("Scanning for {}s", ReadSecurityContributor.class.getSimpleName());
-
-		for (BeanDefinition beanDef : scanner.findCandidateComponents(Settings.BASE_PACKAGE)) {
+		for (final BeanDefinition beanDef : scanner.findCandidateComponents(Settings.BASE_PACKAGE)) {
 			try {
 				@SuppressWarnings("unchecked")
-				Class<? extends ReadSecurityContributor> contributorClass = (Class<? extends ReadSecurityContributor>) Class
+				final Class<? extends ReadSecurityContributor> contributorClass = (Class<? extends ReadSecurityContributor>) Class
 						.forName(beanDef.getBeanClassName());
 
-				logger.trace("Found one {} of type [{}] in [{}]", ReadSecurityContributor.class.getSimpleName(),
-						contributorClass.getName(), contributorClass.getPackageName());
+				if (logger.isDebugEnabled()) {
+					logger.debug("Found one {} of type [{}] in [{}]", ReadSecurityContributor.class.getSimpleName(),
+							contributorClass.getName(), contributorClass.getPackageName());
+				}
 
 				contributors.add(contributorClass.getConstructor().newInstance());
 			} catch (NoSuchMethodException nsm) {
-				SpringApplication.exit(ContextManager.getExitAcess().getContext());
 				throw new IllegalArgumentException(String.format(
 						"A non-arg constructor is required on a(n) %s instance, unable to find one in [%s]",
 						ReadSecurityContributor.class.getSimpleName(), beanDef.getBeanClassName()));
-			} catch (Exception any) {
-				any.printStackTrace();
-				SpringApplication.exit(ContextManager.getExitAcess().getContext());
 			}
 		}
 
@@ -249,7 +251,7 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 	private class CRUDSecurityManagerBuilderImpl implements CRUDSecurityManagerBuilder {
 
-		private final Logger logger = LoggerFactory.getLogger(CRUDSecurityManagerBuilderImpl.class);
+		private static final Logger logger = LoggerFactory.getLogger(CRUDSecurityManagerBuilderImpl.class);
 
 		@SuppressWarnings("rawtypes")
 		private final Map<Key, SecuredAttributeImpl> securedAttributes = new HashMap<>();
@@ -278,8 +280,6 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 		@SuppressWarnings("unchecked")
 		private <D extends DomainResource> SecuredAttributeImpl<D> locateProperty(Key<D> key) {
 			if (securedAttributes.containsKey(key)) {
-				logger.trace(String.format("Existing entry with %s", key.toString()));
-
 				return (SecuredAttributeImpl<D>) securedAttributes.get(key);
 			}
 
@@ -288,7 +288,6 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 		private <D extends DomainResource> SecuredAttributeImpl<D> putProperty(Key<D> key,
 				SecuredAttributeImpl<D> attr) {
-			logger.trace(String.format("New entry with %s", key.toString()));
 			securedAttributes.put(key, attr);
 
 			return attr;
@@ -322,13 +321,19 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 		@SuppressWarnings("rawtypes")
 		private void modifyAlias(SecuredAttributeImpl attr, String alias) {
-			logger.trace(String.format("Overring alias [%s] with [%s]", attr.getAlias(), alias));
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Overring alias [%s] with [%s]", attr.getAlias(), alias));
+			}
+
 			attr.setAlias(alias);
 		}
 
 		@SuppressWarnings("rawtypes")
 		private void modifyVisibility(SecuredAttributeImpl attr, Boolean isMasked) {
-			logger.trace(String.format("Overring visibility [%s] with [%s]", attr.isMasked(), isMasked));
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Overring visibility [%s] with [%s]", attr.isMasked(), isMasked));
+			}
+
 			attr.setMasked(isMasked);
 		}
 
@@ -338,7 +343,10 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 
 			public WithTypeImpl(Class<D> type) {
 				this.type = Objects.requireNonNull(type);
-				logger.trace(String.format("With type %s", type.getSimpleName()));
+
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("With type %s", type.getSimpleName()));
+				}
 			}
 
 			@Override
@@ -370,17 +378,14 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						credentialList.add(credential.getAuthority());
 					}
 
-					logger.trace(String.format("With Credentials[%s]",
-							credentialList.stream().collect(Collectors.joining(","))));
+					if (logger.isDebugEnabled()) {
+						logger.debug(String.format("With Credentials[%s]",
+								credentialList.stream().collect(Collectors.joining(","))));
+					}
 				}
 
 				private void removeFromRemainingFields(String... fields) {
 					remainingFields.removeAll(List.of(fields));
-
-					if (logger.isTraceEnabled()) {
-						logger.trace(String.format("Removing [%s] from remaining fields",
-								Stream.of(fields).collect(Collectors.joining(","))));
-					}
 				}
 
 				@Override
@@ -413,8 +418,9 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							}
 						}
 					}
-
-					logger.trace("Mask all");
+					if (logger.isDebugEnabled()) {
+						logger.debug("Mask all");
+					}
 
 					return this;
 				}
@@ -431,7 +437,9 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						}
 					}
 
-					logger.trace("Publish all");
+					if (logger.isDebugEnabled()) {
+						logger.debug("Publish all");
+					}
 
 					return this;
 				}
@@ -451,8 +459,10 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 						this.attributes = Stream.of(requireNonNull(attributes)).map(Objects::requireNonNull)
 								.toArray(String[]::new);
 
-						logger.trace(String.format("With fields %s",
-								Stream.of(attributes).collect(Collectors.joining(", "))));
+						if (logger.isDebugEnabled()) {
+							logger.debug(String.format("With fields %s",
+									Stream.of(attributes).collect(Collectors.joining(", "))));
+						}
 					}
 
 					@Override
@@ -475,8 +485,10 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							}
 						}
 
-						logger.trace(
-								String.format("Using alias %s", Stream.of(alias).collect(Collectors.joining(","))));
+						if (logger.isDebugEnabled()) {
+							logger.debug(
+									String.format("Using alias %s", Stream.of(alias).collect(Collectors.joining(","))));
+						}
 
 						return this;
 					}
@@ -494,7 +506,9 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 							}
 						}
 
-						logger.trace(isMasked ? "Mask" : "Publish");
+						if (logger.isDebugEnabled()) {
+							logger.debug(isMasked ? "Mask" : "Publish");
+						}
 
 						return this;
 					}
@@ -676,10 +690,11 @@ public class ReadSecurityManagerImpl implements ReadSecurityManager {
 	}
 
 	@Override
-	public void summary() throws Exception {
-		final Logger logger = LoggerFactory.getLogger(ReadSecurityManagerImpl.class);
-
-		logger.trace("\n{}", securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+	public void summary() {
+		if (logger.isInfoEnabled()) {
+			logger.info("\n{}",
+					securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+		}
 	}
 
 }

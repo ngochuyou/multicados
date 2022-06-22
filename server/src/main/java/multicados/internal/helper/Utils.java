@@ -133,6 +133,9 @@ public abstract class Utils {
 				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer,
 				HandledFunction<THIRD, RETURN_THREE, Exception> thirdProducer) throws Exception;
 
+		<NEXT_FIRST> TriDeclaration<NEXT_FIRST, SECOND, THIRD> thenPrepend(
+				HandledTriFunction<FIRST, SECOND, THIRD, NEXT_FIRST, Exception> nextFirstProducer) throws Exception;
+
 		TriDeclaration<FIRST, SECOND, THIRD> consume(HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer)
 				throws Exception;
 
@@ -367,6 +370,12 @@ public abstract class Utils {
 				HandledFunction<THIRD, RETURN_THREE, Exception> thirdProducer) throws Exception {
 			return new TriDeclaration<RETURN_ONE, RETURN_TWO, RETURN_THREE>(firstProducer.apply(firstArg),
 					secondProducer.apply(secondArg), thirdProducer.apply(thirdArg));
+		}
+
+		@Override
+		public <NEXT_FIRST> TriDeclaration<NEXT_FIRST, SECOND, THIRD> thenPrepend(
+				HandledTriFunction<FIRST, SECOND, THIRD, NEXT_FIRST, Exception> nextFirstProducer) throws Exception {
+			return new TriDeclaration<>(nextFirstProducer.apply(firstArg, secondArg, thirdArg), secondArg, thirdArg);
 		}
 
 		@Override

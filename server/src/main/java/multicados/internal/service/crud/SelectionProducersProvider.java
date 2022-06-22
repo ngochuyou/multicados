@@ -39,23 +39,24 @@ public class SelectionProducersProvider {
 	private final Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers;
 
 	public SelectionProducersProvider(DomainResourceContext resourceContext) throws Exception {
-		logger.debug("Resolving selection producers map");
+		if (logger.isTraceEnabled()) {
+			logger.trace("Resolving selection producers map");			
+		}
 
-		Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers = new HashMap<>();
+		final Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers = new HashMap<>();
 
-		for (Class<DomainResource> type : resourceContext.getResourceGraph()
+		for (final Class<DomainResource> type : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
-			DomainResourceMetadata<DomainResource> metadata = resourceContext.getMetadata(type);
+			final DomainResourceMetadata<DomainResource> metadata = resourceContext.getMetadata(type);
 
 			if (metadata == null) {
-				logger.trace("Skipping type {}", type.getName());
 				continue;
 			}
 
-			List<String> attributes = metadata.getAttributeNames();
-			Map<String, Function<Path<?>, Path<?>>> pathProducers = new HashMap<>();
+			final List<String> attributes = metadata.getAttributeNames();
+			final Map<String, Function<Path<?>, Path<?>>> pathProducers = new HashMap<>();
 
-			for (String attribute : attributes) {
+			for (final String attribute : attributes) {
 				if (metadata.isComponent(attribute)) {
 					// @formatter:off
 					pathProducers.put(attribute,
@@ -90,7 +91,7 @@ public class SelectionProducersProvider {
 	// @formatter:off
 			DomainResourceMetadata<? extends DomainResource> metadata,
 			String attributeName) { 
-		List<Function<Path<?>, Path<?>>> pathNodes = individuallyResolveComponentPathProducers(
+		final List<Function<Path<?>, Path<?>>> pathNodes = individuallyResolveComponentPathProducers(
 				metadata,
 				attributeName,
 				metadata.getComponentPaths().get(attributeName));
@@ -106,11 +107,11 @@ public class SelectionProducersProvider {
 	private List<Function<Path<?>, Path<?>>> individuallyResolveComponentPathProducers(
 			DomainResourceMetadata<? extends DomainResource> metadata, String attributeName,
 			ComponentPath componentPath) {
-		Queue<String> nodeNames = componentPath.getNodeNames();
+		final Queue<String> nodeNames = componentPath.getNodeNames();
 
 		if (metadata.isAssociation(attributeName)) {
-			List<Function<Path<?>, Path<?>>> pathNodes = new ArrayList<>();
-			Queue<String> copiedNodeNames = new ArrayDeque<>(nodeNames);
+			final List<Function<Path<?>, Path<?>>> pathNodes = new ArrayList<>();
+			final Queue<String> copiedNodeNames = new ArrayDeque<>(nodeNames);
 
 			pathNodes.add((metadata.isAssociationOptional(attributeName)
 					? new Function<String, Function<Path<?>, Path<?>>>() {
@@ -135,7 +136,7 @@ public class SelectionProducersProvider {
 				}.apply(copiedNodeNames.poll()));
 			}
 
-			String lastNode = copiedNodeNames.poll();
+			final String lastNode = copiedNodeNames.poll();
 			// @formatter:off
 			pathNodes.add(metadata.isAssociationOptional(lastNode)
 					? (path) -> ((Join) path).join(lastNode, JoinType.LEFT)

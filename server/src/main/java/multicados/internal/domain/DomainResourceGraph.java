@@ -17,14 +17,18 @@ import multicados.internal.helper.Utils;
  */
 public interface DomainResourceGraph<T extends DomainResource> extends ContextBuildListener {
 
+	int getDepth();
+	
 	DomainResourceGraph<? super T> getParent();
 
 	Class<T> getResourceType();
 
 	Set<DomainResourceGraph<? extends T>> getChildrens();
 
-	void add(Class<? extends DomainResource> resourceType);
+	DomainResourceGraph<? extends T> add(Class<? extends DomainResource> resourceType);
 
+	void add(DomainResourceGraph<? extends T> child);
+	
 	void forEach(Utils.HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer) throws Exception;
 
 	DomainResourceGraph<? extends T> locate(Class<DomainResource> resourceType);

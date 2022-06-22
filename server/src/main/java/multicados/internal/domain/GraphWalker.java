@@ -12,5 +12,5 @@ import multicados.internal.context.Loggable;
 public interface GraphWalker<T> extends Loggable {
 
 	<E extends T> GraphWalker<E> and(GraphWalker<E> next);
-	
+
 }
