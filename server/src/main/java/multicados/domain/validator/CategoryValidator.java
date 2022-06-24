@@ -18,6 +18,7 @@ import multicados.internal.domain.validation.Validation;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Common;
 import multicados.internal.helper.RegexHelper;
+import multicados.internal.helper.StringHelper;
 
 /**
  * @author Ngoc Huy
@@ -29,29 +30,37 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 	public static final int MAX_CODE_LENGTH = 5;
 	public static final int MAX_DESCRIPTION_LENGTH = 255;
 	// @formatter:off
-	private static final List<Character> ACCEPTED_DESCRIPTION_CHARACTERS = List.of(
-			'\s', '.', ',', '(', ')',
-			'[', ']', '_', '-', '+',
-			'=', '/', '!', '@',
-			'#', '$', '%', '^', '&',
-			'*', '\'', '"', '?', ':');
-	private static final List<Character> ACCEPTED_DESCRIPTION_CHARACTERS_WITH_IN_MESSAGE =
-			CollectionHelper.join(
-					Collectors.toList(),
-					ACCEPTED_DESCRIPTION_CHARACTERS,
-					List.of('N', 'L'));
+	private static final String DESCRIPTION_ERROR_MESSAGE;
+	private static final Pattern DESCRIPTION_PATTERN;
 	
-	private static final Pattern DESCRIPTION_PATTERN = Pattern.compile(RegexHelper
-			.start()
-				.group()
-					.literal(VIETNAMESE_CHARACTERS)
-					.naturalAlphabet()
-					.naturalNumeric()
-					.literal(ACCEPTED_DESCRIPTION_CHARACTERS)
+	static {
+		final List<Character> ACCEPTED_DESCRIPTION_CHARACTERS = List.of(
+				'\s', '.', ',', '(', ')',
+				'[', ']', '_', '-', '+',
+				'=', '/', '!', '@',
+				'#', '$', '%', '^', '&',
+				'*', '\'', '"', '?', ':');
+		
+		DESCRIPTION_PATTERN = Pattern.compile(RegexHelper
+				.start()
+					.group()
+						.literal(VIETNAMESE_CHARACTERS)
+						.naturalAlphabet()
+						.naturalNumeric()
+						.literal(ACCEPTED_DESCRIPTION_CHARACTERS)
+					.end()
+					.withLength().atLeastOne().max(MAX_DESCRIPTION_LENGTH)
 				.end()
-				.withLength().max(MAX_DESCRIPTION_LENGTH)
-			.end()
-		.build());
+			.build());
+		
+		DESCRIPTION_ERROR_MESSAGE = 
+				StringHelper.join(StringHelper.SPACE, List.of(
+						Common.invalidPattern(CollectionHelper.join(
+								Collectors.toList(),
+								ACCEPTED_DESCRIPTION_CHARACTERS,
+								List.of('N', 'L'))),
+						Common.invalidLength(1, MAX_DESCRIPTION_LENGTH)));
+	}
 	// @formatter:on
 	@Override
 	public Validation isSatisfiedBy(Category resource) {
@@ -62,8 +71,8 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 	public Validation isSatisfiedBy(Serializable id, Category resource) {
 		Validation result = Validation.success();
 
-		if (!DESCRIPTION_PATTERN.matcher(resource.getDescription()).matches()) {
-			result.bad(Category_.DESCRIPTION, Common.invalidPattern(ACCEPTED_DESCRIPTION_CHARACTERS_WITH_IN_MESSAGE));
+		if (resource.getDescription() == null || !DESCRIPTION_PATTERN.matcher(resource.getDescription()).matches()) {
+			result.bad(Category_.DESCRIPTION, DESCRIPTION_ERROR_MESSAGE);
 		}
 
 		return result;

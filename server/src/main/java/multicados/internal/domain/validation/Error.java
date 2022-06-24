@@ -24,5 +24,7 @@ public class Error {
 	public String getMessage() {
 		return message;
 	}
+	
+	
 
 }

@@ -23,12 +23,12 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
-import multicados.internal.domain.AbstractGraphWalkerFactory;
+import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.Exclude;
-import multicados.internal.domain.GraphWalker;
+import multicados.internal.domain.GraphLogic;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Common;
@@ -43,7 +43,7 @@ import multicados.internal.helper.Utils.HandledFunction;
  * @author Ngoc Huy
  *
  */
-public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFactory
+public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFactory
 		implements DomainResourceValidatorFactory {
 
 	public static final Logger logger = LoggerFactory.getLogger(DomainResourceValidatorFactoryImpl.class);
@@ -72,6 +72,7 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 					final boolean isNaturalAlphabeticAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET, val -> Boolean.valueOf(val), true);
 					final boolean isNaturalNumericAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC, val -> Boolean.valueOf(val), true);
 					final int maxLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MAX_LENGTH, val -> Integer.valueOf(val), 255);
+					final int minLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MIN_LENGTH, val -> Integer.valueOf(val), 1);
 					final String fieldName = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_FIELD_NAME);
 					final String literal = declare(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_LITERAL_KEY_FOR_VIETNAMESE))
 							.then(configuredLiteralKey ->
@@ -79,8 +80,8 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 									.then(() -> AVAILABLE_LITERALS.get(configuredLiteralKey))
 									.<String>elseThrowAndReturn(() -> new IllegalArgumentException(String.format("Unknown literal key %s", configuredLiteralKey))))
 							.get();
-					final NamedResourceValidator defaultNamedResourceValidator = new NamedResourceValidator(fieldName, maxLength, literal, acceptedCharacters, isNaturalAlphabeticAccepted, isNaturalNumericAccepted);
-					final List<Map.Entry<Class, Map.Entry<Class, GraphWalker>>> fixedLogics = new ArrayList<>();
+					final NamedResourceValidator defaultNamedResourceValidator = new NamedResourceValidator(fieldName, minLength, maxLength, literal, acceptedCharacters, isNaturalAlphabeticAccepted, isNaturalNumericAccepted);
+					final List<Map.Entry<Class, Map.Entry<Class, GraphLogic>>> fixedLogics = new ArrayList<>();
 
 					for (final Class<DomainResource> resourceType: resourceContextProvider.getResourceGraph().collect(DomainResourceGraphCollectors.toTypesSet())) {
 						if (!NamedResource.class.isAssignableFrom(resourceType)) {
@@ -104,13 +105,13 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends DomainResource> DomainResourceValidator<T> getValidator(Class<T> resourceType) {
-		return (DomainResourceValidator<T>) walkersMap.get(resourceType);
+		return (DomainResourceValidator<T>) logicsMap.get(resourceType);
 	}
 
 	@Override
 	public void summary() {
 		for (@SuppressWarnings("rawtypes")
-		final Entry<Class, GraphWalker> entry : walkersMap.entrySet()) {
+		final Entry<Class, GraphLogic> entry : logicsMap.entrySet()) {
 			logger.debug("Using {} for {}", entry.getValue().getLoggableName(), entry.getKey().getSimpleName());
 		}
 	}
@@ -142,15 +143,16 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 	};
 
 	private static class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResource>
-			implements AbstractGraphWalkerFactory.FixedLogic {
+			implements AbstractGraphLogicsFactory.FixedLogic {
 
 		private final String fieldName;
-		private final String acceptedMessage;
+		private final String errorMessage;
 		private final Pattern pattern;
 
 		// @formatter:off
 		private NamedResourceValidator(
 				String fieldName,
+				int minLength,
 				int maxLength,
 				String literal,
 				List<Character> acceptedCharacters,
@@ -168,15 +170,19 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 					.then(self -> CollectionHelper.isEmpty(acceptedCharacters) ? self : self.literal(acceptedCharacters))
 					.then(RegexGroupBuilder::end)
 					.then(RegexBuilder::withLength)
-					.then(self -> self.max(maxLength))
+					.then(self -> self.min(minLength).max(maxLength))
 					.then(RegexBuilder::end)
 					.then(RegexBuilder::build)
 					.get());
 			this.fieldName = fieldName;
-			this.acceptedMessage = declare(acceptedCharacters)
+			this.errorMessage = declare(acceptedCharacters)
 					.consume(characters -> asIf(acceptNaturalAlphabet).then(f -> characters.add('L')).orElse(f -> {}))
 					.consume(characters -> asIf(acceptNaturalNumeric).then(f -> characters.add('N')).orElse(f -> {}))
 					.then(characters -> characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)))
+					.then(Common::invalidPattern)
+						.second(Common.invalidLength(minLength, maxLength))
+					.then((one, two) -> List.of(one, two))
+					.then((messages) -> StringHelper.join(StringHelper.SPACE, messages))
 					.get();
 			
 			if (logger.isDebugEnabled()) {
@@ -194,8 +200,8 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphWalkerFacto
 		public Validation isSatisfiedBy(Serializable id, NamedResource resource) {
 			Validation result = Validation.success();
 
-			if (!pattern.matcher(resource.getName()).matches()) {
-				result.bad(fieldName, Common.invalidPattern(acceptedMessage));
+			if (resource.getName() == null || !pattern.matcher(resource.getName()).matches()) {
+				result.bad(fieldName, errorMessage);
 			}
 
 			return result;

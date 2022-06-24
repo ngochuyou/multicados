@@ -21,8 +21,8 @@ import multicados.internal.service.crud.GenericCRUDServiceImpl;
  * @author Ngoc Huy
  *
  */
-@RestController
-@RequestMapping("/rest/location")
+//@RestController
+//@RequestMapping("/rest/location")
 public class RestLocationController extends AbstractController {
 
 	private final SessionFactory sessionFactory;

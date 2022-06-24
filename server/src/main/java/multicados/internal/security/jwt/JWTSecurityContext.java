@@ -21,6 +21,8 @@ public interface JWTSecurityContext {
 
 	String getVersionKey();
 
+	String getExpirationKey();
+	
 	String getUsernameParam();
 
 	String getPasswordParam();

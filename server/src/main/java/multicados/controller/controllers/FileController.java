@@ -42,8 +42,8 @@ import multicados.internal.helper.StringHelper;
  * @author Ngoc Huy
  *
  */
-@Controller
-@RequestMapping("/file")
+//@Controller
+//@RequestMapping("/file")
 public class FileController extends AbstractController {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
@@ -90,7 +90,7 @@ public class FileController extends AbstractController {
 				mainSessionFactory.getCurrentSession());
 
 		if (optionalTuple.isEmpty()) {
-			return notFound(request, List.of(Common.user(username)));
+			return sendNotFound(request, List.of(Common.user(username)));
 		}
 		// @formatter:off
 		return declare(optionalTuple.get())
@@ -111,10 +111,10 @@ public class FileController extends AbstractController {
 				logger.debug("Directly reading file {}", path);
 			}
 
-			return ok(request, Files.readAllBytes(file.toPath()));
+			return sendOk(request, Files.readAllBytes(file.toPath()));
 		}
 
-		return notFound(request, List.of(Common.file(path)));
+		return sendNotFound(request, List.of(Common.file(path)));
 	}
 
 }

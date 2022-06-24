@@ -12,6 +12,10 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.hibernate.internal.util.collections.CollectionHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
 
@@ -21,21 +25,88 @@ import multicados.internal.helper.Utils;
  */
 public class DomainResourceGraphImpl<T extends DomainResource> implements DomainResourceGraph<T> {
 
+	private static final Logger logger = LoggerFactory.getLogger(DomainResourceGraphImpl.class);
+
+	@Deprecated
 	private final DomainResourceGraph<? super T> parent;
+
 	private final Class<T> resourceType;
+
+	private Set<DomainResourceGraph<? super T>> parents;
 	private Set<DomainResourceGraph<? extends T>> childrens;
 
-	private final int depth;
-
 	public DomainResourceGraphImpl(Class<T> resourceType) {
-		this(null, resourceType);
+		this.parent = null;
+		this.resourceType = resourceType;
+		parents = new LinkedHashSet<>(0);
+		childrens = new LinkedHashSet<>(0);
 	}
 
-	public DomainResourceGraphImpl(DomainResourceGraph<? super T> parent, Class<T> resourceType) {
-		this.parent = parent;
-		depth = parent == null ? 0 : parent.getDepth() + 1;
-		this.resourceType = resourceType;
-		this.childrens = new LinkedHashSet<>();
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Override
+	public <E extends T> void add(DomainResourceGraph<E> child) {
+		final Class<E> childType = child.getResourceType();
+
+		if (resourceType.equals(childType)) {
+			if (logger.isWarnEnabled()) {
+				logger.warn("Skipping an exsiting graph");
+			}
+
+			return;
+		}
+
+		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Located parent type {} of entry type {} in graph", resourceType.getName(),
+						childType.getName());
+			}
+
+			child.getParents().add(this);
+			childrens.add(child);
+			return;
+		}
+
+		if (childrens.isEmpty()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("[{}<{}>]: Unable to locate any parent graph for type {}", this.getClass().getSimpleName(),
+						resourceType.getSimpleName(), childType.getName());
+			}
+
+			return;
+		}
+
+		for (final DomainResourceGraph<?> children : childrens) {
+			children.add((DomainResourceGraph) child);
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Override
+	public <E extends T> DomainResourceGraph<E> locate(Class<E> resourceType) {
+		if (this.resourceType.equals(resourceType)) {
+			return (DomainResourceGraph<E>) this;
+		}
+
+		if (childrens.isEmpty()) {
+			return null;
+		}
+
+		DomainResourceGraph target;
+
+		for (DomainResourceGraph child : childrens) {
+			target = child.locate(resourceType);
+
+			if (target != null) {
+				return target;
+			}
+		}
+
+		return null;
+	}
+
+	@Override
+	public Set<DomainResourceGraph<? super T>> getParents() {
+		return parents;
 	}
 
 	@Override
@@ -58,71 +129,9 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 			throws Exception {
 		consumer.accept(this);
 
-		for (final DomainResourceGraph<? extends T> children : childrens) {
+		for (final DomainResourceGraph<?> children : childrens) {
 			children.forEach(consumer);
 		}
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public DomainResourceGraph<? extends T> add(Class<? extends DomainResource> childType) {
-		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
-			final DomainResourceGraphImpl<? extends T> newChild = new DomainResourceGraphImpl<>(this,
-					(Class<? extends T>) childType);
-
-			childrens.add(newChild);
-
-			return newChild;
-		}
-
-		DomainResourceGraph<? extends T> posibleChild = null;
-
-		for (final DomainResourceGraph<? extends T> child : childrens) {
-			if (posibleChild == null) {
-				posibleChild = child.add(childType);
-				continue;
-			}
-
-			child.add((DomainResourceGraph) posibleChild);
-		}
-
-		return posibleChild;
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public void add(DomainResourceGraph<? extends T> child) {
-		Class<? extends T> childType = child.getResourceType();
-
-		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
-			childrens.add(child);
-			return;
-		}
-
-		childrens.forEach(childNode -> childNode.add((DomainResourceGraph) child));
-	}
-
-	@Override
-	public DomainResourceGraph<? extends T> locate(Class<DomainResource> resourceType) {
-		if (this.resourceType.equals(resourceType)) {
-			return this;
-		}
-
-		if (childrens.isEmpty()) {
-			return null;
-		}
-
-		DomainResourceGraph<? extends T> target;
-
-		for (DomainResourceGraph<? extends T> child : childrens) {
-			target = child.locate(resourceType);
-
-			if (target != null) {
-				return target;
-			}
-		}
-
-		return null;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -131,7 +140,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 
 		collection.addAll(List.of(mapper.apply(this)));
 
-		for (final DomainResourceGraph<? extends T> child : childrens) {
+		for (final DomainResourceGraph<?> child : childrens) {
 			collection.addAll(child.collect(factory, mapper));
 		}
 
@@ -145,17 +154,13 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 
 	@Override
 	public void doAfterContextBuild() {
-		this.childrens = Collections.unmodifiableSet(this.childrens);
+		parents = CollectionHelper.isEmpty(parents) ? null : Collections.unmodifiableSet(parents);
+		childrens = Collections.unmodifiableSet(childrens);
 	}
 
 	@Override
 	public int hashCode() {
 		return resourceType.hashCode();
-	}
-
-	@Override
-	public int getDepth() {
-		return depth;
 	}
 
 	@SuppressWarnings("rawtypes")

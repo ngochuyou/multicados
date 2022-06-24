@@ -21,11 +21,13 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -50,9 +52,9 @@ import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
  * @author Ngoc Huy
  *
  */
-@Configuration
-@EnableWebSecurity
-@EnableGlobalMethodSecurity(securedEnabled = true)
+//@Configuration
+//@EnableWebSecurity
+//@EnableGlobalMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
 	private final Environment env;
@@ -62,6 +64,10 @@ public class SecurityConfiguration {
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
 	private final JWTSecurityContext jwtSecurityContext;
 	private final ObjectMapper objectMapper;
+
+	private final AccessDeniedHandler accessDeniedHandler;
+	private final AuthenticationEntryPoint accessDeniedAuthenticationEntryPoint;
+	private final FilterChainExceptionHandlingFilter chainExceptionHandlingFilter;
 
 	private final JWTRequestFilter jwtRequestFilter;
 
@@ -75,16 +81,22 @@ public class SecurityConfiguration {
 		this.userDetailsService = userDetailsService;
 		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService, onMemoryUserDetailsContext, jwtSecurityContext,
 				objectMapper);
+
+		accessDeniedHandler = new AccessDeniedHandlerImpl(objectMapper);
+		accessDeniedAuthenticationEntryPoint = new AccessDeniedAuthenticationEntryPoint(accessDeniedHandler);
+		chainExceptionHandlingFilter = new FilterChainExceptionHandlingFilter(accessDeniedHandler);
 	}
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		// @formatter:off
 		declare(http)
+			.consume(this::cacheRequests)
 			.consume(this::csrf)
 			.consume(this::cors)
 			.consume(this::publicEndpoints)
 			.consume(this::securedEndpoints)
+			.consume(this::accessDenied)
 			.consume(this::statelessSession)
 			.consume(this::noLogout)
 			.consume(this::jwt);
@@ -126,6 +138,21 @@ public class SecurityConfiguration {
 
 	private boolean isInDevMode() {
 		return !env.getProperty(Settings.ACTIVE_PROFILES).equals(Settings.DEFAULT_PRODUCTION_PROFILE);
+	}
+
+	private void accessDenied(HttpSecurity http) throws Exception {
+		// @formatter:off
+		http
+			.exceptionHandling()
+				.accessDeniedHandler(accessDeniedHandler)
+				.authenticationEntryPoint(accessDeniedAuthenticationEntryPoint)
+			.and()
+			.addFilterBefore(chainExceptionHandlingFilter, FilterSecurityInterceptor.class);
+		// @formatter:on
+	}
+
+	private void cacheRequests(HttpSecurity http) throws Exception {
+		http.requestCache();
 	}
 
 	private void csrf(HttpSecurity http) throws Exception {
@@ -178,7 +205,13 @@ public class SecurityConfiguration {
 	}
 
 	private void statelessSession(HttpSecurity http) throws Exception {
-		http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+		// @formatter:off
+		http
+			.sessionManagement()
+				.disable()
+			.rememberMe()
+				.disable();
+		// @formatter:on
 	}
 
 	private void noLogout(HttpSecurity http) throws Exception {

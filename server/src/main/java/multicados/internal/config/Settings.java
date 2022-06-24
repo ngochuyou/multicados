@@ -10,7 +10,9 @@ package multicados.internal.config;
 public interface Settings {
 
 	public static final String BASE_PACKAGE = "multicados";
-
+	public static final String INTERNAL_BASE_PACKAGE = "multicados.internal";
+	public static final String DOMAIN_SPECIFIC_BASE_PACKAGE = "multicados.domain";
+	
 	public static final String ACTIVE_PROFILES = "spring.profiles.active";
 
 	public static final String ZONE = "multicados.zone";
@@ -40,7 +42,8 @@ public interface Settings {
 	public static final String FILE_RESOURCE_IMAGE_STANDARD = "multicados.file.image.standard";
 
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS = "multicados.domain.resource.named.chars";
-	public static final String DOMAIN_NAMED_RESOURCE_MAX_LENGTH = "multicados.domain.resource.named.length";
+	public static final String DOMAIN_NAMED_RESOURCE_MAX_LENGTH = "multicados.domain.resource.named.max";
+	public static final String DOMAIN_NAMED_RESOURCE_MIN_LENGTH = "multicados.domain.resource.named.min";
 	public static final String DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME = "multicados.domain.resource.named.field";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET = "multicados.domain.resource.named.alphabet";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC = "multicados.domain.resource.named.numeric";

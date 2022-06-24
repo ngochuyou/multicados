@@ -864,7 +864,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 									.notNull(tree,
 											String.format("Unable to locate %s for resource [%s]",
 													DomainResourceGraph.class, resourceType.getName())))
-					.then(DomainResourceGraph::getParent).get();
+					.then(DomainResourceGraph::getParents).get();
 		}
 
 		private Map<String, Class<?>> joinWithParentAttributeTypes(Map<String, Class<?>> typesMap) throws Exception {

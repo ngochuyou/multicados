@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import multicados.internal.context.ContextBuildListener;
-import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.HandledConsumer;
 
 /**
  * @author Ngoc Huy
@@ -17,27 +17,26 @@ import multicados.internal.helper.Utils;
  */
 public interface DomainResourceGraph<T extends DomainResource> extends ContextBuildListener {
 
-	int getDepth();
-	
+	@Deprecated
 	DomainResourceGraph<? super T> getParent();
+
+	Set<DomainResourceGraph<? super T>> getParents();
 
 	Class<T> getResourceType();
 
 	Set<DomainResourceGraph<? extends T>> getChildrens();
 
-	DomainResourceGraph<? extends T> add(Class<? extends DomainResource> resourceType);
+	<E extends T> void add(DomainResourceGraph<E> graph);
 
-	void add(DomainResourceGraph<? extends T> child);
-	
-	void forEach(Utils.HandledConsumer<DomainResourceGraph<? extends DomainResource>, Exception> consumer) throws Exception;
+	void forEach(HandledConsumer<DomainResourceGraph<?>, Exception> consumer) throws Exception;
 
-	DomainResourceGraph<? extends T> locate(Class<DomainResource> resourceType);
+	<E extends T> DomainResourceGraph<E> locate(Class<E> resourceType);
 
 	@SuppressWarnings("rawtypes")
 	<E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph, E> mapper);
 
 	<E, C extends Collection<E>> C collect(DomainResourceGraphCollector<E, C> collector);
-	
+
 	interface DomainResourceGraphCollector<E, C extends Collection<E>> {
 
 		Supplier<C> getFactory();

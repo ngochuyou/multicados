@@ -691,8 +691,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 
 	@Override
 	public void summary() {
-		if (logger.isInfoEnabled()) {
-			logger.info("\n{}",
+		if (logger.isDebugEnabled()) {
+			logger.debug("\n{}",
 					securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
 		}
 	}

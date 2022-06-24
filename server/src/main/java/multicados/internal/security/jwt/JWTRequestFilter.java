@@ -7,7 +7,7 @@ import static multicados.internal.helper.Utils.declare;
 import static multicados.internal.helper.Utils.HandledFunction.identity;
 
 import java.io.IOException;
-import java.time.Instant;
+import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -35,6 +35,7 @@ import io.jsonwebtoken.Claims;
 import multicados.internal.helper.Common;
 import multicados.internal.helper.HttpHelper;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.helper.Utils.TriDeclaration;
 import multicados.internal.security.DomainUserDetails;
 import multicados.internal.security.OnMemoryUserDetailsContext;
@@ -101,12 +102,29 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 					.third(request)
 				.then(this::validate)
 				.consume(this::doPostValidation);
-			// @formatter:on
+			
 			filterChain.doFilter(request, response);
 		} catch (Exception any) {
 			any.printStackTrace();
-			logger.error(String.format("Error while filtering request: %s", any.getMessage()));
-			filterChain.doFilter(request, response);
+			
+			if (logger.isErrorEnabled()) {
+				logger.error(String.format("Error while filtering request: %s", any.getMessage()));				
+			}
+			
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+			
+			PrintWriter writer = response.getWriter();
+			
+			try {
+				if (HttpHelper.isJsonAccepted(request)) {
+					writer.write(objectMapper.writeValueAsString(Common.error("Unable to complete request")));
+					return;
+				}
+
+				writer.write("Unable to complete request");
+			} finally {
+				writer.flush();
+			}
 		}
 	}
 
@@ -133,11 +151,12 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			Candidate candidate, DomainUserDetails userDetails) {
 		LocalDateTime now = LocalDateTime.now();
 
-		if (candidate.getExpiration().isBefore(now)) {
+		if (candidate.getExpiration() == null || candidate.getExpiration().isBefore(now)) {
 			return declare(candidate, userDetails, EXPIRED_TOKEN);
 		}
-
-		if (!candidate.getVersion().isEqual(userDetails.getVersion())) {
+		// 2022-06-09T16:47:07.743
+		// 2022-06-09T16:47:07.743701
+		if (candidate.getVersion() == null || !candidate.getVersion().isEqual(userDetails.getVersion())) {
 			return declare(candidate, userDetails, STALE_TOKEN);
 		}
 
@@ -196,8 +215,6 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 	private class Candidate {
 
-		private static final String INVALID_VERSION_VALUE = "Invalid version value";
-
 		private final Claims claims;
 		private final LocalDateTime version;
 		private final LocalDateTime expiration;
@@ -208,20 +225,35 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 		public Candidate(Cookie cookie, HttpServletRequest request, HttpServletResponse response) {
 			claims = jwtStrategy.extractAllClaims(cookie.getValue());
 			version = locateVersion(claims);
-			expiration = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), jwtStrategy.getZone());
+			expiration = locateExpiration(claims);
 			this.request = request;
 			this.response = response;
 		}
 
+		private <T> T locateClaim(Claims claims, String claimKey, HandledFunction<String, T, Exception> claimProducer)
+				throws Exception {
+			String claimString = Optional.ofNullable(claims.get(claimKey)).map(Object::toString)
+					.orElse(StringHelper.EMPTY_STRING);
+
+			return claimProducer.apply(claimString);
+		}
+
 		private LocalDateTime locateVersion(Claims claims) {
-			String versionString = Optional.ofNullable(claims.get(jwtSecurityContext.getVersionKey()))
-					.map(Object::toString).orElse(StringHelper.EMPTY_STRING);
-
-			if (!StringHelper.isNumeric(versionString)) {
-				throw new IllegalArgumentException(INVALID_VERSION_VALUE);
+			try {
+				return locateClaim(claims, jwtSecurityContext.getVersionKey(),
+						(versionString) -> jwtStrategy.parseTimestamp(versionString));
+			} catch (Exception any) {
+				return null;
 			}
+		}
 
-			return LocalDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(versionString)), jwtStrategy.getZone());
+		private LocalDateTime locateExpiration(Claims claims) {
+			try {
+				return locateClaim(claims, jwtSecurityContext.getExpirationKey(),
+						(expirationString) -> jwtStrategy.parseTimestamp(expirationString));
+			} catch (Exception any) {
+				return null;
+			}
 		}
 
 		public String getUsername() {
@@ -246,9 +278,9 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 	}
 
-	public static final UsernamePasswordAuthenticationToken EXPIRED_TOKEN = new UsernamePasswordAuthenticationToken(
+	private static final UsernamePasswordAuthenticationToken EXPIRED_TOKEN = new UsernamePasswordAuthenticationToken(
 			null, null);
-	public static final UsernamePasswordAuthenticationToken STALE_TOKEN = new UsernamePasswordAuthenticationToken(null,
+	private static final UsernamePasswordAuthenticationToken STALE_TOKEN = new UsernamePasswordAuthenticationToken(null,
 			null);
 
 }

@@ -40,6 +40,10 @@ public class OnMemoryUserDetailsContextImpl implements OnMemoryUserDetailsContex
 
 	@Override
 	public UserDetails get(String username) {
+		if (!mutecies.containsKey(username)) {
+			return null;
+		}
+
 		return mutecies.get(username).userDetails;
 	}
 

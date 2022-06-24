@@ -6,6 +6,7 @@ package multicados.controller.controllers;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
@@ -22,6 +23,11 @@ import multicados.internal.service.crud.security.read.UnknownAttributesException
  */
 @ControllerAdvice
 public class ExceptionAdvisor extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<?> handledAccessDeniedException(AccessDeniedException ex, WebRequest request) {
+		return checkForJsonOrText(ex, request, HttpStatus.UNAUTHORIZED);
+	}
 
 	@ExceptionHandler(UnauthorizedCredentialException.class)
 	public ResponseEntity<?> handledUnauthorizedCredentialException(UnauthorizedCredentialException ex,

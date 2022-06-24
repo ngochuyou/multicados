@@ -21,8 +21,9 @@ public abstract class Common {
 	private Common() {}
 
 	private static final String COMMON_TEMPLATE = "%s %s";
-	private static final String INVALID_PATTERN_TEMPLATE = "Invalid pattern, expect following characters: %s";
+	private static final String INVALID_PATTERN_TEMPLATE = "Invalid pattern, expect following characters: %s.";
 	private static final String NOT_FOUND_TEMPLATE = "%s not found";
+	private static final String INVALID_LENGTH_TEMPLATE = "Invalid length, expect length to be in %d and %d range.";
 
 	private static final String NOT_EMPTY = "must not be empty";
 
@@ -69,6 +70,10 @@ public abstract class Common {
 		return String.format(NOT_FOUND_TEMPLATE, join(SPACE, preficies));
 	}
 
+	public static String invalidLength(int min, int max) {
+		return String.format(INVALID_LENGTH_TEMPLATE, min, max);
+	}
+	
 	public static String invalidPattern(Collection<Character> characters) {
 		return invalidPattern(
 				characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)));

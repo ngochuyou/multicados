@@ -44,14 +44,15 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 
 	// @formatter:off
 	private final List<Map.Entry<Class<? extends ContextBuilder>, Class<? extends ContextBuilder>>> contextBuilderEntries = List.of(
-			entry(FileManagement.class, FileManagementImpl.class),
-			entry(DomainResourceContext.class, DomainResourceContextImpl.class),
-			entry(DomainResourceValidatorFactory.class, DomainResourceValidatorFactoryImpl.class),
-			entry(GenericRepository.class, GenericRepositoryImpl.class),
-			entry(DomainResourceBuilderFactory.class, DomainResourceBuilderFactoryImpl.class),
-			entry(ReadSecurityManager.class, ReadSecurityManagerImpl.class),
-			entry(GenericCRUDService.class, GenericCRUDServiceImpl.class),
-			entry(DatabaseInitializer.class, DatabaseInitializerImpl.class));
+			entry(DomainResourceContext.class, DomainResourceContextImpl.class));
+//			entry(FileManagement.class, FileManagementImpl.class),
+//			entry(DomainResourceContext.class, DomainResourceContextImpl.class),
+//			entry(DomainResourceValidatorFactory.class, DomainResourceValidatorFactoryImpl.class),
+//			entry(GenericRepository.class, GenericRepositoryImpl.class),
+//			entry(DomainResourceBuilderFactory.class, DomainResourceBuilderFactoryImpl.class),
+//			entry(ReadSecurityManager.class, ReadSecurityManagerImpl.class),
+//			entry(GenericCRUDService.class, GenericCRUDServiceImpl.class),
+//			entry(DatabaseInitializer.class, DatabaseInitializerImpl.class));
 	// @formatter:on
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {

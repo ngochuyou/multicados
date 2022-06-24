@@ -69,10 +69,10 @@ class JWTStrategy {
 				.setClaims(claims)
 				.setSubject(username)
 				.setIssuedAt(Date.from(ZonedDateTime.now().toInstant()))
-				.setExpiration(Date.from(LocalDateTime.now()
-						.plus(expirationDuration)
-						.atZone(zone)
-						.toInstant()))
+				.setExpiration(Date.from(
+						parseTimestamp(claims.get(jwtSecurityContext.getExpirationKey()).toString())
+							.atZone(zone)
+							.toInstant()))
 				.signWith(SignatureAlgorithm.HS512, secret)
 				.compact();
 		// @formatter:on
@@ -119,10 +119,19 @@ class JWTStrategy {
 	private Map<String, Object> createClaims(DomainUserDetails userDetails) throws Exception {
 		final Map<String, Object> preClaims = new HashMap<>();
 
-		preClaims.put(jwtSecurityContext.getVersionKey(),
-				userDetails.getVersion().atZone(zone).toInstant().toEpochMilli());
+		preClaims.put(jwtSecurityContext.getVersionKey(), parseTimestampString(userDetails.getVersion()));
+		preClaims.put(jwtSecurityContext.getExpirationKey(),
+				parseTimestampString(LocalDateTime.now().plus(expirationDuration)));
 
 		return preClaims;
+	}
+
+	public String parseTimestampString(LocalDateTime timestamp) {
+		return timestamp.toString();
+	}
+
+	public LocalDateTime parseTimestamp(String timestampString) {
+		return LocalDateTime.parse(timestampString);
 	}
 
 }

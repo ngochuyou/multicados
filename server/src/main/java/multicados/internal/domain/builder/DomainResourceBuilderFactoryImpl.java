@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 
-import multicados.internal.domain.AbstractGraphWalkerFactory;
+import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.GraphWalker;
+import multicados.internal.domain.GraphLogic;
 import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
@@ -33,7 +33,7 @@ import multicados.internal.helper.Utils;
  * @author Ngoc Huy
  *
  */
-public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
+public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 		implements DomainResourceBuilderFactory {
 
 	private static final Logger logger = LoggerFactory.getLogger(DomainResourceBuilderFactoryImpl.class);
@@ -58,13 +58,13 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphWalkerFactory
 	@Override
 	public <E extends DomainResource, T extends DomainResourceBuilder<E>> DomainResourceBuilder<E> getBuilder(
 			Class<E> resourceClass) {
-		return (DomainResourceBuilder<E>) walkersMap.get(resourceClass);
+		return (DomainResourceBuilder<E>) logicsMap.get(resourceClass);
 	}
 
 	@Override
 	public void summary() {
 		for (@SuppressWarnings("rawtypes")
-		final Entry<Class, GraphWalker> entry : walkersMap.entrySet()) {
+		final Entry<Class, GraphLogic> entry : logicsMap.entrySet()) {
 			logger.debug("Using {} for {}", entry.getValue().getLoggableName(), entry.getKey().getSimpleName());
 		}
 	}

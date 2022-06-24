@@ -202,7 +202,6 @@ public class RegexHelper extends RegExUtils {
 
 		public RangedRegexBuilderImpl(String regex) {
 			super(regex);
-			atLeastOne();
 		}
 
 		@Override

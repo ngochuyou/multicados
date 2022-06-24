@@ -10,6 +10,7 @@ import javax.persistence.EntityManager;
 import multicados.domain.entity.entities.Category;
 import multicados.internal.domain.For;
 import multicados.internal.domain.builder.AbstractDomainResourceBuilder;
+import multicados.internal.helper.StringHelper;
 
 /**
  * @author Ngoc Huy
@@ -18,14 +19,19 @@ import multicados.internal.domain.builder.AbstractDomainResourceBuilder;
 @For(Category.class)
 public class CategoryBuilder extends AbstractDomainResourceBuilder<Category> {
 
-	@Override
-	public Category buildInsertion(Serializable id, Category resource, EntityManager entityManager) throws Exception {
-		return null;
+	private Category mandatoryBuild(Category model, Category persistence) {
+		persistence.setDescription(StringHelper.normalizeString(model.getDescription()));
+		return persistence;
 	}
 
 	@Override
-	public Category buildUpdate(Serializable id, Category model, Category resource, EntityManager entityManger) {
-		return null;
+	public Category buildInsertion(Serializable id, Category model, EntityManager entityManager) throws Exception {
+		return mandatoryBuild(model, model);
+	}
+
+	@Override
+	public Category buildUpdate(Serializable id, Category model, Category persistence, EntityManager entityManger) {
+		return mandatoryBuild(model, persistence);
 	}
 
 }

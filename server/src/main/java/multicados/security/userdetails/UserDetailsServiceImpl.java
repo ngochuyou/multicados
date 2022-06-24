@@ -32,7 +32,7 @@ import multicados.internal.security.DomainUserDetails;
  * @author Ngoc Huy
  *
  */
-@Component
+//@Component
 public class UserDetailsServiceImpl implements UserDetailsService {
 
 	/**

@@ -37,13 +37,13 @@ public class TypeHelper {
 		make(with(String.class, Integer.class).toA(Object::toString).toB(Integer::valueOf));
 	}
 
-	public static <T> Stack<Class<? super T>> getClassStack(Class<T> clazz) {
-		Stack<Class<? super T>> stack = new Stack<>();
-		Class<? super T> superClass = clazz;
+	public static Stack<Class<?>> getClassStack(Class<?> clazz) {
+		Stack<Class<?>> stack = new Stack<>();
+		Class<?> superClass = clazz;
 
 		while (superClass != null && !superClass.equals(Object.class)) {
 			stack.add(superClass);
-			superClass = (Class<? super T>) superClass.getSuperclass();
+			superClass = superClass.getSuperclass();
 		}
 
 		return stack;
