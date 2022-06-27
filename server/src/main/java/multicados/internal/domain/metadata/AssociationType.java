@@ -3,12 +3,22 @@
  */
 package multicados.internal.domain.metadata;
 
+import java.util.Collection;
+
 /**
  * @author Ngoc Huy
  *
  */
 public enum AssociationType {
 
-	ENTITY, COLLECTION
+	/**
+	 * Singular
+	 */
+	ENTITY,
+
+	/**
+	 * Plural, could be a {@link Collection} or an array
+	 */
+	COLLECTION
 
 }

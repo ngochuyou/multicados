@@ -39,7 +39,7 @@ public class DomainEntityTuplizer<I extends Serializable, E extends Entity<I>>
 			SessionFactoryImplementor sfi) throws Exception {
 		super(resourceType);
 		// @formatter:off
-		this.accessors = Utils.declare(metadata.getEnclosedAttributeNames())
+		this.accessors = Utils.declare(metadata.getWrappedAttributeNames())
 					.second(sfi)
 					.third(resourceType)
 					.triInverse()

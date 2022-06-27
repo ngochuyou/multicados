@@ -20,20 +20,8 @@ import org.springframework.core.type.AnnotationMetadata;
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceContextImpl;
-import multicados.internal.domain.builder.DomainResourceBuilderFactory;
-import multicados.internal.domain.builder.DomainResourceBuilderFactoryImpl;
-import multicados.internal.domain.repository.DatabaseInitializer;
-import multicados.internal.domain.repository.DatabaseInitializerImpl;
-import multicados.internal.domain.repository.GenericRepository;
-import multicados.internal.domain.repository.GenericRepositoryImpl;
-import multicados.internal.domain.validation.DomainResourceValidatorFactory;
-import multicados.internal.domain.validation.DomainResourceValidatorFactoryImpl;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileManagementImpl;
-import multicados.internal.service.crud.GenericCRUDService;
-import multicados.internal.service.crud.GenericCRUDServiceImpl;
-import multicados.internal.service.crud.security.read.ReadSecurityManager;
-import multicados.internal.service.crud.security.read.ReadSecurityManagerImpl;
 
 /**
  * @author Ngoc Huy
@@ -44,8 +32,8 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 
 	// @formatter:off
 	private final List<Map.Entry<Class<? extends ContextBuilder>, Class<? extends ContextBuilder>>> contextBuilderEntries = List.of(
+			entry(FileManagement.class, FileManagementImpl.class),
 			entry(DomainResourceContext.class, DomainResourceContextImpl.class));
-//			entry(FileManagement.class, FileManagementImpl.class),
 //			entry(DomainResourceContext.class, DomainResourceContextImpl.class),
 //			entry(DomainResourceValidatorFactory.class, DomainResourceValidatorFactoryImpl.class),
 //			entry(GenericRepository.class, GenericRepositoryImpl.class),

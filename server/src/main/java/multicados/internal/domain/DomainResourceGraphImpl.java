@@ -27,16 +27,12 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 
 	private static final Logger logger = LoggerFactory.getLogger(DomainResourceGraphImpl.class);
 
-	@Deprecated
-	private final DomainResourceGraph<? super T> parent;
-
 	private final Class<T> resourceType;
 
 	private Set<DomainResourceGraph<? super T>> parents;
 	private Set<DomainResourceGraph<? extends T>> childrens;
 
 	public DomainResourceGraphImpl(Class<T> resourceType) {
-		this.parent = null;
 		this.resourceType = resourceType;
 		parents = new LinkedHashSet<>(0);
 		childrens = new LinkedHashSet<>(0);
@@ -67,11 +63,6 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		}
 
 		if (childrens.isEmpty()) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[{}<{}>]: Unable to locate any parent graph for type {}", this.getClass().getSimpleName(),
-						resourceType.getSimpleName(), childType.getName());
-			}
-
 			return;
 		}
 
@@ -107,11 +98,6 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 	@Override
 	public Set<DomainResourceGraph<? super T>> getParents() {
 		return parents;
-	}
-
-	@Override
-	public DomainResourceGraph<? super T> getParent() {
-		return parent;
 	}
 
 	@Override

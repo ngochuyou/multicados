@@ -17,9 +17,6 @@ import multicados.internal.helper.Utils.HandledConsumer;
  */
 public interface DomainResourceGraph<T extends DomainResource> extends ContextBuildListener {
 
-	@Deprecated
-	DomainResourceGraph<? super T> getParent();
-
 	Set<DomainResourceGraph<? super T>> getParents();
 
 	Class<T> getResourceType();

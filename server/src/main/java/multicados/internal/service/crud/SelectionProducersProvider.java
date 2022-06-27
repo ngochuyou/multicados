@@ -107,7 +107,7 @@ public class SelectionProducersProvider {
 	private List<Function<Path<?>, Path<?>>> individuallyResolveComponentPathProducers(
 			DomainResourceMetadata<? extends DomainResource> metadata, String attributeName,
 			ComponentPath componentPath) {
-		final Queue<String> nodeNames = componentPath.getNodeNames();
+		final Queue<String> nodeNames = componentPath.getPath();
 
 		if (metadata.isAssociation(attributeName)) {
 			final List<Function<Path<?>, Path<?>>> pathNodes = new ArrayList<>();

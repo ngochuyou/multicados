@@ -3,7 +3,6 @@
  */
 package multicados.internal.helper;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,12 +31,6 @@ public class CollectionHelper {
 
 	public static <K, V> Map<V, K> inverse(Map<K, V> map) {
 		return map.entrySet().stream().collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> T[] join(Class<T> type, T[]... arrays) {
-		return Stream.of(arrays).flatMap(array -> Stream.of(array))
-				.toArray(size -> (T[]) Array.newInstance(type, size));
 	}
 
 	@SafeVarargs
