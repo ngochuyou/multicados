@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -20,10 +20,11 @@ import javax.persistence.criteria.Predicate;
 public abstract class AbstractSingularRangedPluralFilter<T>
 		implements Filter<T>, Filter.Plural<T>, Filter.Singular<T>, Filter.Ranged<T> {
 
-	private AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
-	private AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
-	private AbstractRangedFilter<T> ranged = new AbstractRangedFilter<T>() {};
+	private AbstractSingularFilter<T> singular = new AbstractSingularFilter<>() {};
+	private AbstractPluralFilter<T> plural = new AbstractPluralFilter<>() {};
+	private AbstractRangedFilter<T> ranged = new AbstractRangedFilter<>() {};
 
+	@Override
 	public T getEqual() {
 		return singular.equal;
 	}
@@ -32,6 +33,7 @@ public abstract class AbstractSingularRangedPluralFilter<T>
 		singular.setEqual(equal);
 	}
 
+	@Override
 	public T getNot() {
 		return singular.not;
 	}
@@ -40,6 +42,7 @@ public abstract class AbstractSingularRangedPluralFilter<T>
 		singular.setNot(not);
 	}
 
+	@Override
 	public T getFrom() {
 		return ranged.from;
 	}
@@ -48,6 +51,7 @@ public abstract class AbstractSingularRangedPluralFilter<T>
 		ranged.setFrom(from);
 	}
 
+	@Override
 	public T getTo() {
 		return ranged.to;
 	}
@@ -56,6 +60,7 @@ public abstract class AbstractSingularRangedPluralFilter<T>
 		ranged.setTo(to);
 	}
 
+	@Override
 	public T[] getIn() {
 		return plural.in;
 	}
@@ -64,6 +69,7 @@ public abstract class AbstractSingularRangedPluralFilter<T>
 		plural.setIn(in);
 	}
 
+	@Override
 	public T[] getNi() {
 		return plural.ni;
 	}

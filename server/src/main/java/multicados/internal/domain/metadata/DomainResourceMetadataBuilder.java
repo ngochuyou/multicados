@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.metadata;
 
@@ -9,8 +9,8 @@ import multicados.internal.domain.DomainResource;
 
 /**
  * Strategy for building {@link DomainResourceMetadata}
- * 
- * 
+ *
+ *
  * @author Ngoc Huy
  *
  */

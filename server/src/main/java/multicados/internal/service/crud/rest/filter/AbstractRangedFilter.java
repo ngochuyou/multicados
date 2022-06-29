@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -17,6 +17,7 @@ public abstract class AbstractRangedFilter<T> extends AbstractFilterImplementor<
 	T from;
 	T to;
 
+	@Override
 	public T getFrom() {
 		return from;
 	}
@@ -31,6 +32,7 @@ public abstract class AbstractRangedFilter<T> extends AbstractFilterImplementor<
 		addProducer();
 	}
 
+	@Override
 	public T getTo() {
 		return to;
 	}

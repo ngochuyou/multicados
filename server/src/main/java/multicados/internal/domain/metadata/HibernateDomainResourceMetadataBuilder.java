@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.metadata;
 
@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import javax.persistence.metamodel.Attribute;
 
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.persister.entity.EntityPersister;
@@ -50,6 +52,7 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 			throws Exception {
 		final EntityPersister persister = sfi.getMetamodel().entityPersister(resourceType);
 		final EntityMetamodel metamodel = persister.getEntityMetamodel();
+		final List<String> declaredAttributeNames = locateDeclaredAttributeNames(resourceType, metamodel);
 		final List<String> wrappedAttributes = locateWrappedAttributeNames(metamodel);
 		final Map<String, Class<?>> attributeTypes = locateAttributeTypes(metamodel, wrappedAttributes);
 		final List<String> attributesToBeUnwrapped = new ArrayList<>(wrappedAttributes);
@@ -60,8 +63,8 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 		final Map<String, DomainAssociation> associations = locateAssociations(metamodel, wrappedAttributes);
 		final Map<String, ComponentPath> componentPaths = resolveComponentPaths(metamodel, wrappedAttributes);
 
-		return new DomainResourceMetadataImpl<>(resourceType, wrappedAttributes, attributesToBeUnwrapped,
-				attributeTypes, nonLazyAttributes, componentPaths, associations);
+		return new DomainResourceMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
+				attributesToBeUnwrapped, attributeTypes, nonLazyAttributes, componentPaths, associations);
 	}
 
 	public Map<String, ComponentPath> resolveComponentPaths(EntityMetamodel metamodel, List<String> wrappedAttributes)
@@ -161,13 +164,13 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 				associations.put(attributeName,
 						new DomainResourceMetadataImpl.DomainAssociation.OptionalAssociation(attributeName,
 								associationType));
-				
+
 				return associations;
 			}
 
 			associations.put(attributeName, new DomainResourceMetadataImpl.DomainAssociation.MandatoryAssociation(
 					attributeName, associationType));
-			
+
 			return associations;
 			// @formatter:on
 		}
@@ -375,9 +378,15 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 		return attributeTypes;
 	}
 
+	private <D extends DomainResource> List<String> locateDeclaredAttributeNames(Class<D> resourceType,
+			EntityMetamodel metamodel) {
+		return new ArrayList<>(sfi.getMetamodel().entity(resourceType).getDeclaredAttributes().stream()
+				.map(Attribute::getName).toList());
+	}
+
 	private List<String> locateWrappedAttributeNames(EntityMetamodel metamodel) throws Exception {
-		if (logger.isDebugEnabled()) {
-			logger.debug("Locating wrapped attributes");
+		if (logger.isTraceEnabled()) {
+			logger.trace("Locating wrapped attributes");
 		}
 		// @formatter:off
 		return Utils.declare(getNonIdentifierAttributes(metamodel))

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.security.read;
 
@@ -109,7 +109,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 		final Map<Class<? extends DomainResource>, ReadSecurityNode> securityNodes = new HashMap<>();
 		final Set<SecuredAttribute> contributedAttributes = builder.getContributedAttributes();
 
-		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		for (final Class<? extends DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (!shouldConstructNode(resourceType)) {
 				continue;
@@ -119,7 +119,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 				.stream()
 				.filter(attribute -> TypeHelper.isParentOf(attribute.getOwningType(), resourceType))
 				.collect(Collectors.toList());
-			
+
 			if (scopedAttributes.isEmpty()) {
 				continue;
 			}
@@ -145,7 +145,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 			logger.trace("Constructing empty nodes");
 		}
 
-		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		for (final Class<? extends DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (configuredNodes.containsKey(resourceType) || !shouldConstructNode(resourceType)) {
 				continue;
@@ -280,7 +280,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 		@SuppressWarnings("unchecked")
 		private <D extends DomainResource> SecuredAttributeImpl<D> locateProperty(Key<D> key) {
 			if (securedAttributes.containsKey(key)) {
-				return (SecuredAttributeImpl<D>) securedAttributes.get(key);
+				return securedAttributes.get(key);
 			}
 
 			return null;
@@ -321,8 +321,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 
 		@SuppressWarnings("rawtypes")
 		private void modifyAlias(SecuredAttributeImpl attr, String alias) {
-			if (logger.isDebugEnabled()) {
-				logger.debug(String.format("Overring alias [%s] with [%s]", attr.getAlias(), alias));
+			if (logger.isTraceEnabled()) {
+				logger.trace(String.format("Overring alias [%s] with [%s]", attr.getAlias(), alias));
 			}
 
 			attr.setAlias(alias);
@@ -330,8 +330,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 
 		@SuppressWarnings("rawtypes")
 		private void modifyVisibility(SecuredAttributeImpl attr, Boolean isMasked) {
-			if (logger.isDebugEnabled()) {
-				logger.debug(String.format("Overring visibility [%s] with [%s]", attr.isMasked(), isMasked));
+			if (logger.isTraceEnabled()) {
+				logger.trace(String.format("Overring visibility [%s] with [%s]", attr.isMasked(), isMasked));
 			}
 
 			attr.setMasked(isMasked);
@@ -344,8 +344,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 			public WithTypeImpl(Class<D> type) {
 				this.type = Objects.requireNonNull(type);
 
-				if (logger.isDebugEnabled()) {
-					logger.debug(String.format("With type %s", type.getSimpleName()));
+				if (logger.isTraceEnabled()) {
+					logger.trace(String.format("With type %s", type.getSimpleName()));
 				}
 			}
 
@@ -378,8 +378,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 						credentialList.add(credential.getAuthority());
 					}
 
-					if (logger.isDebugEnabled()) {
-						logger.debug(String.format("With Credentials[%s]",
+					if (logger.isTraceEnabled()) {
+						logger.trace(String.format("With Credentials[%s]",
 								credentialList.stream().collect(Collectors.joining(","))));
 					}
 				}
@@ -418,8 +418,9 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 							}
 						}
 					}
-					if (logger.isDebugEnabled()) {
-						logger.debug("Mask all");
+					
+					if (logger.isTraceEnabled()) {
+						logger.trace("Mask all");
 					}
 
 					return this;
@@ -437,8 +438,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 						}
 					}
 
-					if (logger.isDebugEnabled()) {
-						logger.debug("Publish all");
+					if (logger.isTraceEnabled()) {
+						logger.trace("Publish all");
 					}
 
 					return this;
@@ -459,8 +460,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 						this.attributes = Stream.of(requireNonNull(attributes)).map(Objects::requireNonNull)
 								.toArray(String[]::new);
 
-						if (logger.isDebugEnabled()) {
-							logger.debug(String.format("With fields %s",
+						if (logger.isTraceEnabled()) {
+							logger.trace(String.format("With fields %s",
 									Stream.of(attributes).collect(Collectors.joining(", "))));
 						}
 					}
@@ -485,8 +486,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 							}
 						}
 
-						if (logger.isDebugEnabled()) {
-							logger.debug(
+						if (logger.isTraceEnabled()) {
+							logger.trace(
 									String.format("Using alias %s", Stream.of(alias).collect(Collectors.joining(","))));
 						}
 
@@ -506,8 +507,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 							}
 						}
 
-						if (logger.isDebugEnabled()) {
-							logger.debug(isMasked ? "Mask" : "Publish");
+						if (logger.isTraceEnabled()) {
+							logger.trace(isMasked ? "Mask" : "Publish");
 						}
 
 						return this;
@@ -630,9 +631,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 		public boolean equals(Object obj) {
 			if (this == obj)
 				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
+			if ((obj == null) || (getClass() != obj.getClass()))
 				return false;
 
 			Key<?> other = (Key<?>) obj;
@@ -685,7 +684,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 		public void doOnUnauthorizedAttribute(Class<?> resourceType, String credential,
 				List<String> unauthorizedAttributeNames) throws UnknownAttributesException {
 			throw new UnknownAttributesException(unauthorizedAttributeNames);
-		};
+		}
 
 	}
 

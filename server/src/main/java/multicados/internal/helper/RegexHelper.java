@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -44,20 +44,27 @@ public class RegexHelper extends RegExUtils {
 
 	public interface RegexGroupBuilder extends RegexBuilder {
 
+		@Override
 		RegexBuilder start();
 
+		@Override
 		RegexBuilder end();
 
+		@Override
 		RegexGroupBuilder literal(String fragment);
 
 		RegexGroupBuilder literal(Collection<Character> characters);
 
+		@Override
 		RegexGroupBuilder and(RegexBuilder other);
 
+		@Override
 		RegexGroupBuilder or(RegexBuilder other);
 
+		@Override
 		RegexGroupBuilder naturalAlphabet();
 
+		@Override
 		RegexGroupBuilder naturalNumeric();
 
 	}

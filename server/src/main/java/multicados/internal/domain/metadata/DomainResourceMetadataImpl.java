@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.metadata;
 
@@ -23,6 +23,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 
 	private final Class<T> resourceType;
 
+	private final List<String> declaredAttributeNames;
 	private final List<String> unwrappedAttributeNames;
 	private final List<String> wrappedAttributeNames;
 	private final List<String> nonLazyAttributeNames;
@@ -34,6 +35,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	public DomainResourceMetadataImpl(
 	// @formatter:off
 			Class<T> resourceType,
+			List<String> declaredAttributeNames,
 			List<String> wrappedAttributeNames,
 			List<String> unwrappedAttributeNames,
 			Map<String, Class<?>> attributeTypes,
@@ -42,6 +44,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			Map<String, DomainAssociation> associations) {
 		// @formatter:on
 		this.resourceType = resourceType;
+		this.declaredAttributeNames = unmodifiableList(declaredAttributeNames);
 		this.unwrappedAttributeNames = unmodifiableList(unwrappedAttributeNames);
 		this.wrappedAttributeNames = unmodifiableList(wrappedAttributeNames);
 		this.nonLazyAttributeNames = unmodifiableList(nonLazyAttributeNames);
@@ -53,6 +56,11 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	@Override
 	public Class<T> getResourceType() {
 		return resourceType;
+	}
+
+	@Override
+	public List<String> getDeclaredAttributeNames() {
+		return declaredAttributeNames;
 	}
 
 	@Override
@@ -164,6 +172,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				collectMap(componentPaths, entry -> String.format("%s: %s", entry.getKey(), entry.getValue()), "\n\t\t"));
 		// @formatter:on
 	}
+
 	public interface DomainAssociation {
 
 		String getName();

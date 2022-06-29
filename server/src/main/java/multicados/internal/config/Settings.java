@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.config;
 
@@ -12,7 +12,7 @@ public interface Settings {
 	public static final String BASE_PACKAGE = "multicados";
 	public static final String INTERNAL_BASE_PACKAGE = "multicados.internal";
 	public static final String DOMAIN_SPECIFIC_BASE_PACKAGE = "multicados.domain";
-	
+
 	public static final String ACTIVE_PROFILES = "spring.profiles.active";
 
 	public static final String ZONE = "multicados.zone";
@@ -48,7 +48,7 @@ public interface Settings {
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET = "multicados.domain.resource.named.alphabet";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC = "multicados.domain.resource.named.numeric";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL = "multicados.domain.resource.named.literal";
-	
+
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
 
 }

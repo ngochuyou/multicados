@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain;
 
@@ -29,8 +29,7 @@ public interface DomainResourceGraph<T extends DomainResource> extends ContextBu
 
 	<E extends T> DomainResourceGraph<E> locate(Class<E> resourceType);
 
-	@SuppressWarnings("rawtypes")
-	<E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph, E> mapper);
+	<E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph<?>, E> mapper);
 
 	<E, C extends Collection<E>> C collect(DomainResourceGraphCollector<E, C> collector);
 
@@ -38,27 +37,27 @@ public interface DomainResourceGraph<T extends DomainResource> extends ContextBu
 
 		Supplier<C> getFactory();
 
-		@SuppressWarnings("rawtypes")
-		Function<DomainResourceGraph, E> getMapper();
+		Function<DomainResourceGraph<?>, E> getMapper();
 
 	}
 
-	@SuppressWarnings("rawtypes")
 	abstract static class AbstractCollector<E, C extends Collection<E>> implements DomainResourceGraphCollector<E, C> {
 		private final Supplier<C> factory;
-		private final Function<DomainResourceGraph, E> mapper;
+		private final Function<DomainResourceGraph<?>, E> mapper;
 
-		public AbstractCollector(Supplier<C> supplier, Function<DomainResourceGraph, E> mapper) {
+		public AbstractCollector(Supplier<C> supplier, Function<DomainResourceGraph<?>, E> mapper) {
 			super();
 			this.factory = supplier;
 			this.mapper = mapper;
 		}
 
+		@Override
 		public Supplier<C> getFactory() {
 			return factory;
 		}
 
-		public Function<DomainResourceGraph, E> getMapper() {
+		@Override
+		public Function<DomainResourceGraph<?>, E> getMapper() {
 			return mapper;
 		}
 

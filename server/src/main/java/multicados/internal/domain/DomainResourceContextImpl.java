@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain;
 
@@ -11,6 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,13 +34,18 @@ import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataBuilder;
 import multicados.internal.domain.metadata.DomainResourceMetadataBuilderImpl;
 import multicados.internal.domain.metadata.HibernateDomainResourceMetadataBuilder;
+import multicados.internal.domain.tuplizer.AbstractDomainResourceTuplizer;
+import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
+import multicados.internal.domain.tuplizer.DomainResourceTuplizerImpl;
+import multicados.internal.domain.tuplizer.HibernateResourceTuplizer;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileResourceSessionFactory;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
+import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -50,8 +57,8 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 
 	private final DomainResourceGraph<DomainResource> resourceGraph;
 
-	private final Map<Class<?>, DomainResourceMetadata<?>> metadatasMap;
-	private final Map<Class<?>, DomainResourceTuplizer<?>> tuplizersMap = null;
+	private final Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> metadatasMap;
+	private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizersMap;
 
 	@Autowired
 	public DomainResourceContextImpl(SessionFactory sessionFactory, FileManagement fileManagement) throws Exception {
@@ -60,7 +67,12 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		}
 
 		resourceGraph = new GraphBuilder().build();
-		metadatasMap = new MetadataBuilder(resourceGraph, sessionFactory, fileManagement.getSessionFactory()).build();
+
+		final SessionFactoryImplementor sfi = sessionFactory.unwrap(SessionFactoryImplementor.class);
+		final FileResourceSessionFactory fileResourceSessionFactory = fileManagement.getSessionFactory();
+
+		metadatasMap = new MetadataBuilder(resourceGraph, sfi, fileResourceSessionFactory).build();
+		tuplizersMap = new TuplizerBuilder(resourceGraph, sfi, fileResourceSessionFactory).build();
 	}
 
 	@Override
@@ -80,9 +92,219 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		return (DomainResourceTuplizer<T>) tuplizersMap.get(resourceType);
 	}
 
+	private boolean isSupportedByHBM(final Class<? extends DomainResource> resourceType) {
+		return !Modifier.isAbstract(resourceType.getModifiers()) && !Modifier.isInterface(resourceType.getModifiers());
+	}
+
 	@Override
 	public void summary() {
-		logger.info("\n{}", metadatasMap.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+		logger.info("\n{}", visualizeGraph(resourceGraph, 1));
+//		logger.info("\n{}", metadatasMap.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+	}
+
+	private String visualizeGraph(DomainResourceGraph<? extends DomainResource> node, int indentation) {
+		final StringBuilder builder = new StringBuilder();
+		// @formatter:off
+		builder.append(String.format("%s%s: %s\n",
+				indentation != 0 ? String.format("%s%s",
+						IntStream.range(0, indentation).mapToObj(index -> "\s\s\s").collect(Collectors.joining(StringHelper.EMPTY_STRING)),
+						"|__") : StringHelper.EMPTY_STRING,
+				node.getResourceType().getSimpleName(),
+				node.getParents() != null
+					? node.getParents().stream().map(p -> p.getResourceType().getSimpleName()).collect(Collectors.joining(StringHelper.COMMON_JOINER))
+							: "<ROOT>"));
+		// @formatter:on
+		if (CollectionHelper.isEmpty(node.getChildrens())) {
+			return builder.toString();
+		}
+
+		for (final DomainResourceGraph<?> children : node.getChildrens()) {
+			builder.append(visualizeGraph(children, indentation + 1));
+		}
+
+		return builder.toString();
+	}
+
+	private class TuplizerBuilder {
+
+		private final Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> tuplizers = new HashMap<>();
+
+		private final DomainResourceGraph<DomainResource> resourceGraph;
+		private final SessionFactoryImplementor sessionFactory;
+		private final FileResourceSessionFactory fileResourceSessionFactory;
+
+		private final Map<AccessorKey, Accessor> accessorsCache = new HashMap<>();
+		private final Map<Class<? extends DomainResource>, AbstractDomainResourceTuplizer<? extends DomainResource>> parentTuplizersCache = new HashMap<>();
+
+		public TuplizerBuilder(DomainResourceGraph<DomainResource> resourceGraph, SessionFactoryImplementor sfi,
+				FileResourceSessionFactory fileResourceSessionFactory) {
+			this.resourceGraph = resourceGraph;
+			this.sessionFactory = sfi;
+			this.fileResourceSessionFactory = fileResourceSessionFactory;
+		}
+
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		private Map<Class<? extends DomainResource>, DomainResourceTuplizer<? extends DomainResource>> build()
+				throws Exception {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Building tuplizers");
+			}
+
+			final BiFunction<Class<?>, String, Accessor> cachedAccessorProvider = this::findCachedAccessor;
+			final Utils.TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer = this::cacheAccessor;
+			final Function<Class<? extends DomainResource>, AbstractDomainResourceTuplizer<?>> parentTuplizerProvider = this::locateParentTuplizer;
+
+			for (final Class<? extends DomainResource> resourceType : resourceGraph
+					.collect(DomainResourceGraphCollectors.toTypesSet())) {
+				final DomainResourceMetadata<? extends DomainResource> metadata = getMetadata(resourceType);
+
+				if (isSupportedByHBM(resourceType)) {
+					if (Entity.class.isAssignableFrom(resourceType)) {
+						// @formatter:off
+						tuplizers.put(resourceType,
+								new HibernateResourceTuplizer(
+										metadata,
+										sessionFactory,
+										cachedAccessorProvider,
+										accessorEntryConsumer));
+						// @formatter:on
+						continue;
+					}
+
+					if (FileResource.class.isAssignableFrom(resourceType)) {
+						// @formatter:off
+						tuplizers.put(resourceType,
+								new HibernateResourceTuplizer(
+										metadata,
+										fileResourceSessionFactory,
+										cachedAccessorProvider,
+										accessorEntryConsumer));
+						// @formatter:on
+						continue;
+					}
+				}
+				// @formatter:off
+				tuplizers.put(resourceType,
+						new DomainResourceTuplizerImpl<>(
+								metadata,
+								cachedAccessorProvider,
+								accessorEntryConsumer,
+								parentTuplizerProvider));
+				// @formatter:on
+			}
+
+			return tuplizers;
+		}
+
+		private AbstractDomainResourceTuplizer<?> locateParentTuplizer(Class<? extends DomainResource> resourceType) {
+			if (parentTuplizersCache.containsKey(resourceType)) {
+				return parentTuplizersCache.get(resourceType);
+			}
+
+			final DomainResourceGraph<?> graph = resourceGraph.locate(resourceType);
+
+			if (CollectionHelper.isEmpty(graph.getParents())) {
+				return null;
+			}
+
+			for (final DomainResourceGraph<?> possibleParentGraph : graph.getParents()) {
+				final Class<?> parentType = possibleParentGraph.getResourceType();
+
+				if (Modifier.isInterface(parentType.getModifiers())) {
+					continue;
+				}
+
+				final AbstractDomainResourceTuplizer<?> parentTuplizer = (AbstractDomainResourceTuplizer<?>) tuplizers
+						.get(parentType);
+
+				parentTuplizersCache.put(resourceType, parentTuplizer);
+
+				return parentTuplizer;
+			}
+
+			return null;
+		}
+
+		private Accessor findCachedAccessor(Class<?> ownerType, String attributePath) {
+			final AccessorKey key = new AccessorKey(ownerType, attributePath);
+
+			if (logger.isTraceEnabled()) {
+				if (accessorsCache.containsKey(key)) {
+					logger.trace("Using cached accessor for key [{}]", key);
+				}
+			}
+
+			return accessorsCache.get(key);
+		}
+
+		private void cacheAccessor(Class<?> ownerType, String attributePath, Accessor accessor) {
+			final AccessorKey key = new AccessorKey(ownerType, attributePath);
+
+			if (logger.isTraceEnabled()) {
+				logger.trace("Caching accessor with key [{}]", key);
+			}
+
+			accessorsCache.put(new AccessorKey(ownerType, attributePath), accessor);
+		}
+
+		private class AccessorKey {
+
+			private final Class<?> resourceType;
+			private final String path;
+
+			public AccessorKey(Class<?> resourceType, String path) {
+				this.resourceType = resourceType;
+				this.path = path;
+			}
+
+			@Override
+			public int hashCode() {
+				final int prime = 31;
+				int result = 1;
+
+				result = prime * result + getEnclosingInstance().hashCode();
+				result = prime * result + ((path == null) ? 0 : path.hashCode());
+				result = prime * result + ((resourceType == null) ? 0 : resourceType.hashCode());
+
+				return result;
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				if (this == obj)
+					return true;
+				if ((obj == null) || (getClass() != obj.getClass()))
+					return false;
+
+				AccessorKey other = (AccessorKey) obj;
+
+				if (!getEnclosingInstance().equals(other.getEnclosingInstance()))
+					return false;
+				if (path == null) {
+					if (other.path != null)
+						return false;
+				} else if (!path.equals(other.path))
+					return false;
+				if (resourceType == null) {
+					if (other.resourceType != null)
+						return false;
+				} else if (!resourceType.equals(other.resourceType))
+					return false;
+
+				return true;
+			}
+
+			private TuplizerBuilder getEnclosingInstance() {
+				return TuplizerBuilder.this;
+			}
+
+			@Override
+			public String toString() {
+				return String.format("%s#%s", resourceType, path);
+			}
+
+		}
+
 	}
 
 	@SuppressWarnings({ "rawtypes" })
@@ -95,15 +317,16 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		private final SessionFactoryImplementor sessionFactory;
 		private final FileResourceSessionFactory fileResourceSessionFactory;
 
-		public MetadataBuilder(DomainResourceGraph<DomainResource> graph, SessionFactory sessionFactory,
+		public MetadataBuilder(DomainResourceGraph<DomainResource> graph, SessionFactoryImplementor sessionFactory,
 				FileResourceSessionFactory fileResourceSessionFactory) {
 			this.graph = graph;
-			this.sessionFactory = sessionFactory.unwrap(SessionFactoryImplementor.class);
+			this.sessionFactory = sessionFactory;
 			this.fileResourceSessionFactory = fileResourceSessionFactory;
 		}
 
 		@SuppressWarnings("unchecked")
-		public Map<Class<?>, DomainResourceMetadata<?>> build() throws Exception {
+		public Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> build()
+				throws Exception {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Building metadatas", DomainResourceGraph.class.getName());
 			}
@@ -115,8 +338,8 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 					fileResourceSessionFactory);
 
 			for (final Class resourceType : graph.collect(DomainResourceGraphCollectors.toTypesSet())) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("Building metadata for type {}", resourceType.getName());
+				if (logger.isTraceEnabled()) {
+					logger.trace("Building metadata for type {}", resourceType.getName());
 				}
 
 				if (Entity.class.isAssignableFrom(resourceType) && canBePersisted(resourceType)) {
@@ -176,10 +399,10 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 			// @formatter:off
 			declare(scanForRootInterfaces())
 				.consume(this::constructGraphUsingRootInterfaces);
-			
+
 			declare(scanForImplementations())
 				.consume(this::addImplementationsToGraph);
-			
+
 			sealGraph();
 			
 			return root;
@@ -216,8 +439,8 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		private void putGraph(BeanDefinition beanDef) throws ClassNotFoundException {
 			final Class type = from(beanDef);
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("New put-graph request of type {}", type.getName());
+			if (logger.isTraceEnabled()) {
+				logger.trace("New put-graph request of type {}", type.getName());
 			}
 
 			final DomainResourceGraph graph = new DomainResourceGraphImpl<>(type);
@@ -236,24 +459,24 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 			}
 
 			for (final String interfaceClassName : interfaceClassNames) {
-				pushParentsToGraph(from(interfaceClassName));
+				pushParentsToGraph(with(interfaceClassName));
 			}
 		}
 
 		private void pushClassStack(AnnotationMetadata metadata) throws ClassNotFoundException {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Pushing class stack of type {} to graph", metadata.getClassName());
+			if (logger.isTraceEnabled()) {
+				logger.trace("Pushing class stack of type {} to graph", metadata.getClassName());
 			}
 
 			if (metadata.getSuperClassName() == null) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("Class stack is empty for type {}", metadata.getClassName());
+				if (logger.isTraceEnabled()) {
+					logger.trace("Class stack is empty for type {}", metadata.getClassName());
 				}
 
 				return;
 			}
 
-			pushParentsToGraph(from(metadata.getSuperClassName()));
+			pushParentsToGraph(with(metadata.getSuperClassName()));
 		}
 
 		private void pushParentsToGraph(Class directParentType) throws ClassNotFoundException {
@@ -262,11 +485,7 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 			while (!classStack.isEmpty()) {
 				Class<?> currentType = classStack.pop();
 
-				if (!DomainResource.class.isAssignableFrom(currentType)) {
-					continue;
-				}
-
-				if (cache.containsKey(currentType)) {
+				if (!DomainResource.class.isAssignableFrom(currentType) || cache.containsKey(currentType)) {
 					continue;
 				}
 
@@ -279,15 +498,15 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 
 		private void putGraph(Class type, DomainResourceGraph graph) throws ClassNotFoundException {
 			if (cache.containsKey(type)) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("{} has already exsited in graph", type.getName());
+				if (logger.isTraceEnabled()) {
+					logger.trace("{} has already exsited in graph", type.getName());
 				}
 
 				return;
 			}
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("Adding a new graph of type {}", type.getName());
+			if (logger.isTraceEnabled()) {
+				logger.trace("Adding a new graph of type {}", type.getName());
 			}
 
 			cache.put(type, graph);
@@ -305,10 +524,6 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		private void pushToGraph(Set<BeanDefinition> beanDefs) throws Exception, ClassNotFoundException {
 			for (final BeanDefinition beanDef : beanDefs) {
 				putGraph(beanDef);
-			}
-
-			if (logger.isDebugEnabled()) {
-				logger.debug("Current Graph state:\n{}", visualizeGraph(root, 1));
 			}
 		}
 
@@ -330,35 +545,12 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 			return scanner.findCandidateComponents(Settings.INTERNAL_BASE_PACKAGE);
 		}
 
-		private <T extends DomainResource> Class<T> from(String className) throws ClassNotFoundException {
+		private <T extends DomainResource> Class<T> with(String className) throws ClassNotFoundException {
 			return (Class<T>) Class.forName(className);
 		}
 
 		private <T extends DomainResource> Class<T> from(BeanDefinition beanDef) throws ClassNotFoundException {
-			return from(beanDef.getBeanClassName());
-		}
-
-		private String visualizeGraph(DomainResourceGraph<? extends DomainResource> node, int indentation) {
-			final StringBuilder builder = new StringBuilder();
-			// @formatter:off
-			builder.append(String.format("%s%s: %s\n",
-					indentation != 0 ? String.format("%s%s",
-							IntStream.range(0, indentation).mapToObj(index -> "\s\s\s").collect(Collectors.joining(StringHelper.EMPTY_STRING)),
-							"|__") : StringHelper.EMPTY_STRING,
-					node.getResourceType().getSimpleName(),
-					node.getParents() != null
-						? node.getParents().stream().map(p -> p.getResourceType().getSimpleName()).collect(Collectors.joining(StringHelper.COMMON_JOINER))
-								: "<ROOT>"));
-			// @formatter:on
-			if (CollectionHelper.isEmpty(node.getChildrens())) {
-				return builder.toString();
-			}
-
-			for (final DomainResourceGraph<?> children : node.getChildrens()) {
-				builder.append(visualizeGraph(children, indentation + 1));
-			}
-
-			return builder.toString();
+			return with(beanDef.getBeanClassName());
 		}
 
 		private <T extends DomainResource> void sealGraph() throws Exception {
@@ -370,5 +562,155 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 		}
 
 	}
+
+//	private <E> Deque<E> getInheritanceStack(Class<? extends DomainResource> resourceType,
+//			Function<DomainResourceGraph<? extends DomainResource>, E> mapper) {
+//		return getInheritanceStack(resourceGraph.locate(resourceType), mapper, new DistinctStack<>());
+//	}
+//
+//	private <E> Deque<E> getInheritanceStack(DomainResourceGraph<? extends DomainResource> graph,
+//			Function<DomainResourceGraph<? extends DomainResource>, E> mapper, DistinctStack<E> stack) {
+//		stack.push(mapper.apply(graph));
+//
+//		if (graph.getParents() == null) {
+//			return stack;
+//		}
+//
+//		for (final DomainResourceGraph<?> parentGraph : graph.getParents()) {
+//			getInheritanceStack(parentGraph, mapper, stack);
+//		}
+//
+//		return stack;
+//	}
+//
+//	@Override
+//	public Deque<Class<? extends DomainResource>> getResourceClassInheritanceStack(
+//			Class<? extends DomainResource> resourceType) {
+////		final Map<Class<? extends DomainResource>, DomainResourceGraph<? extends DomainResource>> cache = new HashMap<>();
+////		// @formatter:off
+////		final Stream<Class<? extends DomainResource>> sortedStream = this.<Class<? extends DomainResource>>getInheritanceStack(resourceType, DomainResourceGraph::getResourceType)
+////				.stream().sorted((one, two) -> {
+////					final DomainResourceGraph<? extends DomainResource> graphOne = locateGraphFromCache(one,
+////							() -> resourceGraph.locate(one), cache);
+////					final DomainResourceGraph<? extends DomainResource> graphTwo = locateGraphFromCache(two,
+////							() -> resourceGraph.locate(two), cache);
+////					// these two are guarenteed to be distinct
+////					if (graphOne.getChildrens().contains(graphTwo)) {
+////						System.out.println(String.format("%s is parent of %s", one.getSimpleName(), two.getSimpleName()));
+////						return -1;
+////					}
+////					
+////					if (graphTwo.getChildrens().contains(graphOne)) {
+////						System.out.println(String.format("%s is parent of %s", one.getSimpleName(), two.getSimpleName()));
+////						return 1;
+////					}
+////
+////					return 0;
+////				});
+////		
+////		return sortedStream.collect(DistinctStack::new, (stack, ele) -> stack.add(ele), DistinctStack::addAll);
+////		// @formatter:on
+//		final Deque<DomainResourceGraph<? extends DomainResource>> stack = getInheritanceStack(resourceType,
+//				Function.identity());
+//		@SuppressWarnings("unchecked")
+//		final DomainResourceGraph<? extends DomainResource>[] arr = stack
+//				.toArray(size -> (DomainResourceGraph<? extends DomainResource>[]) Array
+//						.newInstance(DomainResourceGraph.class, size));
+//		final Deque<Class<? extends DomainResource>> sortedStack = new ArrayDeque<>();
+//		final int n = arr.length;
+//
+//		sort(arr);
+//
+//		for (int i = 0; i < n; i++) {
+//			sortedStack.push(arr[i].getResourceType());
+//		}
+//
+//		return sortedStack;
+//	}
+//
+//	private void swap(DomainResourceGraph<? extends DomainResource>[] arr, int i, int j) {
+//		final DomainResourceGraph<? extends DomainResource> temp = arr[i];
+//
+//		arr[i] = arr[j];
+//		arr[j] = temp;
+//	}
+//
+//	private void heapify(DomainResourceGraph<? extends DomainResource>[] arr, int n, int i) {
+//		int j = 2 * i + 1;
+//
+//		if (j >= n) {
+//			return;
+//		}
+//
+//		if (j + 1 < n) {
+//			if (arr[j + 1].getChildrens().contains(arr[j])) {
+//				j++;
+//			}
+//		}
+//
+//		if (arr[i].getChildrens().contains(arr[j])) {
+//			return;
+//		}
+//
+//		swap(arr, i, j);
+//		heapify(arr, n, j);
+//	}
+//
+//	private void sort(DomainResourceGraph<? extends DomainResource>[] arr) {
+//		final int n = arr.length;
+//
+//		for (int i = n / 2 - 1; i >= 0; i--) {
+//			heapify(arr, n, i);
+//		}
+//
+//		for (int i = n - 1; i > 0; ) {
+//			swap(arr, 0, i);
+//			i--;
+//			heapify(arr, i, 0);
+//		}
+//	}
+//
+////	private DomainResourceGraph<? extends DomainResource> locateGraphFromCache(
+////			Class<? extends DomainResource> resourceType,
+////			Supplier<DomainResourceGraph<? extends DomainResource>> graphSupplier,
+////			Map<Class<? extends DomainResource>, DomainResourceGraph<? extends DomainResource>> cache) {
+////		if (cache.containsKey(resourceType)) {
+////			return cache.get(resourceType);
+////		}
+////
+////		final DomainResourceGraph<? extends DomainResource> graph = graphSupplier.get();
+////
+////		cache.put(resourceType, graph);
+////
+////		return graph;
+////	}
+//
+//	private static class DistinctStack<E> extends ArrayDeque<E> {
+//
+//		private static final long serialVersionUID = 1L;
+//
+//		private final Set<E> set = new HashSet<>();
+//
+//		@Override
+//		public boolean contains(Object o) {
+//			return set.contains(o);
+//		}
+//
+//		@Override
+//		public synchronized boolean containsAll(Collection<?> c) {
+//			return set.containsAll(c);
+//		}
+//
+//		@Override
+//		public void push(E e) {
+//			if (contains(e)) {
+//				return;
+//			}
+//
+//			set.add(e);
+//			super.push(e);
+//		}
+//
+//	}
 
 }

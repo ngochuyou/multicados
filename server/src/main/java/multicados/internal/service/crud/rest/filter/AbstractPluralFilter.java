@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -20,6 +20,7 @@ public abstract class AbstractPluralFilter<T> extends AbstractFilterImplementor<
 	T[] in;
 	T[] ni;
 
+	@Override
 	public T[] getIn() {
 		return in;
 	}
@@ -30,6 +31,7 @@ public abstract class AbstractPluralFilter<T> extends AbstractFilterImplementor<
 		expressionProducers.add((path, builder) -> builder.in((Path<Collection<?>>) path).value(List.of(in)));
 	}
 
+	@Override
 	public T[] getNi() {
 		return ni;
 	}

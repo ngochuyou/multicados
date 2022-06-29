@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.validation;
 
@@ -24,5 +24,5 @@ public interface DomainResourceValidator<T extends DomainResource> extends Graph
 	default <E extends T> GraphLogic<E> and(GraphLogic<E> next) {
 		return and((DomainResourceValidator<E>) next);
 	}
-	
+
 }

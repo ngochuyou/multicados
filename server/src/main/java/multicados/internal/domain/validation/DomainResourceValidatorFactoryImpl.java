@@ -1,14 +1,15 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.validation;
 
 import static java.util.Map.entry;
-import static multicados.internal.helper.Utils.asIf;
 import static multicados.internal.helper.Utils.declare;
+import static multicados.internal.helper.Utils.doWhen;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.util.StringUtils;
 
 import multicados.internal.config.Settings;
 import multicados.internal.domain.AbstractGraphLogicsFactory;
@@ -37,6 +39,7 @@ import multicados.internal.helper.RegexHelper.RegexBuilder;
 import multicados.internal.helper.RegexHelper.RegexGroupBuilder;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.HandledFunction;
 
 /**
@@ -55,7 +58,6 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 
 	private static final Map<String, Character> TRANSLATED_CONFIGURATION_CHARACTERS = Map.of("<space>", '\s');
 
-	@SuppressWarnings("rawtypes")
 	@Autowired
 	public DomainResourceValidatorFactoryImpl(Environment env, ApplicationContext applicationContext,
 			DomainResourceContext resourceContextProvider) throws Exception {
@@ -64,41 +66,49 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 				applicationContext,
 				DomainResourceValidator.class,
 				resourceContextProvider,
-				() -> {
-					final List<Character> acceptedCharacters = Stream.of(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS, HandledFunction.identity(), StringHelper.EMPTY_STRING)
-							.split(StringHelper.WHITESPACE_CHAR_CLASS))
-							.map(val -> TRANSLATED_CONFIGURATION_CHARACTERS.containsKey(val) ? TRANSLATED_CONFIGURATION_CHARACTERS.get(val) : val.charAt(0) )
-							.collect(ArrayList::new, (list, entry) -> list.add(entry), ArrayList::addAll);
-					final boolean isNaturalAlphabeticAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET, val -> Boolean.valueOf(val), true);
-					final boolean isNaturalNumericAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC, val -> Boolean.valueOf(val), true);
-					final int maxLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MAX_LENGTH, val -> Integer.valueOf(val), 255);
-					final int minLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MIN_LENGTH, val -> Integer.valueOf(val), 1);
-					final String fieldName = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_FIELD_NAME);
-					final String literal = declare(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_LITERAL_KEY_FOR_VIETNAMESE))
-							.then(configuredLiteralKey ->
-									asIf(AVAILABLE_LITERALS.containsKey(configuredLiteralKey))
-									.then(() -> AVAILABLE_LITERALS.get(configuredLiteralKey))
-									.<String>elseThrowAndReturn(() -> new IllegalArgumentException(String.format("Unknown literal key %s", configuredLiteralKey))))
-							.get();
-					final NamedResourceValidator defaultNamedResourceValidator = new NamedResourceValidator(fieldName, minLength, maxLength, literal, acceptedCharacters, isNaturalAlphabeticAccepted, isNaturalNumericAccepted);
-					final List<Map.Entry<Class, Map.Entry<Class, GraphLogic>>> fixedLogics = new ArrayList<>();
-
-					for (final Class<DomainResource> resourceType: resourceContextProvider.getResourceGraph().collect(DomainResourceGraphCollectors.toTypesSet())) {
-						if (!NamedResource.class.isAssignableFrom(resourceType)) {
-							continue;
-						}
-						
-						if (!resourceType.isAnnotationPresent(Exclude.class) ||
-								!resourceType.getDeclaredAnnotation(Exclude.class)
-									.value().equals(NamedResource.class)) {
-							fixedLogics.add(entry(resourceType, entry(NamedResource.class, defaultNamedResourceValidator)));
-							continue;
-						}
-					}
-					
-					return fixedLogics;
-				},
 				() -> NO_OP_VALIDATOR);
+		// @formatter:on
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	protected Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(ApplicationContext applicationContext)
+			throws Exception {
+		final Environment env = applicationContext.getBean(Environment.class);
+		final DomainResourceContext resourceContext = applicationContext.getBean(DomainResourceContext.class);
+		// @formatter:off
+		final List<Character> acceptedCharacters = Stream.of(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS, HandledFunction.identity(), StringHelper.EMPTY_STRING)
+				.split(StringHelper.WHITESPACE_CHAR_CLASS))
+				.map(val -> TRANSLATED_CONFIGURATION_CHARACTERS.containsKey(val) ? TRANSLATED_CONFIGURATION_CHARACTERS.get(val) : val.charAt(0) )
+				.collect(ArrayList::new, (list, entry) -> list.add(entry), ArrayList::addAll);
+		final boolean isNaturalAlphabeticAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET, val -> Boolean.valueOf(val), true);
+		final boolean isNaturalNumericAccepted = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC, val -> Boolean.valueOf(val), true);
+		final int maxLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MAX_LENGTH, val -> Integer.valueOf(val), 255);
+		final int minLength = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_MIN_LENGTH, val -> Integer.valueOf(val), 1);
+		final String fieldName = SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_FIELD_NAME);
+		final String literal = declare(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL, HandledFunction.identity(), NAMED_RESOURCE_DEFAULT_LITERAL_KEY_FOR_VIETNAMESE))
+				.then(configuredLiteralKey ->
+						Utils.<String>when(AVAILABLE_LITERALS.containsKey(configuredLiteralKey))
+							.then(() -> AVAILABLE_LITERALS.get(configuredLiteralKey))
+							.orElseThrow(() -> new IllegalArgumentException(String.format("Unknown literal key %s", configuredLiteralKey))))
+				.get();
+		final NamedResourceValidator defaultNamedResourceValidator = new NamedResourceValidator(fieldName, minLength, maxLength, literal, acceptedCharacters, isNaturalAlphabeticAccepted, isNaturalNumericAccepted);
+		final List<Map.Entry<Class, Map.Entry<Class, GraphLogic>>> fixedLogics = new ArrayList<>();
+
+		for (final Class<? extends DomainResource> resourceType: resourceContext.getResourceGraph().collect(DomainResourceGraphCollectors.toTypesSet())) {
+			if (!NamedResource.class.isAssignableFrom(resourceType)) {
+				continue;
+			}
+
+			if (!resourceType.isAnnotationPresent(Exclude.class) ||
+					!resourceType.getDeclaredAnnotation(Exclude.class)
+						.value().equals(NamedResource.class)) {
+				fixedLogics.add(entry(resourceType, entry(NamedResource.class, defaultNamedResourceValidator)));
+				continue;
+			}
+		}
+
+		return fixedLogics;
 		// @formatter:on
 	}
 
@@ -161,10 +171,10 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 			if (logger.isTraceEnabled()) {
 				logger.trace("Instantiating {}", NamedResourceValidator.class.getName());
 			}
-			
+
 			pattern = Pattern.compile(declare(RegexHelper.start())
 					.then(RegexBuilder::group)
-					.then(self -> StringHelper.hasLength(literal) ? self.literal(literal) : self)
+					.then(self -> StringUtils.hasLength(literal) ? self.literal(literal) : self)
 					.then(self -> acceptNaturalAlphabet ? self.naturalAlphabet() : self)
 					.then(self -> acceptNaturalNumeric ? self.naturalNumeric() : self)
 					.then(self -> CollectionHelper.isEmpty(acceptedCharacters) ? self : self.literal(acceptedCharacters))
@@ -176,15 +186,15 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 					.get());
 			this.fieldName = fieldName;
 			this.errorMessage = declare(acceptedCharacters)
-					.consume(characters -> asIf(acceptNaturalAlphabet).then(f -> characters.add('L')).orElse(f -> {}))
-					.consume(characters -> asIf(acceptNaturalNumeric).then(f -> characters.add('N')).orElse(f -> {}))
+					.consume(characters -> doWhen(acceptNaturalAlphabet).then(f -> characters.add('L')).orElse(f -> {}))
+					.consume(characters -> doWhen(acceptNaturalNumeric).then(f -> characters.add('N')).orElse(f -> {}))
 					.then(characters -> characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)))
 					.then(Common::invalidPattern)
 						.second(Common.invalidLength(minLength, maxLength))
 					.then((one, two) -> List.of(one, two))
 					.then((messages) -> StringHelper.join(StringHelper.SPACE, messages))
 					.get();
-			
+
 			if (logger.isDebugEnabled()) {
 				logger.debug("Compliant pattern is {} for field [{}]", pattern, fieldName);
 			}
@@ -207,6 +217,6 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 			return result;
 		}
 
-	};
+	}
 
 }

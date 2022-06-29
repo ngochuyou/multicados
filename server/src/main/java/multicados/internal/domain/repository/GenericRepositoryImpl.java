@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.repository;
 
@@ -62,7 +62,6 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	private final CriteriaBuilder criteriaBuilder;
 
 	@Autowired
-	@SuppressWarnings({ "unchecked" })
 	public GenericRepositoryImpl(SessionFactoryImplementor sfi, DomainResourceContext resourceContext)
 			throws Exception {
 		if (logger.isTraceEnabled()) {
@@ -72,9 +71,9 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 		final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
 				0);
 
-		for (final DomainResourceGraph<DomainResource> node : resourceContext.getResourceGraph()
+		for (final DomainResourceGraph<? extends DomainResource> node : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toGraphsSet())) {
-			final Class<? extends DomainResource> entityType = (Class<? extends DomainResource>) node.getResourceType();
+			final Class<? extends DomainResource> entityType = node.getResourceType();
 
 			if (Modifier.isAbstract(entityType.getModifiers())) {
 				continue;

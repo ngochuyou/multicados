@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.entity;
 
@@ -14,14 +14,14 @@ import javax.persistence.ManyToOne;
 
 import multicados.domain.entity.entities.Operator;
 import multicados.domain.entity.entities.User_;
-import multicados.internal.domain.DomainComponentType;
+import multicados.internal.domain.DomainComponent;
 
 /**
  * @author Ngoc Huy
  *
  */
 @Embeddable
-public class AuditInformations implements DomainComponentType, Serializable {
+public class AuditInformations implements DomainComponent, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -96,9 +96,7 @@ public class AuditInformations implements DomainComponentType, Serializable {
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
+		if ((obj == null) || (getClass() != obj.getClass()))
 			return false;
 		AuditInformations other = (AuditInformations) obj;
 		if (createdTimestamp == null) {

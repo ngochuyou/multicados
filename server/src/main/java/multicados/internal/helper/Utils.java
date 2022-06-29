@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -139,6 +139,7 @@ public abstract class Utils {
 		TriDeclaration<FIRST, SECOND, THIRD> consume(HandledTriConsumer<FIRST, SECOND, THIRD, Exception> consumer)
 				throws Exception;
 
+		@Override
 		<NEXT_SECOND> TriDeclaration<FIRST, NEXT_SECOND, THIRD> second(NEXT_SECOND nextSecond);
 
 		TriDeclaration<THIRD, SECOND, FIRST> triInverse();
@@ -155,7 +156,7 @@ public abstract class Utils {
 
 		@Override
 		public <RETURN> Declaration<RETURN> then(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
-			return new Declaration<RETURN>(fnc.apply(firstArg));
+			return new Declaration<>(fnc.apply(firstArg));
 		}
 
 		@Override
@@ -217,12 +218,12 @@ public abstract class Utils {
 
 		@Override
 		public <RETURN> Declaration<RETURN> exit(HandledFunction<FIRST, RETURN, Exception> fnc) throws Exception {
-			return new ExitDeclaration<RETURN>(fnc.apply(firstArg));
+			return new ExitDeclaration<>(fnc.apply(firstArg));
 		}
 
 		@Override
 		public <RETURN> Declaration<RETURN> exit(RETURN value) {
-			return new ExitDeclaration<RETURN>(value);
+			return new ExitDeclaration<>(value);
 		}
 
 		@Override
@@ -260,14 +261,14 @@ public abstract class Utils {
 		@Override
 		public <RETURN> Declaration<RETURN> then(Utils.HandledBiFunction<FIRST, SECOND, RETURN, Exception> fnc)
 				throws Exception {
-			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg));
+			return new Declaration<>(fnc.apply(firstArg, secondArg));
 		}
 
 		@Override
 		public <RETURN_ONE, RETURN_TWO> BiDeclaration<RETURN_ONE, RETURN_TWO> map(
 				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
 				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer) throws Exception {
-			return new BiDeclaration<RETURN_ONE, RETURN_TWO>(firstProducer.apply(firstArg),
+			return new BiDeclaration<>(firstProducer.apply(firstArg),
 					secondProducer.apply(secondArg));
 		}
 
@@ -319,7 +320,7 @@ public abstract class Utils {
 		public <RETURN> Declaration<RETURN> boundThen(
 				HandledTriFunction<FIRST, SECOND, BiDeclaration<FIRST, SECOND>, RETURN, Exception> fnc)
 				throws Exception {
-			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg, this));
+			return new Declaration<>(fnc.apply(firstArg, secondArg, this));
 		}
 
 		@Override
@@ -360,7 +361,7 @@ public abstract class Utils {
 		@Override
 		public <RETURN> Declaration<RETURN> then(Utils.HandledTriFunction<FIRST, SECOND, THIRD, RETURN, Exception> fnc)
 				throws Exception {
-			return new Declaration<RETURN>(fnc.apply(firstArg, secondArg, thirdArg));
+			return new Declaration<>(fnc.apply(firstArg, secondArg, thirdArg));
 		}
 
 		@Override
@@ -368,7 +369,7 @@ public abstract class Utils {
 				HandledFunction<FIRST, RETURN_ONE, Exception> firstProducer,
 				HandledFunction<SECOND, RETURN_TWO, Exception> secondProducer,
 				HandledFunction<THIRD, RETURN_THREE, Exception> thirdProducer) throws Exception {
-			return new TriDeclaration<RETURN_ONE, RETURN_TWO, RETURN_THREE>(firstProducer.apply(firstArg),
+			return new TriDeclaration<>(firstProducer.apply(firstArg),
 					secondProducer.apply(secondArg), thirdProducer.apply(thirdArg));
 		}
 
@@ -395,6 +396,7 @@ public abstract class Utils {
 			return thirdArg;
 		}
 
+		@Override
 		public TriDeclaration<THIRD, SECOND, FIRST> triInverse() {
 			return new TriDeclaration<>(thirdArg, secondArg, firstArg);
 		}
@@ -404,91 +406,6 @@ public abstract class Utils {
 			return new TriDeclaration<>(firstArg, nextSecond, thirdArg);
 		}
 
-	}
-
-	public interface AsIf {
-
-		AsIf then(HandledConsumer<Boolean, Exception> whenTrue);
-
-		<T> AsIf then(HandledSupplier<T, Exception> whenTrue) throws Exception;
-
-		void orElse(HandledConsumer<Boolean, Exception> whenFalse) throws Exception;
-
-		<T> T orElse(HandledSupplier<T, Exception> whenFalse) throws Exception;
-
-		void elseThrow(Supplier<Exception> exceptionSupplier) throws Exception;
-
-		<T> T elseThrowAndReturn(Supplier<Exception> exceptionSupplier) throws Exception;
-
-	}
-
-	private static class AsIfImpl implements AsIf {
-
-		private final boolean predicate;
-
-		private Object whenTrue;
-
-		public AsIfImpl(boolean predicate) {
-			this.predicate = predicate;
-		}
-
-		@Override
-		public AsIf then(HandledConsumer<Boolean, Exception> whenTrue) {
-			this.whenTrue = whenTrue;
-			return this;
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void orElse(HandledConsumer<Boolean, Exception> whenFalse) throws Exception {
-			if (predicate == true) {
-				HandledConsumer.class.cast(whenTrue).accept(true);
-				return;
-			}
-
-			whenFalse.accept(false);
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public void elseThrow(Supplier<Exception> exceptionSupplier) throws Exception {
-			if (predicate == false) {
-				throw exceptionSupplier.get();
-			}
-
-			HandledConsumer.class.cast(whenTrue).accept(true);
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public <T> T elseThrowAndReturn(Supplier<Exception> exceptionSupplier) throws Exception {
-			if (predicate == false) {
-				throw exceptionSupplier.get();
-			}
-
-			return (T) HandledSupplier.class.cast(whenTrue).get();
-		}
-
-		@Override
-		public <T> AsIf then(HandledSupplier<T, Exception> whenTrue) throws Exception {
-			this.whenTrue = whenTrue;
-			return this;
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public <T> T orElse(HandledSupplier<T, Exception> whenFalse) throws Exception {
-			if (predicate == true) {
-				return (T) HandledSupplier.class.cast(whenTrue).get();
-			}
-
-			return whenFalse.get();
-		}
-
-	}
-
-	public static AsIf asIf(boolean predicate) {
-		return new AsIfImpl(predicate);
 	}
 
 	private static final String CLOSED_ACCESS_MESSAGE_TEMPLATE = "Access to %s was closed";
@@ -544,6 +461,7 @@ public abstract class Utils {
 			return new Entry<>(key, val);
 		}
 
+		@Override
 		public K getKey() {
 			return key;
 		}
@@ -552,10 +470,12 @@ public abstract class Utils {
 			this.key = key;
 		}
 
+		@Override
 		public V getValue() {
 			return value;
 		}
 
+		@Override
 		public V setValue(V value) {
 			V oldVal = this.value;
 
@@ -577,9 +497,7 @@ public abstract class Utils {
 		public boolean equals(Object obj) {
 			if (this == obj)
 				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
+			if ((obj == null) || (getClass() != obj.getClass()))
 				return false;
 			Entry<?, ?> other = (Entry<?, ?>) obj;
 			return Objects.equals(key, other.key) && Objects.equals(value, other.value);
@@ -685,6 +603,13 @@ public abstract class Utils {
 	}
 
 	@FunctionalInterface
+	public interface TriConsummer<FIRST, SECOND, THIRD> {
+
+		void accept(FIRST f, SECOND s, THIRD t);
+
+	}
+
+	@FunctionalInterface
 	public interface HandledFunction<FIRST, RETURN, EXCEPTION extends Exception> {
 
 		RETURN apply(FIRST input) throws EXCEPTION;
@@ -734,6 +659,118 @@ public abstract class Utils {
 	public interface HandledBiFunction<FIRST, SECOND, RETURN, EXCEPTION extends Exception> {
 
 		RETURN apply(FIRST fisrt, SECOND second) throws EXCEPTION;
+
+	}
+
+	public interface When {
+
+	}
+
+	public interface SupplyWhen<RETURN> extends When {
+
+		SupplyWhen<RETURN> then(RETURN value);
+
+		RETURN orElse(RETURN value);
+
+		SupplyWhen<RETURN> then(HandledSupplier<RETURN, Exception> function);
+
+		RETURN orElse(HandledSupplier<RETURN, Exception> function) throws Exception;
+
+		RETURN orElseThrow(Supplier<Exception> exceptionSupplier) throws Exception;
+
+	}
+
+	public static <RETURN> SupplyWhen<RETURN> when(boolean predicate) {
+		return new SupplyWhenImpl<>(predicate);
+	}
+
+	private static abstract class AbstractWhen {
+
+		protected final boolean predicate;
+
+		public AbstractWhen(boolean predicate) {
+			this.predicate = predicate;
+		}
+
+	}
+
+	private static class SupplyWhenImpl<RETURN> extends AbstractWhen implements SupplyWhen<RETURN> {
+
+		private RETURN valWhenTrue;
+		private HandledSupplier<RETURN, Exception> supplierWhenTrue;
+
+		public SupplyWhenImpl(boolean predicate) {
+			super(predicate);
+		}
+
+		@Override
+		public SupplyWhen<RETURN> then(RETURN value) {
+			valWhenTrue = value;
+			return this;
+		}
+
+		@Override
+		public RETURN orElse(RETURN value) {
+			return predicate ? valWhenTrue : value;
+		}
+
+		@Override
+		public SupplyWhen<RETURN> then(HandledSupplier<RETURN, Exception> function) {
+			supplierWhenTrue = function;
+			return this;
+		}
+
+		@Override
+		public RETURN orElse(HandledSupplier<RETURN, Exception> function) throws Exception {
+			return predicate ? supplierWhenTrue.get() : function.get();
+		}
+
+		@Override
+		public RETURN orElseThrow(Supplier<Exception> exceptionSupplier) throws Exception {
+			if (!predicate) {
+				throw exceptionSupplier.get();
+			}
+
+			return supplierWhenTrue.get();
+		}
+
+	}
+
+	public interface ConsumeWhen extends When {
+
+		ConsumeWhen then(HandledConsumer<Boolean, Exception> consumer);
+
+		void orElse(HandledConsumer<Boolean, Exception> consumer) throws Exception;
+
+	}
+
+	public static ConsumerWhenImpl doWhen(boolean predicate) {
+		return new ConsumerWhenImpl(predicate);
+	}
+
+	public static class ConsumerWhenImpl extends AbstractWhen implements ConsumeWhen {
+
+		private HandledConsumer<Boolean, Exception> consumerWhenTrue;
+
+		public ConsumerWhenImpl(boolean predicate) {
+			super(predicate);
+		}
+
+		@Override
+		public ConsumeWhen then(HandledConsumer<Boolean, Exception> consumer) {
+			consumerWhenTrue = consumer;
+			return this;
+		}
+
+		@Override
+		public void orElse(HandledConsumer<Boolean, Exception> consumer) throws Exception {
+			if (predicate) {
+				consumerWhenTrue.accept(true);
+				return;
+			}
+
+			consumer.accept(false);
+		}
 
 	}
 

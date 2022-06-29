@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.entity.entities;
 
@@ -19,5 +19,5 @@ public class Head extends Operator {
 	public Head() {
 		setRole(Role.HEAD);
 	}
-	
+
 }

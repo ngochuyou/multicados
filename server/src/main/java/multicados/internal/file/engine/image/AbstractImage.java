@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.file.engine.image;
 
@@ -34,10 +34,12 @@ public abstract class AbstractImage extends AbstractFileResource implements Imag
 		this.standard = standard;
 	}
 
+	@Override
 	public BufferedImage getBufferedImage() {
 		return bufferedImage;
 	}
 
+	@Override
 	public void setBufferedImage(BufferedImage bufferedImage) {
 		this.bufferedImage = bufferedImage;
 	}

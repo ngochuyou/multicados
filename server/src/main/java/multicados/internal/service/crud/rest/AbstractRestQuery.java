@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest;
 
@@ -25,6 +25,7 @@ public abstract class AbstractRestQuery<D extends DomainResource> implements Res
 		this.resourceType = resourceType;
 	}
 
+	@Override
 	public Class<D> getResourceType() {
 		return resourceType;
 	}

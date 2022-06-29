@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -32,7 +32,7 @@ public interface HttpHelper {
 				.orElse(false);
 		// @formatter:on
 	}
-	
+
 	private static boolean hasJson(String headerValue) {
 		// @formatter:off
 		return Optional.ofNullable(headerValue)
@@ -47,7 +47,7 @@ public interface HttpHelper {
 	public static boolean isJsonAccepted(HttpServletRequest request) {
 		return hasJson(request.getHeader(HttpHeaders.ACCEPT));
 	}
-	
+
 	public static boolean isJsonAccepted(WebRequest request) {
 		return hasJson(request.getHeader(HttpHeaders.ACCEPT));
 	}
@@ -55,7 +55,7 @@ public interface HttpHelper {
 	public static HttpServletResponse all(HttpServletResponse response) {
 		return content(response, List.of(MediaType.ALL_VALUE));
 	}
-	
+
 	public static HttpServletResponse json(HttpServletResponse response) {
 		return content(response, List.of(MediaType.APPLICATION_JSON_VALUE));
 	}

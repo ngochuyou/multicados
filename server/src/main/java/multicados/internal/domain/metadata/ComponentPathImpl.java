@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.metadata;
 
@@ -20,7 +20,7 @@ public class ComponentPathImpl implements ComponentPath {
 	public ComponentPathImpl() {
 		path = new ArrayDeque<>();
 	}
-	
+
 	public ComponentPathImpl(String root) {
 		path = new ArrayDeque<>();
 		path.add(root);

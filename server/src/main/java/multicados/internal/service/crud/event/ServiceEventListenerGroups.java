@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.event;
 
@@ -26,7 +26,7 @@ public class ServiceEventListenerGroups {
 
 	private static final Logger logger = LoggerFactory.getLogger(ServiceEventListenerGroups.class);
 
-	private final Map<Class<DomainResource>, List<PostPersistEventListener>> postInsertListenters;
+	private final Map<Class<? extends DomainResource>, List<PostPersistEventListener>> postInsertListenters;
 
 	public ServiceEventListenerGroups(DomainResourceContext resourceContext) throws Exception {
 		// @formatter:off
@@ -63,7 +63,7 @@ public class ServiceEventListenerGroups {
 			.entrySet().stream()
 			.map(entry -> {
 				Map.Entry<Class<DomainResource>, List<ServiceEventListener>> casted = (Map.Entry<Class<DomainResource>, List<ServiceEventListener>>) entry;
-				
+
 				return String.format("%s: %s", casted.getKey().getSimpleName(), casted.getValue().stream().map(ServiceEventListener::getLoggableName).collect(Collectors.joining(StringHelper.COMMON_JOINER)));
 			})
 			.collect(Collectors.joining("\n\t"));

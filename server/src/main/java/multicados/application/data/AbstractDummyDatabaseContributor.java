@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.application.data;
 
@@ -64,7 +64,7 @@ public abstract class AbstractDummyDatabaseContributor {
 
 	@SuppressWarnings("unchecked")
 	private List<Map<String, Object>> getArray(String uri) throws StreamReadException, DatabindException, IOException {
-		return (List<Map<String, Object>>) objectMapper.readValue(new ClassPathResource(uri).getInputStream(),
+		return objectMapper.readValue(new ClassPathResource(uri).getInputStream(),
 				List.class);
 	}
 
@@ -148,12 +148,12 @@ public abstract class AbstractDummyDatabaseContributor {
 					.getEntityMetamodel().getIdentifierProperty();
 
 			associationTuplizer.setProperty(associationValue, identifierProperty.getName(),
-					checkType((Class<Object>) identifierProperty.getType().getReturnedClass(), value));
+					checkType(identifierProperty.getType().getReturnedClass(), value));
 			return associationValue;
 		}
 
 		if (!metadata.getAttributeType(attributeName).equals(value.getClass())) {
-			return checkType((Class<Object>) metadata.getAttributeType(attributeName), value);
+			return checkType(metadata.getAttributeType(attributeName), value);
 		}
 
 		return value;

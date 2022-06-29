@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.file.engine.image;
 
@@ -15,11 +15,11 @@ import org.hibernate.service.Service;
 public interface ManipulationContext extends Service {
 
 	Standard locateStandard(String filename);
-	
+
 	Standard resolveStandard(BufferedImage bufferedImage);
 
 	List<Standard> getStandards();
-	
+
 	String resolveCompressionName(String filename, String prefix);
 
 	int getMaximumIdentifierOccupancy();

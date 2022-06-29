@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.tuplizer;
 
@@ -10,5 +10,5 @@ package multicados.internal.domain.tuplizer;
 public interface Setter extends Access {
 
 	void set(Object source, Object val) throws Exception;
-	
+
 }

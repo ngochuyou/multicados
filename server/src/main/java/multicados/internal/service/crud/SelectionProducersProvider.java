@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud;
 
@@ -40,14 +40,14 @@ public class SelectionProducersProvider {
 
 	public SelectionProducersProvider(DomainResourceContext resourceContext) throws Exception {
 		if (logger.isTraceEnabled()) {
-			logger.trace("Resolving selection producers map");			
+			logger.trace("Resolving selection producers map");
 		}
 
 		final Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers = new HashMap<>();
 
-		for (final Class<DomainResource> type : resourceContext.getResourceGraph()
+		for (final Class<? extends DomainResource> type : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
-			final DomainResourceMetadata<DomainResource> metadata = resourceContext.getMetadata(type);
+			final DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(type);
 
 			if (metadata == null) {
 				continue;
@@ -83,14 +83,14 @@ public class SelectionProducersProvider {
 
 			selectionProducers.put(type, pathProducers);
 		}
-		
+
 		this.selectionProducers = Collections.unmodifiableMap(selectionProducers);
 	}
 
 	private Function<Path<?>, Path<?>> resolveComponentPathProducers(
 	// @formatter:off
 			DomainResourceMetadata<? extends DomainResource> metadata,
-			String attributeName) { 
+			String attributeName) {
 		final List<Function<Path<?>, Path<?>>> pathNodes = individuallyResolveComponentPathProducers(
 				metadata,
 				attributeName,
@@ -141,7 +141,7 @@ public class SelectionProducersProvider {
 			pathNodes.add(metadata.isAssociationOptional(lastNode)
 					? (path) -> ((Join) path).join(lastNode, JoinType.LEFT)
 					: (path) -> ((Join) path).join(lastNode));
-			
+
 			return pathNodes;
 			// @formatter:on
 		}

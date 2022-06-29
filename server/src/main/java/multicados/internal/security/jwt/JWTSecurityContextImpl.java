@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security.jwt;
 
@@ -34,7 +34,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 
 	private static final String VERSION_KEY = "version";
 	private static final String EXPIRATION_KEY = "expiration";
-	
+
 	private final JWTStrategy strategy;
 	private final String headerPrefix;
 	private final String cookieName;

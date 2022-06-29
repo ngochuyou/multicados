@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.tuplizer;
 
@@ -7,8 +7,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Optional;
+import java.util.Set;
 
 import multicados.internal.helper.StringHelper;
+import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils.HandledBiFunction;
 
 /**
@@ -83,6 +86,74 @@ public final class AccessorFactory {
 			return setter;
 		}
 
+		/**
+		 * Try the following two types of getter method: </br>
+		 * 1. Lead by "get": getXXX(); </br>
+		 * 2. Lead by "is": isXXX();
+		 *
+		 * @param ownerType
+		 * @param fieldName
+		 * @return
+		 * @throws NoSuchMethodException
+		 */
+		protected static Method bestGuessGetter(Class<?> ownerType, String fieldName) throws NoSuchMethodException {
+			String leadingGetMethodName = StringHelper.combineIntoCamel("get", fieldName);
+			Method getterMethod;
+
+			try {
+				getterMethod = ownerType.getDeclaredMethod(leadingGetMethodName);
+			} catch (NoSuchMethodException nsme) {
+				String leadingIsMethodName = StringHelper.combineIntoCamel("is", fieldName);
+
+				try {
+					getterMethod = ownerType.getDeclaredMethod(leadingIsMethodName);
+				} catch (NoSuchMethodException innerNSME) {
+					throw innerNSME;
+				}
+			}
+
+			return getterMethod;
+		}
+
+		/**
+		 * There are cases where field (if any then it's type is non-primitive type) or
+		 * the setter method requires primitive parameter or could be passed under other
+		 * type. This method will try to find to find setter method with possible
+		 * alternative primitive type
+		 *
+		 * @param ownerType
+		 * @param field
+		 * @param setterName
+		 * @return the method
+		 * @throws NoSuchMethodException when no alternative could be found
+		 */
+		protected static Method bestGuessSetter(Class<?> ownerType, Field field, String setterName,
+				Class<?>... parameterTypes) throws NoSuchMethodException {
+			// @formatter:off
+			Class<?> parameterType = field != null ? field.getType() // prioritise field type
+					: Optional.ofNullable(parameterTypes.length == 0 ? null : parameterTypes[0])
+						.orElseThrow(() -> new NoSuchMethodException(String.format("Unable to best guess setter name [%s] in type [%s] since field presented and parameter types are empty", setterName, ownerType.getName())));
+			// @formatter:on
+			try {
+				return ownerType.getDeclaredMethod(setterName, parameterType);
+			} catch (NoSuchMethodException e) {
+				Set<Class<?>> alternativeTypes = TypeHelper.getAlternatives(parameterType);
+
+				if (alternativeTypes != null && !alternativeTypes.isEmpty()) {
+					for (Class<?> alternative : alternativeTypes) {
+						try {
+							return ownerType.getDeclaredMethod(setterName, alternative);
+						} catch (Exception any) {
+							continue;
+						}
+					}
+				}
+
+				throw new NoSuchMethodException(String.format("Setter name [%s(%s)] not found in type [%s]", setterName,
+						field.getType().getName(), ownerType.getName()));
+			}
+		}
+
 	}
 
 	public static class StandardAccessor extends AbstractAccessor {
@@ -93,8 +164,7 @@ public final class AccessorFactory {
 
 				return new Getter() {
 
-					private final Method getterMethod = owningType
-							.getDeclaredMethod(StringHelper.combineIntoCamel("get", propName));
+					private final Method getterMethod = bestGuessGetter(owningType, propName);
 
 					@Override
 					public Member getMember() {
@@ -117,10 +187,14 @@ public final class AccessorFactory {
 					}
 
 				};
-			} catch (NoSuchFieldException | SecurityException | NoSuchMethodException e) {
+			} catch (NoSuchFieldException e) {
 				e.printStackTrace();
-				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s]",
-						Getter.class.getSimpleName(), propName));
+				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s] in type [%s]",
+						Getter.class.getSimpleName(), propName, owningType.getName()));
+			} catch (SecurityException | NoSuchMethodException e) {
+				e.printStackTrace();
+				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s] in type [%s]",
+						Getter.class.getSimpleName(), propName, owningType.getName()));
 			}
 		}
 
@@ -155,12 +229,13 @@ public final class AccessorFactory {
 				} catch (NoSuchFieldException e) {
 					e.printStackTrace();
 					throw new IllegalArgumentException(
-							String.format("Unable to locate field member with name [%s]", propName));
+							String.format("Unable to locate field member with name [%s] in type [%s]", propName,
+									owningType.getName()));
 				}
 			} catch (SecurityException | NoSuchMethodException e) {
 				e.printStackTrace();
-				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s]",
-						Setter.class.getSimpleName(), propName));
+				throw new IllegalArgumentException(String.format("Unable to locate %s for field name [%s] in type [%s]",
+						Setter.class.getSimpleName(), propName, owningType.getName()));
 			} catch (Exception e) {
 				throw new IllegalArgumentException(e);
 			}

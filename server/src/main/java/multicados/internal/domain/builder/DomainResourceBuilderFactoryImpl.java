@@ -1,15 +1,13 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.builder;
 
 import static java.util.Map.entry;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.persistence.EntityManager;
@@ -23,11 +21,9 @@ import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.GraphLogic;
-import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
 import multicados.internal.helper.StringHelper;
-import multicados.internal.helper.Utils;
 
 /**
  * @author Ngoc Huy
@@ -46,11 +42,18 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 				applicationContext,
 				DomainResourceBuilder.class,
 				resourceContext,
-				List.of(
-						entry(IdentifiableResource.class, entry(IdentifiableResource.class, IDENTIFIABLE_RESOURCE_BUILDER)),
-						entry(NamedResource.class, entry(NamedResource.class, NAMED_RESOURCE_BUILDER)),
-						entry(PermanentResource.class, entry(PermanentResource.class, PERMANENT_RESOURCE_BUILDER))),
 				() -> NO_OP_BUILDER);
+		// @formatter:on
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	protected Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(ApplicationContext applicationContext) {
+		// @formatter:off
+		return List.of(
+				// entry(IdentifiableResource.class, entry(IdentifiableResource.class, IDENTIFIABLE_RESOURCE_BUILDER)),
+				entry(NamedResource.class, entry(NamedResource.class, NAMED_RESOURCE_BUILDER)),
+				entry(PermanentResource.class, entry(PermanentResource.class, PERMANENT_RESOURCE_BUILDER)));
 		// @formatter:on
 	}
 
@@ -123,58 +126,58 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 
 	};
 
-	@SuppressWarnings("rawtypes")
-	private static final AbstractDomainResourceBuilder<IdentifiableResource> IDENTIFIABLE_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
-
-		private static final Map<Class<? extends Serializable>, Class<? extends Serializable>> TYPE_KEY_RESOLVERS = Map
-				.of(String.class, String.class);
-
-		private static final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> HANDLER_RESOLVERS;
-
-		static {
-			Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> handlerResolvers = new HashMap<>(
-					8);
-
-			handlerResolvers.put(String.class, id -> StringHelper.normalizeString((String) id));
-			handlerResolvers.put(null, id -> id);
-
-			HANDLER_RESOLVERS = Collections.unmodifiableMap(handlerResolvers);
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public IdentifiableResource buildInsertion(Serializable id, IdentifiableResource resource,
-				EntityManager entityManager) throws Exception {
-			if (id == null) {
-				return resource;
-			}
-			// @formatter:off
-			resource.setId(HANDLER_RESOLVERS
-					.get(TYPE_KEY_RESOLVERS.get(id.getClass()))
-					.apply(id));
-			// @formatter:on
-			return resource;
-		}
-
-		@Override
-		public IdentifiableResource buildUpdate(Serializable id, IdentifiableResource model,
-				IdentifiableResource resource, EntityManager entityManger) {
-			return resource;
-		}
-
-		@Override
-		public String getLoggableName() {
-			return "IdentifiableResourceBuilder";
-		}
-
-		@Override
-		public String toString() {
-			return getLoggableName();
-		}
-
-	};
-
-	private static final AbstractDomainResourceBuilder<DomainResource> NO_OP_BUILDER = new AbstractDomainResourceBuilder<DomainResource>() {
+//	@SuppressWarnings("rawtypes")
+//	private static final AbstractDomainResourceBuilder<IdentifiableResource> IDENTIFIABLE_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
+//
+//		private static final Map<Class<? extends Serializable>, Class<? extends Serializable>> TYPE_KEY_RESOLVERS = Map
+//				.of(String.class, String.class);
+//
+//		private static final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> HANDLER_RESOLVERS;
+//
+//		static {
+//			final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> handlerResolvers = new HashMap<>(
+//					8);
+//
+//			handlerResolvers.put(String.class, id -> StringHelper.normalizeString((String) id));
+//			handlerResolvers.put(null, id -> id);
+//
+//			HANDLER_RESOLVERS = Collections.unmodifiableMap(handlerResolvers);
+//		}
+//
+//		@SuppressWarnings("unchecked")
+//		@Override
+//		public IdentifiableResource buildInsertion(Serializable id, IdentifiableResource resource,
+//				EntityManager entityManager) throws Exception {
+//			if (id == null) {
+//				return resource;
+//			}
+//			// @formatter:off
+//			resource.setId(HANDLER_RESOLVERS
+//					.get(TYPE_KEY_RESOLVERS.get(id.getClass()))
+//					.apply(id));
+//			// @formatter:on
+//			return resource;
+//		}
+//
+//		@Override
+//		public IdentifiableResource buildUpdate(Serializable id, IdentifiableResource model,
+//				IdentifiableResource resource, EntityManager entityManger) {
+//			return resource;
+//		}
+//
+//		@Override
+//		public String getLoggableName() {
+//			return "IdentifiableResourceBuilder";
+//		}
+//
+//		@Override
+//		public String toString() {
+//			return getLoggableName();
+//		}
+//
+//	};
+//
+	private static final AbstractDomainResourceBuilder<DomainResource> NO_OP_BUILDER = new AbstractDomainResourceBuilder<>() {
 
 		@Override
 		public DomainResource buildInsertion(Serializable id, DomainResource resource, EntityManager entityManager)

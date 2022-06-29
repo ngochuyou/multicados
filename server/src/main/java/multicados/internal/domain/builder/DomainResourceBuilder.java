@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.builder;
 
@@ -23,7 +23,7 @@ public interface DomainResourceBuilder<T extends DomainResource> extends GraphLo
 	 * <em>Example:</em> While inserting an user we always hash the password.
 	 * Whereas an update has to perform a check to determine if the user is updating
 	 * their password or not, then make the decision to hash/update that password
-	 * 
+	 *
 	 * @param model
 	 * @return entity {@link DomainResource}
 	 * @throws Exception
@@ -45,5 +45,5 @@ public interface DomainResourceBuilder<T extends DomainResource> extends GraphLo
 	default <E extends T> GraphLogic<E> and(GraphLogic<E> next) {
 		return and((DomainResourceBuilder<E>) next);
 	}
-	
+
 }

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.controller.controllers;
 
@@ -38,7 +38,7 @@ public abstract class AbstractController {
 	/**
 	 * Construct a {@link ResponseEntity} body based on the
 	 * {@link HttpHeaders.CONTENT_TYPE} with 404 code
-	 * 
+	 *
 	 * @param request
 	 * @param preficies the message which is included in the body
 	 * @return the {@link ResponseEntity}
@@ -62,7 +62,7 @@ public abstract class AbstractController {
 	/**
 	 * Construct a {@link ResponseEntity} body based on the
 	 * {@link HttpHeaders.CONTENT_TYPE} with 200 code
-	 * 
+	 *
 	 * @param <T>     body type
 	 * @param request
 	 * @param body    the data to be included in the response body

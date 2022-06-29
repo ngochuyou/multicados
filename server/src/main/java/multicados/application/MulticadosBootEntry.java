@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.application;
 
@@ -14,7 +14,7 @@ import multicados.internal.config.Settings;
 
 /**
  * Application entry point
- * 
+ *
  * @author Ngoc Huy
  *
  */

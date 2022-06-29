@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain;
 
@@ -39,15 +39,15 @@ public class ReadSecurityContributorImpl implements ReadSecurityContributor {
 				.publish()
 			.credentials(of(Role.ANONYMOUS), of(Role.CUSTOMER), of(Role.PERSONNEL))
 				.mask();
-		
+
 		builder.type(Category.class)
 			.credentials(of(HEAD), of(PERSONNEL), of(CUSTOMER), of(ANONYMOUS))
 				.but(PermanentEntity_.ACTIVE).publish();
-		
+
 		builder.type(Province.class)
 			.credentials(of(HEAD), of(PERSONNEL), of(CUSTOMER), of(ANONYMOUS))
 				.but(PermanentEntity_.ACTIVE).publish();
-		
+
 		builder.type(District.class)
 			.credentials(of(HEAD), of(PERSONNEL), of(CUSTOMER), of(ANONYMOUS))
 				.but(PermanentEntity_.ACTIVE).publish();

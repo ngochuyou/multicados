@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud;
 
@@ -357,7 +357,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 					.then(this::resolveJoinedSelections)
 					.then(associationBasicSelections::addAll);
 			}
-			
+
 			return associationBasicSelections;
 		}
 		// @formatter:on
@@ -406,14 +406,14 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 								: fromEntry.getKey().join(composedAssocationQuery.getAssociationName()),
 						nextJoinRole,
 						nonBatchingQuery);
-				
+
 				if (associationPredicate == null) {
 					continue;
 				}
 
 				basicPredicates.add(associationPredicate);
 			}
-			
+
 			return basicPredicates;
 		}
 		// @formatter:on

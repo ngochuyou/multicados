@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.entity.entities;
 

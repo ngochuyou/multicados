@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.entity.entities;
 
@@ -68,10 +68,12 @@ public class User extends PermanentEntity<String> {
 	@Column(nullable = false, length = 40)
 	private String photo;
 
+	@Override
 	public String getId() {
 		return id;
 	}
 
+	@Override
 	public void setId(String id) {
 		this.id = id;
 	}

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security;
 
@@ -52,9 +52,9 @@ import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
  * @author Ngoc Huy
  *
  */
-//@Configuration
-//@EnableWebSecurity
-//@EnableGlobalMethodSecurity(securedEnabled = true)
+@Configuration
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(securedEnabled = true)
 public class SecurityConfiguration {
 
 	private final Environment env;
@@ -166,7 +166,7 @@ public class SecurityConfiguration {
 	private static final String ENDPOINT_PATTERN_PARTS_DELIMITER = "\\\\";
 
 	private void publicEndpoints(HttpSecurity http) throws Exception {
-		String[] patterns = env.getProperty(Settings.SECURITY_PUBLIC_END_POINTS, String[].class,
+		final String[] patterns = env.getProperty(Settings.SECURITY_PUBLIC_END_POINTS, String[].class,
 				StringHelper.EMPTY_STRING_ARRAY);
 
 		for (String pattern : patterns) {
@@ -241,11 +241,11 @@ public class SecurityConfiguration {
 			// @formatter:off
 			CorsConfiguration configuration = declare(new CorsConfiguration())
 					.consume(self -> self.setAllowCredentials(true)).get();
-			DatagramSocket socket = declare(new DatagramSocket()).consume(self -> self.connect(InetAddress.getByName("8.8.8.8"), 10002)).get(); 
+			DatagramSocket socket = declare(new DatagramSocket()).consume(self -> self.connect(InetAddress.getByName("8.8.8.8"), 10002)).get();
 			String clientURLTemplate = String.format("http://%s:%s", socket.getLocalAddress().getHostAddress(), "%s");
-			
+
 			socket.close();
-			
+
 			declare(Stream.of(
 						SpringHelper.getArrayOrDefault(env, Settings.SECURITY_DEV_CLIENT_PORTS, HandledFunction.identity(), StringHelper.EMPTY_STRING_ARRAY))
 							.map(clientPort -> String.format(clientURLTemplate, clientPort))

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.validation;
 
@@ -24,7 +24,7 @@ public class Error {
 	public String getMessage() {
 		return message;
 	}
-	
-	
+
+
 
 }

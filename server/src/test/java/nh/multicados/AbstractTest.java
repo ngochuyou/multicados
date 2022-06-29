@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package nh.multicados;
 
@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import multicados.domain.entity.Role;
 import multicados.internal.helper.StringHelper;
 import multicados.security.userdetails.UserDetailsServiceImpl.DomainUser;
-import nh.multicados.internal.service.crud.security.ReadSecurityTests;
 
 /**
  * @author Ngoc Huy
@@ -31,7 +30,7 @@ import nh.multicados.internal.service.crud.security.ReadSecurityTests;
  */
 public abstract class AbstractTest {
 
-	private static final Logger logger = LoggerFactory.getLogger(ReadSecurityTests.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTest.class);
 
 	private final ObjectMapper objectMapper;
 

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.context;
 
@@ -11,7 +11,7 @@ import javax.annotation.PostConstruct;
  */
 public interface ContextBuilder {
 
-	default void summary() {};
+	default void summary() {}
 
 	public static abstract class AbstractContextBuilder implements ContextBuilder {
 

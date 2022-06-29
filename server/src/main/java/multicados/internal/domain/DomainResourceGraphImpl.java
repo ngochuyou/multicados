@@ -1,12 +1,11 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -52,8 +51,8 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		}
 
 		if (resourceType.equals(childType.getSuperclass()) || TypeHelper.isImplementedFrom(childType, resourceType)) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Located parent type {} of entry type {} in graph", resourceType.getName(),
+			if (logger.isTraceEnabled()) {
+				logger.trace("Located parent type {} of entry type {} in graph", resourceType.getName(),
 						childType.getName());
 			}
 
@@ -120,14 +119,27 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		}
 	}
 
-	@SuppressWarnings("rawtypes")
-	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph, E> mapper) {
-		C collection = factory.get();
+	@Override
+	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph<?>, E> mapper) {
+		return collect(factory, mapper, false);
+	}
 
-		collection.addAll(List.of(mapper.apply(this)));
+	public <E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph<?>, E> mapper,
+			boolean bottomUp) {
+		final C collection = factory.get();
 
-		for (final DomainResourceGraph<?> child : childrens) {
-			collection.addAll(child.collect(factory, mapper));
+		if (parents != null) {
+			for (final DomainResourceGraph<? super T> parentGraph : parents) {
+				collection.addAll((((DomainResourceGraphImpl<? super T>) parentGraph)).collect(factory, mapper, true));
+			}
+		}
+
+		collection.add(mapper.apply(this));
+
+		if (!bottomUp) {
+			for (final DomainResourceGraph<?> child : childrens) {
+				collection.addAll(child.collect(factory, mapper));
+			}
 		}
 
 		return collection;
@@ -155,10 +167,7 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		if (this == obj)
 			return true;
 
-		if (obj == null)
-			return false;
-
-		if (getClass() != obj.getClass())
+		if ((obj == null) || (getClass() != obj.getClass()))
 			return false;
 
 		DomainResourceGraphImpl other = (DomainResourceGraphImpl) obj;

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.metadata;
 
@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 
-import multicados.internal.domain.DomainComponentType;
+import multicados.internal.domain.DomainComponent;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation;
 import multicados.internal.helper.CollectionHelper;
@@ -44,7 +44,9 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 					resourceType.getName());
 		}
 
-		final List<String> wrappedAttributes = locateWrappedAttributeNames(resourceType, onGoingMetadatas);
+		final List<String> declaredAttributeNames = getDeclaredAttributeNames(resourceType);
+		final List<String> wrappedAttributes = locateWrappedAttributeNames(resourceType, declaredAttributeNames,
+				onGoingMetadatas);
 		final Map<String, Class<?>> attributeTypes = resolveAttributeTypes(resourceType, wrappedAttributes,
 				onGoingMetadatas);
 		final List<String> attributesToBeUnwrapped = new ArrayList<>(wrappedAttributes);
@@ -56,8 +58,8 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 		final Map<String, DomainAssociation> associations = locateAssociations(resourceType, wrappedAttributes,
 				attributeTypes, componentPaths, onGoingMetadatas);
 
-		return new DomainResourceMetadataImpl<>(resourceType, wrappedAttributes, attributesToBeUnwrapped,
-				attributeTypes, wrappedAttributes, componentPaths, associations);
+		return new DomainResourceMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
+				attributesToBeUnwrapped, attributeTypes, wrappedAttributes, componentPaths, associations);
 	}
 
 	private <D extends DomainResource> Map<String, DomainAssociation> locateAssociations(Class<D> resourceType,
@@ -92,7 +94,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			.then(DomainResourceMetadataImpl.class::cast)
 			.then(DomainResourceMetadataImpl::getAssociations)
 			.consume(parentAssociations -> declaredAssociations.putAll(parentAssociations));
-		// @formatter:on		
+		// @formatter:on
 		return declaredAssociations;
 	}
 
@@ -169,7 +171,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			.then(DomainResourceMetadataImpl.class::cast)
 			.then(DomainResourceMetadataImpl::getComponentPaths)
 			.consume(parentComponentPaths -> declaredComponentPaths.putAll(parentComponentPaths));
-		// @formatter:on		
+		// @formatter:on
 		return declaredComponentPaths;
 	}
 
@@ -182,7 +184,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			final ComponentPathImpl componentPath = parentPath == null ? new ComponentPathImpl(attributeName)
 					: declare(parentPath).then(ComponentPathImpl::new).consume(self -> self.add(attributeName)).get();
 
-			if (!DomainComponentType.class.isAssignableFrom(possibleComponentType)) {
+			if (!DomainComponent.class.isAssignableFrom(possibleComponentType)) {
 				if (parentPath != null) {
 					componentPaths.put(attributeName, componentPath);
 				}
@@ -204,8 +206,8 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 
 	/**
 	 * Thoroughly unwrap component attributes, collect attribute names and types
-	 * 
-	 * 
+	 *
+	 *
 	 * @param attributeNames reflect collected attribute names
 	 * @param attributeTypes reflect collected attribute types
 	 * @throws Exception
@@ -221,7 +223,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 		for (final String attributeName : attributeNames) {
 			final Class<?> attributeType = attributeTypes.get(attributeName);
 
-			if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
+			if (!DomainComponent.class.isAssignableFrom(attributeType)) {
 				continue;
 			}
 
@@ -294,7 +296,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 
 			typesMap.put(attribute, attributeType);
 
-			if (!DomainComponentType.class.isAssignableFrom(attributeType)) {
+			if (!DomainComponent.class.isAssignableFrom(attributeType)) {
 				continue;
 			}
 
@@ -313,7 +315,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 
 			types.put(componentField.getName(), componentFieldType);
 
-			if (!DomainComponentType.class.isAssignableFrom(componentFieldType)) {
+			if (!DomainComponent.class.isAssignableFrom(componentFieldType)) {
 				continue;
 			}
 
@@ -324,6 +326,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 	}
 
 	private <D extends DomainResource> List<String> locateWrappedAttributeNames(Class<D> resourceType,
+			List<String> declaredAttributeNames,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> onGoingMetadatas)
 			throws Exception {
 		if (logger.isTraceEnabled()) {
@@ -331,7 +334,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 		}
 
 		// @formatter:off
-		return declare(getDeclaredAttributeNames(resourceType))
+		return declare(declaredAttributeNames)
 					.prepend(resourceType)
 					.third(onGoingMetadatas)
 				.then(this::appendWrappedAttributeNamesFromParent)

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security.jwt;
 
@@ -17,11 +17,11 @@ import java.util.function.Function;
 import javax.servlet.http.Cookie;
 
 import org.springframework.core.env.Environment;
+import org.springframework.util.StringUtils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.DomainUserDetails;
 
@@ -89,7 +89,7 @@ class JWTStrategy {
 	<T> T getOrDefault(Environment env, String propName, Function<String, T> producer, T defaultValue) {
 		String configuredValue = env.getProperty(propName);
 
-		if (!StringHelper.hasLength(configuredValue)) {
+		if (!StringUtils.hasLength(configuredValue)) {
 			return defaultValue;
 		}
 

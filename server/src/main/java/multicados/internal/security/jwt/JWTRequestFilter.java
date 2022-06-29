@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security.jwt;
 
@@ -102,19 +102,19 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 					.third(request)
 				.then(this::validate)
 				.consume(this::doPostValidation);
-			
+
 			filterChain.doFilter(request, response);
 		} catch (Exception any) {
 			any.printStackTrace();
-			
+
 			if (logger.isErrorEnabled()) {
-				logger.error(String.format("Error while filtering request: %s", any.getMessage()));				
+				logger.error(String.format("Error while filtering request: %s", any.getMessage()));
 			}
-			
+
 			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-			
+
 			PrintWriter writer = response.getWriter();
-			
+
 			try {
 				if (HttpHelper.isJsonAccepted(request)) {
 					writer.write(objectMapper.writeValueAsString(Common.error("Unable to complete request")));

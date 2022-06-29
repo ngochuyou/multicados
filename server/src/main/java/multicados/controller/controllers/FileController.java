@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.controller.controllers;
 
@@ -42,8 +42,8 @@ import multicados.internal.helper.StringHelper;
  * @author Ngoc Huy
  *
  */
-//@Controller
-//@RequestMapping("/file")
+@Controller
+@RequestMapping("/file")
 public class FileController extends AbstractController {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
@@ -80,7 +80,7 @@ public class FileController extends AbstractController {
 	@GetMapping("/user/{username}")
 	@Transactional(readOnly = true)
 	public ResponseEntity<?> getUserPhotoBytesDirectly(
-	// @formatter:off	
+	// @formatter:off
 			@PathVariable("username") String username,
 			@RequestParam(name = "size", required = false, defaultValue = StringHelper.EMPTY_STRING) String size,
 			HttpServletRequest request) throws Exception {

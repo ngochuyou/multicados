@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.file.engine;
 
@@ -133,7 +133,7 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 		if (logger.isTraceEnabled()) {
 			logger.trace("Building {}", FileResourceSessionFactory.class.getName());
 		}
-		
+
 		return declare(serviceRegistry, env)
 				.then(this::scanForMetadataSources)
 					.second(bootstrapContext)
@@ -220,19 +220,19 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 		private final List<ProvidedService> providedServices;
 
 		private static final String DEAULT_FILE_RESOURCE_ROOT_DIRECTORY = "files\\";
-		
+
 		@SuppressWarnings({ "rawtypes", "unchecked", "serial" })
 		public ProvidedServicesLocator(ApplicationContext applicationContext, SessionFactoryImplementor sfi, Environment env) throws Exception {
 			final List<ProvidedService> providedServices = new ArrayList<>();
 			final ServiceRegistryImplementor serviceRegistry = sfi.getServiceRegistry();
-			
+
 			providedServices.add(new ProvidedService<>(JdbcServices.class, sfi.getJdbcServices()));
 			providedServices.add(new ProvidedService<>(JdbcEnvironment.class, sfi.getJdbcServices().getJdbcEnvironment()));
 			providedServices.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
-			
+
 			final String rootDirectory = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_ROOT_DIRECTORY, HandledFunction.identity(), DEAULT_FILE_RESOURCE_ROOT_DIRECTORY);
 			final String identifierDelimiter = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, HandledFunction.identity(), StringHelper.UNDERSCORE);
-			
+
 			providedServices.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
 					declare(new HashMap())
 						.consume(self -> self.putAll(serviceRegistry.requireService(ConfigurationService.class).getSettings()))
@@ -266,7 +266,7 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 					if (logger.isTraceEnabled()) {
 						logger.trace("Creating {} ", SessionFactoryServiceRegistry.class.getName());
 					}
-					
+
 					try {
 						return new SessionFactoryServiceRegistryImpl(
 								serviceRegistry, // we want to use the service registry from the original SessionFactoryImpl as the parent
@@ -280,16 +280,16 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 					}
 				}
 			}));
-			
+
 			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env, identifierDelimiter);
 			ImageService imageService = new ImageService(applicationContext, env);
-			
+
 			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
 			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
 			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
 			providedServices.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
 			providedServices.add(new ProvidedService<>(MutableIdentifierGeneratorFactory.class, serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class)));
-			
+
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
 		// @formatter:on

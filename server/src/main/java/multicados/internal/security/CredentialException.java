@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security;
 
@@ -10,7 +10,7 @@ package multicados.internal.security;
 public class CredentialException extends Exception {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = 1L;
 

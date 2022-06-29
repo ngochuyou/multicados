@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.context;
 
@@ -10,5 +10,5 @@ package multicados.internal.context;
 public interface ContextBuildListener {
 
 	void doAfterContextBuild() throws IllegalAccessException;
-	
+
 }

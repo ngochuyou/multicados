@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security;
 
@@ -25,7 +25,7 @@ import multicados.internal.helper.HttpHelper;
 public class AccessDeniedHandlerImpl implements AccessDeniedHandler {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final String MESSAGE = "Access denied";
 	private final ObjectMapper objectMapper;

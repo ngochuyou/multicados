@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.application.data;
 
@@ -52,7 +52,7 @@ public class DummyDatabaseInitializer extends AbstractDummyDatabaseContributor
 		try {
 			createNonProductStrictDummies(logger, session);
 			createProductStrictDummies(logger, session);
-			
+
 			session.getTransaction().commit();
 		} catch (Exception e) {
 			e.printStackTrace();

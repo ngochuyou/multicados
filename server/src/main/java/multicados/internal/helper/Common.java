@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -11,6 +11,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.util.StringUtils;
 
 /**
  * @author Ngoc Huy
@@ -43,7 +45,7 @@ public abstract class Common {
 	}
 
 	public static Map<String, String> error(String error) {
-		return Map.of(ERROR, StringHelper.hasLength(error) ? error : UNKNOWN_ERROR);
+		return Map.of(ERROR, StringUtils.hasLength(error) ? error : UNKNOWN_ERROR);
 	}
 
 	public static <T> Map<String, Object> payload(T payload) {
@@ -73,7 +75,7 @@ public abstract class Common {
 	public static String invalidLength(int min, int max) {
 		return String.format(INVALID_LENGTH_TEMPLATE, min, max);
 	}
-	
+
 	public static String invalidPattern(Collection<Character> characters) {
 		return invalidPattern(
 				characters.stream().map(Common::name).collect(Collectors.joining(StringHelper.COMMON_JOINER)));

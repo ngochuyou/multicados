@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest;
 
@@ -18,7 +18,7 @@ public interface ComposedRestQuery<D extends DomainResource> extends RestQuery<D
 	List<ComposedRestQuery<?>> getBatchingAssociationQueries();
 
 	List<ComposedNonBatchingRestQuery<?>> getNonBatchingAssociationQueries();
-		
+
 	Map<String, Filter<?>> getFilters();
 
 }

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -15,7 +15,7 @@ import java.math.BigInteger;
  * <a href=
  * "https://stackoverflow.com/questions/22385467/crockford-base32-encoding-for-large-number-java-implementation">Original
  * post</a>
- * 
+ *
  * @author <a href=
  *         "https://stackoverflow.com/users/823393/oldcurmudgeon">oldcurmudgeon</a>
  */

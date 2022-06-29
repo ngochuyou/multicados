@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.event;
 
@@ -40,13 +40,12 @@ public class EventListenerResolver implements ContextBuildListener {
 		INSTANCE = null;
 	}
 
-	private List<Class<DomainResource>> wrap(Collection<Class<DomainResource>> unwrappedTypes) {
-		return unwrappedTypes.stream().map(unwrappedType -> (Class<DomainResource>) unwrappedType)
-				.collect(Collectors.toList());
+	private List<Class<? extends DomainResource>> wrap(Collection<Class<? extends DomainResource>> unwrappedTypes) {
+		return unwrappedTypes.stream().map(unwrappedType -> unwrappedType).collect(Collectors.toList());
 	}
 
-	private Map<Class<DomainResource>, List<PostPersistEventListener>> doResolvePostPersistListeners(
-			Collection<Class<DomainResource>> resourceTypes) throws Exception {
+	private Map<Class<? extends DomainResource>, List<PostPersistEventListener>> doResolvePostPersistListeners(
+			Collection<Class<? extends DomainResource>> resourceTypes) throws Exception {
 		// @formatter:off
 		return declare(resourceTypes)
 				.then(this::registerFixedPostPersistListeners)
@@ -56,21 +55,21 @@ public class EventListenerResolver implements ContextBuildListener {
 		// @formatter:on
 	}
 
-	private Map<Class<DomainResource>, List<PostPersistEventListener>> registerContributedPostPersistListeners(
-			Map<Class<DomainResource>, List<PostPersistEventListener>> listeners,
-			Collection<Class<DomainResource>> resourceTypes) {
+	private Map<Class<? extends DomainResource>, List<PostPersistEventListener>> registerContributedPostPersistListeners(
+			Map<Class<? extends DomainResource>, List<PostPersistEventListener>> listeners,
+			Collection<Class<? extends DomainResource>> resourceTypes) {
 		return listeners;
 	}
 
-	private Map<Class<DomainResource>, List<PostPersistEventListener>> registerFixedPostPersistListeners(
-			Collection<Class<DomainResource>> resourceTypes) {
-		Map<Class<DomainResource>, List<PostPersistEventListener>> listeners = new HashMap<>();
+	private Map<Class<? extends DomainResource>, List<PostPersistEventListener>> registerFixedPostPersistListeners(
+			Collection<Class<? extends DomainResource>> resourceTypes) {
+		Map<Class<? extends DomainResource>, List<PostPersistEventListener>> listeners = new HashMap<>();
 		// @formatter:off
-		final Map<Class<? extends DomainResource>, HandledFunction<Class<DomainResource>, List<PostPersistEventListener>, Exception>> listenersResolvers = Map.of(
+		final Map<Class<? extends DomainResource>, HandledFunction<Class<? extends DomainResource>, List<PostPersistEventListener>, Exception>> listenersResolvers = Map.of(
 				EncryptedIdentifierResource.class,
 						type -> List.of(new EncryptedIdentifierResourcePostPersistEventListener<>()));
 		// @formatter:on
-		for (Class<DomainResource> type : resourceTypes) {
+		for (Class<? extends DomainResource> type : resourceTypes) {
 			for (Class<?> interfaceType : ClassUtils.getAllInterfacesForClassAsSet(type)) {
 				if (listenersResolvers.containsKey(interfaceType)) {
 					listeners.compute(type, (key, currentListeners) -> {
@@ -97,8 +96,8 @@ public class EventListenerResolver implements ContextBuildListener {
 		return listeners;
 	}
 
-	public static Map<Class<DomainResource>, List<PostPersistEventListener>> resolvePostPersistListeners(
-			Set<Class<DomainResource>> resourceTypes) throws Exception {
+	public static Map<Class<? extends DomainResource>, List<PostPersistEventListener>> resolvePostPersistListeners(
+			Set<Class<? extends DomainResource>> resourceTypes) throws Exception {
 		// @formatter:off
 		return Utils.declare(INSTANCE.wrap(resourceTypes))
 				.then(INSTANCE::doResolvePostPersistListeners)

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain;
 
@@ -30,7 +30,6 @@ import multicados.internal.context.ContextBuilder;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.HandledConsumer;
-import multicados.internal.helper.Utils.HandledSupplier;
 
 /**
  * @author Ngoc Huy
@@ -49,7 +48,6 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			ApplicationContext applicationContext,
 			Class<W> logicType,
 			DomainResourceContext resourceContext,
-			Collection<Entry<Class, Entry<Class, GraphLogic>>> fixedLogics,
 			Supplier<GraphLogic> noopSupplier)
 			throws Exception {
 		this.logicsMap = Utils.declare(scan(logicType))
@@ -57,35 +55,21 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 					.third(applicationContext)
 					.triInverse()
 				.then(this::addContributedLogics)
-					.second(fixedLogics)
+					.prepend(applicationContext)
 				.then(this::addFixedLogics)
 					.second(resourceContext)
 					.third(noopSupplier)
 				.thenPrepend(this::formInheritance)
 				.then(this::removeNoopLogics)
 					.second(resourceContext)
-				.then(this::sort)
 				.then(this::join)
 				.then(Collections::unmodifiableMap)
 				.get();
 	}
-	
-	@SuppressWarnings("rawtypes")
-	public <W extends GraphLogic<?>> AbstractGraphLogicsFactory(
-			ApplicationContext applicationContext,
-			Class<W> logicType,
-			DomainResourceContext resourceContext,
-			HandledSupplier<Collection<Entry<Class, Entry<Class, GraphLogic>>>, Exception> fixedLogicsSupplier,
-			Supplier<GraphLogic> noopSupplier)
-			throws Exception {
-		this(
-				applicationContext,
-				logicType,
-				resourceContext,
-				fixedLogicsSupplier.get(),
-				noopSupplier);
-	}
 	// @formatter:on
+
+	@SuppressWarnings("rawtypes")
+	protected abstract Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(ApplicationContext applicationContext) throws Exception;
 
 	private <W extends GraphLogic<?>> Set<BeanDefinition> scan(Class<W> logicType) {
 		if (logger.isTraceEnabled()) {
@@ -120,7 +104,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 
 			final GraphLogic logic = constructLogic(applicationContext, logicClass);
 
-			logicsMap.put(anno.value(), entry(anno.value(), logic));
+			logicsMap.put(anno.value(), as(anno.value(), logic));
 
 			if (logger.isDebugEnabled()) {
 				logger.debug("Contributing {}", logic.getLoggableName());
@@ -168,8 +152,8 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<LogicEntry>> addFixedLogics(Map<Class, LogicEntry> contributions,
-			Collection<Entry<Class, Entry<Class, GraphLogic>>> fixedLogics) throws Exception {
+	private Map<Class, LinkedHashSet<LogicEntry>> addFixedLogics(ApplicationContext applicationContext, Map<Class, LogicEntry> contributions)
+			throws Exception {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Adding fixed logics");
 		}
@@ -188,14 +172,14 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 				// @formatter:off
 				Utils.declare(new LinkedHashSet<LogicEntry>())
 					.consume(logics -> logics.add(logic))
-					.prepend(resourceType)
+						.prepend(resourceType)
 					.consume(joinedLogic::put);
 				// @formatter:on
 			}
 		};
 
-		finalContributionBuilder.accept(fixedLogics.stream()
-				.map(entry -> Map.entry(entry.getKey(), this.entry(entry.getKey(), entry.getValue().getValue())))
+		finalContributionBuilder.accept(getFixedLogics(applicationContext).stream()
+				.map(entry -> Map.entry(entry.getKey(), this.as(entry.getKey(), entry.getValue().getValue())))
 				.collect(Collectors.toList()));
 		finalContributionBuilder.accept(contributions.entrySet());
 
@@ -259,51 +243,51 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 		// @formatter:on
 	}
 
-	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<GraphLogic>> sort(Map<Class, LinkedHashSet<LogicEntry>> constructedLogics,
-			DomainResourceContext resourceContext) {
-		if (logger.isTraceEnabled()) {
-			logger.trace("Sorting logics");
-		}
-
-		DomainResourceGraph<DomainResource> graphRoot = resourceContext.getResourceGraph();
-		Map<Class, DomainResourceGraph> graphCache = new HashMap<>();
-		// @formatter:off		
-		return constructedLogics.entrySet().stream()
-				.map(entry -> Map.entry(
-						entry.getKey(),
-						entry.getValue().stream()
-							.sorted((one, two) -> compareLogics(graphRoot, graphCache, one, two))
-							.map(logicEntry -> logicEntry.getValue())
-							.<LinkedHashSet<GraphLogic>>collect(LinkedHashSet::new, (set, logic) -> set.add(logic), LinkedHashSet::addAll)))
-				.collect(CollectionHelper.toMap());
-		// @formatter:on
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private int compareLogics(DomainResourceGraph<DomainResource> root, Map<Class, DomainResourceGraph> cache,
-			LogicEntry one, LogicEntry two) {
-		final Class classOne = one.getKey();
-		final DomainResourceGraph<?> graphOne = cache.containsKey(classOne) ? cache.get(classOne)
-				: root.locate(classOne);
-		final Class classTwo = two.getKey();
-		final DomainResourceGraph<?> graphTwo = cache.containsKey(classTwo) ? cache.get(classTwo)
-				: root.locate(classTwo);
-
-		return doCompareLogics(graphOne, graphTwo);
-	}
-
-	private int doCompareLogics(DomainResourceGraph<?> graphOne, DomainResourceGraph<?> graphTwo) {
-		if (graphOne == graphTwo) {
-			return 0;
-		}
-
-		if (graphOne.getParents().contains(graphTwo)) {
-			return -1;
-		}
-
-		return 1;
-	}
+//	@SuppressWarnings("rawtypes")
+//	private Map<Class, LinkedHashSet<GraphLogic>> sort(Map<Class, LinkedHashSet<LogicEntry>> constructedLogics,
+//			DomainResourceContext resourceContext) {
+//		if (logger.isTraceEnabled()) {
+//			logger.trace("Sorting logics");
+//		}
+//
+//		final DomainResourceGraph<DomainResource> graphRoot = resourceContext.getResourceGraph();
+//		final Map<Class, DomainResourceGraph> graphCache = new HashMap<>();
+//		// @formatter:off
+//		return constructedLogics.entrySet().stream()
+//				.map(entry -> Map.entry(
+//						entry.getKey(),
+//						entry.getValue().stream()
+//							.sorted((one, two) -> compareLogics(graphRoot, graphCache, one, two))
+//							.map(logicEntry -> logicEntry.getValue())
+//							.<LinkedHashSet<GraphLogic>>collect(LinkedHashSet::new, (set, logic) -> set.add(logic), LinkedHashSet::addAll)))
+//				.collect(CollectionHelper.toMap());
+//		// @formatter:on
+//	}
+//
+//	@SuppressWarnings({ "rawtypes", "unchecked" })
+//	private int compareLogics(DomainResourceGraph<DomainResource> root, Map<Class, DomainResourceGraph> cache,
+//			LogicEntry one, LogicEntry two) {
+//		final Class classOne = one.getKey();
+//		final DomainResourceGraph<?> graphOne = cache.containsKey(classOne) ? cache.get(classOne)
+//				: root.locate(classOne);
+//		final Class classTwo = two.getKey();
+//		final DomainResourceGraph<?> graphTwo = cache.containsKey(classTwo) ? cache.get(classTwo)
+//				: root.locate(classTwo);
+//
+//		return doCompareLogics(graphOne, graphTwo);
+//	}
+//
+//	private int doCompareLogics(DomainResourceGraph<?> graphOne, DomainResourceGraph<?> graphTwo) {
+//		if (graphOne == graphTwo) {
+//			return 0;
+//		}
+//
+//		if (graphOne.getParents().contains(graphTwo)) {
+//			return -1;
+//		}
+//
+//		return 1;
+//	}
 
 	@SuppressWarnings("rawtypes")
 	private void buildWithExsitingCollection(DomainResourceGraph graph,
@@ -311,8 +295,8 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			Supplier<GraphLogic> noopSupplier) {
 		final Class resourceType = graph.getResourceType();
 
-		if (logger.isDebugEnabled()) {
-			logger.debug("Building logics of type {} with exsiting logics", resourceType.getName());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Building logics of type {} with exsiting logics", resourceType.getName());
 		}
 
 		final LinkedHashSet<LogicEntry> exsitingLogicsCollection = logicEntriesCollections.get(resourceType);
@@ -331,8 +315,12 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			final LinkedHashSet<LogicEntry> parentLogicsCollection = logicEntriesCollections
 					.get(parentGraph.getResourceType());
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("{}: Located exsiting logics from parent type {}", resourceType.getName(),
+			if (CollectionHelper.isEmpty(parentLogicsCollection)) {
+				continue;
+			}
+
+			if (logger.isTraceEnabled()) {
+				logger.trace("{}: Located exsiting logics from parent type {}", resourceType.getName(),
 						parentGraph.getResourceType().getName());
 			}
 			// order matters
@@ -349,8 +337,8 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			Supplier<GraphLogic> noopSupplier) {
 		final Class resourceType = graph.getResourceType();
 
-		if (logger.isDebugEnabled()) {
-			logger.debug("Building logics of type {} without exsiting logics", resourceType.getName());
+		if (logger.isTraceEnabled()) {
+			logger.trace("Building logics of type {} without exsiting logics", resourceType.getName());
 		}
 
 		if (graph.getParents() == null) {
@@ -358,13 +346,17 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			return;
 		}
 
-		for (Object obj : graph.getParents()) {
+		for (final Object obj : graph.getParents()) {
 			final DomainResourceGraph<?> parentGraph = (DomainResourceGraph<?>) obj;
 			final LinkedHashSet<LogicEntry> parentLogicsCollection = logicsEntriesCollections
 					.get(parentGraph.getResourceType());
 
-			if (logger.isDebugEnabled()) {
-				logger.debug("{}: Located exsiting logics from parent type {}", resourceType.getName(),
+			if (CollectionHelper.isEmpty(parentLogicsCollection)) {
+				continue;
+			}
+
+			if (logger.isTraceEnabled()) {
+				logger.trace("{}: Located exsiting logics from parent type {}", resourceType.getName(),
 						parentGraph.getResourceType().getName());
 			}
 
@@ -375,7 +367,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 
 	@SuppressWarnings("rawtypes")
 	private LinkedHashSet<LogicEntry> with(Supplier<GraphLogic> noopSupplier) {
-		return new LinkedHashSet<>(List.of(entry(DomainResource.class, noopSupplier.get())));
+		return new LinkedHashSet<>(List.of(as(DomainResource.class, noopSupplier.get())));
 	}
 
 	private LinkedHashSet<LogicEntry> with(LogicEntry logicEntry) {
@@ -392,7 +384,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private Map<Class, GraphLogic> join(Map<Class, LinkedHashSet<GraphLogic>> constructedLogics) {
+	private Map<Class, GraphLogic> join(Map<Class, LinkedHashSet<LogicEntry>> constructedLogics) {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Joining logics");
 		}
@@ -403,6 +395,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 						entry.getKey(),
 						entry.getValue()
 							.stream()
+							.map(Entry::getValue)
 							.reduce((product, logic) -> product.and(logic))
 							.get()))
 				.collect(CollectionHelper.toMap());
@@ -459,7 +452,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 	}
 
 	@SuppressWarnings("rawtypes")
-	private LogicEntry entry(Class key, GraphLogic logic) {
+	private LogicEntry as(Class key, GraphLogic logic) {
 		return new LogicEntry(key, logic);
 	}
 

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.controller.controllers;
 
@@ -23,8 +23,8 @@ import multicados.internal.service.crud.GenericCRUDServiceImpl;
  * @author Ngoc Huy
  *
  */
-//@RestController
-//@RequestMapping("/rest/category")
+@RestController
+@RequestMapping("/rest/category")
 public class RestCategoryController extends AbstractController {
 
 	private final GenericCRUDServiceImpl crudService;

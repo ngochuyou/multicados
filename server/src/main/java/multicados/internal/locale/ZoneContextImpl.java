@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.locale;
 
@@ -22,7 +22,7 @@ import multicados.internal.config.Settings;
 public class ZoneContextImpl implements ZoneContext {
 
 	/**
-	 * 
+	 *
 	 */
 	public static final long serialVersionUID = 1L;
 

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -29,7 +29,7 @@ public interface AwtImageUtils {
 	}
 
 	public static <T> T adjustResolution(
-	// @formatter:off			
+	// @formatter:off
 			BufferedImage original,
 			String extension,
 			int nextWidth,

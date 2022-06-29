@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -15,6 +15,7 @@ public abstract class AbstractSingularFilter<T> extends AbstractFilterImplemento
 	T equal;
 	T not;
 
+	@Override
 	public T getEqual() {
 		return equal;
 	}
@@ -24,6 +25,7 @@ public abstract class AbstractSingularFilter<T> extends AbstractFilterImplemento
 		expressionProducers.add((path, builder) -> builder.equal(path, this.equal));
 	}
 
+	@Override
 	public T getNot() {
 		return not;
 	}

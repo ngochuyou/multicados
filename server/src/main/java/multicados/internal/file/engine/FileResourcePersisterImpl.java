@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.file.engine;
 
@@ -116,7 +116,7 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 			}
 
 			String manipulatedIdentifier = saveStrategy.save(this, id.toString(), FileResource.class.cast(object), FileResourceSession.class.cast(session));
-			
+
 			setIdentifier(object, manipulatedIdentifier, session);
 		} catch (Exception any) {
 			any.printStackTrace();

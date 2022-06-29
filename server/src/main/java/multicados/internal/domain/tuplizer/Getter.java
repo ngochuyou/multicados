@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.tuplizer;
 
@@ -10,7 +10,7 @@ package multicados.internal.domain.tuplizer;
 public interface Getter extends Access {
 
 	Object get(Object source) throws Exception;
-	
+
 	Class<?> getReturnedType();
 
 }

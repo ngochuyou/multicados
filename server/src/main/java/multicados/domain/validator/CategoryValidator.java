@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.validator;
 
@@ -32,7 +32,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 	// @formatter:off
 	private static final String DESCRIPTION_ERROR_MESSAGE;
 	private static final Pattern DESCRIPTION_PATTERN;
-	
+
 	static {
 		final List<Character> ACCEPTED_DESCRIPTION_CHARACTERS = List.of(
 				'\s', '.', ',', '(', ')',
@@ -40,7 +40,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 				'=', '/', '!', '@',
 				'#', '$', '%', '^', '&',
 				'*', '\'', '"', '?', ':');
-		
+
 		DESCRIPTION_PATTERN = Pattern.compile(RegexHelper
 				.start()
 					.group()
@@ -52,8 +52,8 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 					.withLength().atLeastOne().max(MAX_DESCRIPTION_LENGTH)
 				.end()
 			.build());
-		
-		DESCRIPTION_ERROR_MESSAGE = 
+
+		DESCRIPTION_ERROR_MESSAGE =
 				StringHelper.join(StringHelper.SPACE, List.of(
 						Common.invalidPattern(CollectionHelper.join(
 								Collectors.toList(),

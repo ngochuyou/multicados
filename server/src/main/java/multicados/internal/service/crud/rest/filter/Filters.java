@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -26,7 +26,7 @@ import javax.persistence.criteria.Predicate;
 public interface Filters {
 
 	public class BooleanFilter extends AbstractSingularFilter<Boolean> {
-	};
+	}
 
 	public class StringFilter extends AbstractSingularPluralFilter<String> implements Filter.Matchable {
 
@@ -34,6 +34,7 @@ public interface Filters {
 
 		String like;
 
+		@Override
 		public String getLike() {
 			return like;
 		}
@@ -60,42 +61,42 @@ public interface Filters {
 			// @formatter:on
 		}
 
-	};
+	}
 
 	public class IntegerFilter extends AbstractSingularRangedPluralFilter<Integer> {
-	};
+	}
 
 	public class LongFilter extends AbstractSingularRangedPluralFilter<Long> {
-	};
+	}
 
 	public class FloatFilter extends AbstractSingularRangedPluralFilter<Float> {
-	};
+	}
 
 	public class DoubleFilter extends AbstractSingularRangedPluralFilter<Double> {
-	};
+	}
 
 	public class EnumFilter<E extends Enum<?>> extends AbstractSingularPluralFilter<E> {
-	};
+	}
 
 	public class BigIntegerFilter extends AbstractSingularRangedPluralFilter<BigDecimal> {
-	};
+	}
 
 	public class BigDecimalFilter extends AbstractSingularRangedPluralFilter<BigDecimal> {
-	};
+	}
 
 	public class LocalTimeFilter extends AbstractSingularRangedPluralFilter<LocalTime> {
-	};
+	}
 
 	public class LocalDateFilter extends AbstractSingularRangedPluralFilter<LocalDate> {
-	};
+	}
 
 	public class LocalDateTimeFilter extends AbstractSingularRangedPluralFilter<LocalDateTime> {
-	};
+	}
 
 	public class ZonedDateTimeFilter extends AbstractSingularRangedPluralFilter<ZonedDateTime> {
-	};
+	}
 
 	public class UUIDFilter extends AbstractSingularPluralFilter<UUID> {
-	};
+	}
 
 }

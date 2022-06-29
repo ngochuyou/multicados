@@ -170,6 +170,12 @@
       <version>3.12.0</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>de.vandermeer</groupId>
+      <artifactId>asciitable</artifactId>
+      <version>0.3.2</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <properties>
     <maven.compiler.target>18</maven.compiler.target>

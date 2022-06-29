@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain.tuplizer;
 
@@ -13,7 +13,7 @@ import multicados.internal.domain.DomainResource;
 public interface DomainResourceTuplizer<T extends DomainResource> extends Loggable {
 
 	Class<T> getResourceType();
-	
+
 	T instantiate(Object... args) throws TuplizerException;
 
 	void setProperty(Object source, String propName, Object value) throws TuplizerException;

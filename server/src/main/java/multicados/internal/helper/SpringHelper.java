@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 
 import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.security.DomainUserDetails;
@@ -24,7 +25,7 @@ public class SpringHelper {
 			T defaultValue) throws Exception {
 		String configuredValue = env.getProperty(propName);
 
-		if (!StringHelper.hasLength(configuredValue)) {
+		if (!StringUtils.hasLength(configuredValue)) {
 			return defaultValue;
 		}
 
@@ -46,7 +47,7 @@ public class SpringHelper {
 			Supplier<Exception> thrower) throws Exception {
 		String configuredValue = env.getProperty(propName);
 
-		if (!StringHelper.hasLength(configuredValue)) {
+		if (!StringUtils.hasLength(configuredValue)) {
 			throw thrower.get();
 		}
 

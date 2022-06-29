@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.file.engine;
 
@@ -71,7 +71,7 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 			@Override
 			public FlushMode getInitialSessionFlushMode() {
 				return FlushMode.MANUAL;
-			};
+			}
 
 		};
 		registerEventListeners();

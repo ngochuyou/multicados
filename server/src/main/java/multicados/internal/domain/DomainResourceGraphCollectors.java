@@ -1,12 +1,10 @@
 /**
- * 
+ *
  */
 package multicados.internal.domain;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.function.Function;
 
 import multicados.internal.domain.DomainResourceGraph.AbstractCollector;
@@ -17,24 +15,22 @@ import multicados.internal.domain.DomainResourceGraph.AbstractCollector;
  */
 public class DomainResourceGraphCollectors {
 
-	private DomainResourceGraphCollectors() {};
+	private DomainResourceGraphCollectors() {}
 
-	public static <D extends DomainResource> AbstractCollector<Class<D>, Set<Class<D>>> toTypesSet() {
-		return new AbstractCollector<>(HashSet::new, DomainResourceGraph::getResourceType) {};
+	public static AbstractCollector<Class<? extends DomainResource>, LinkedHashSet<Class<? extends DomainResource>>> toTypesSet() {
+		return new AbstractCollector<>(LinkedHashSet::new, DomainResourceGraph::getResourceType) {};
 	}
 
-	public static <D extends DomainResource> AbstractCollector<Class<D>, List<Class<D>>> toTypesList() {
-		return new AbstractCollector<>(ArrayList::new, DomainResourceGraph::getResourceType) {};
+	public static AbstractCollector<Class<? extends DomainResource>, LinkedList<Class<? extends DomainResource>>> toTypesList() {
+		return new AbstractCollector<>(LinkedList::new, DomainResourceGraph::getResourceType) {};
 	}
 
-	@SuppressWarnings("rawtypes")
-	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, Set<DomainResourceGraph>> toGraphsSet() {
-		return new AbstractCollector<>(HashSet::new, Function.identity()) {};
+	public static AbstractCollector<DomainResourceGraph<?>, LinkedHashSet<DomainResourceGraph<?>>> toGraphsSet() {
+		return new AbstractCollector<>(LinkedHashSet::new, Function.identity()) {};
 	}
 
-	@SuppressWarnings("rawtypes")
-	public static <D extends DomainResource> AbstractCollector<DomainResourceGraph, List<DomainResourceGraph>> toGraphsList() {
-		return new AbstractCollector<>(ArrayList::new, Function.identity()) {};
+	public static AbstractCollector<DomainResourceGraph<?>, LinkedList<DomainResourceGraph<?>>> toGraphsList() {
+		return new AbstractCollector<>(LinkedList::new, Function.identity()) {};
 	}
 
 }

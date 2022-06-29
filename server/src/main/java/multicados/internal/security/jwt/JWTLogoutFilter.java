@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.security.jwt;
 
@@ -40,7 +40,7 @@ public class JWTLogoutFilter extends AbstractAuthenticationProcessingFilter {
 			throw new ServletException(any);
 		}
 	}
-	
-	
+
+
 
 }

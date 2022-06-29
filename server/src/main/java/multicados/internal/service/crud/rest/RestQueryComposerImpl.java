@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest;
 
@@ -72,7 +72,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		this.readSecurityManager = readSecurityManager;
 		// @formatter:off
 		final Map<Class<? extends DomainResource>, Class<? extends RestQuery<?>>> queryClasses = scan();
-		
+
 		queryMetadatasMap = Utils
 				.declare(resourceContext)
 					.second(queryClasses)
@@ -116,6 +116,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		return queryClassesMap;
 	}
 
+	@SuppressWarnings("unchecked")
 	private Map<Class<? extends DomainResource>, Map<String, Accessor>> constructFiltersAccessors(
 	// @formatter:off
 				DomainResourceContext resourceContext,
@@ -125,21 +126,23 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Constructing {} for filters", Accessor.class.getSimpleName());
 		}
-		
+
 		final Map<Class<? extends DomainResource>, Map<String, Accessor>> filterAccessors = new HashMap<>();
 
-		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		for (final Class<? extends DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (!queryTypesMap.containsKey(resourceType)) {
 				continue;
 			}
 
-			final Queue<Class<? super DomainResource>> classStack = Utils
-					.declare(TypeHelper.getClassQueue(resourceType)).consume(Queue::poll).get();
+			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
+				
+			classQueue.poll();
+			
 			final Map<String, Accessor> scopedAccessors = new HashMap<>();
 
-			while (!classStack.isEmpty()) {
-				final Class<? super DomainResource> superClass = classStack.poll();
+			while (!classQueue.isEmpty()) {
+				final Class<? super DomainResource> superClass = (Class<? super DomainResource>) classQueue.poll();
 
 				if (filterAccessors.containsKey(superClass)) {
 					scopedAccessors.putAll(filterAccessors.get(superClass));
@@ -176,7 +179,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 		final Map<Class<? extends DomainResource>, QueryMetadata> metadatasMap = new HashMap<>();
 
-		for (final Class<DomainResource> resourceType : resourceContext.getResourceGraph()
+		for (final Class<? extends DomainResource> resourceType : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
 			if (!queryTypesMap.containsKey(resourceType)) {
 				continue;
@@ -185,11 +188,12 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			final DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType);
 			final List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
 			final List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
-			final Queue<Class<? super DomainResource>> classStack = Utils
-					.declare(TypeHelper.getClassQueue(resourceType)).consume(Queue::poll).get();
+			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
+			
+			classQueue.poll();
 
-			while (!classStack.isEmpty()) {
-				final Class<? super DomainResource> superClass = classStack.poll();
+			while (!classQueue.isEmpty()) {
+				final Class<? super DomainResource> superClass = (Class<? super DomainResource>) classQueue.poll();
 
 				if (metadatasMap.containsKey(superClass)) {
 					// @formatter:off
@@ -345,7 +349,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 
 		for (final RestQuery<?> rawBatchingQuery : rawBatchingQueries) {
 			// @formatter:off
-			declare(compose(					
+			declare(compose(
 					index,
 					rawBatchingQuery,
 					credential,
@@ -368,7 +372,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			.then(readSecurityManager::check)
 			.then(HashSet::new)
 			.get();
-		
+
 		declare(owningQuery.getResourceType())
 				.second(Stream
 						.of(

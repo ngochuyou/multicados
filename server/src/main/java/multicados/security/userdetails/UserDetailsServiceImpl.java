@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.security.userdetails;
 
@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
+import multicados.domain.entity.PermanentEntity_;
 import multicados.domain.entity.Role;
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
@@ -32,11 +33,11 @@ import multicados.internal.security.DomainUserDetails;
  * @author Ngoc Huy
  *
  */
-//@Component
+@Component
 public class UserDetailsServiceImpl implements UserDetailsService {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final String USER_NOT_FOUND_TEMPLATE = "User %s not found";
 	private final GenericRepository repository;
@@ -71,7 +72,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 			return new DomainUser(
 					username,
 					tuple.get(User_.PASSWORD, String.class),
-					tuple.get(User_.ACTIVE, Boolean.class),
+					tuple.get(PermanentEntity_.ACTIVE, Boolean.class),
 					!tuple.get(User_.LOCKED, Boolean.class),
 					tuple.get(User_.CREDENTIAL_VERSION, LocalDateTime.class),
 					List.of(new SimpleGrantedAuthority(tuple.get(User_.ROLE, Role.class).name())));

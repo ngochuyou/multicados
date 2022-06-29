@@ -1,9 +1,7 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.security.read;
-
-import static multicados.internal.helper.StringHelper.EMPTY_STRING;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -16,6 +14,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.util.StringUtils;
+
+import de.vandermeer.asciitable.AsciiTable;
+import de.vandermeer.asciitable.CWC_AbsoluteEven;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
@@ -44,13 +46,13 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 			List<SecuredAttribute<D>> attributes,
 			ReadFailureExceptionHandler exceptionThrower) throws Exception {
 		super(modelContext.getMetadata(type), exceptionThrower);
-		
+
 		final List<SecuredAttribute<D>> sortedAttributes = Utils
 				.declare(attributes)
 				.then(this::sort)
 				.get();
 		final DomainResourceMetadata<D> metadata = getMetadata();
-		
+
 		authorizedAttributes = Utils
 				.declare(sortedAttributes)
 					.second(type)
@@ -94,7 +96,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
 		attributes.stream().forEach(attribute -> aliasMap.put(attribute.getName(),
-				StringHelper.hasLength(attribute.getAlias()) ? attribute.getAlias() : attribute.getName()));
+				StringUtils.hasLength(attribute.getAlias()) ? attribute.getAlias() : attribute.getName()));
 
 		return aliasMap;
 	}
@@ -163,23 +165,34 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 
 	@Override
 	public String toString() {
-		// @formatter:off
-		return String.format("%s<%s>[\n\t%s\n]",
-				this.getClass().getSimpleName(), getMetadata().getResourceType().getSimpleName(),
-				authorizedAttributes.entrySet()
-					.stream()
-					.map(entry -> joinOrEmpty(entry))
-					.filter(string -> !string.equals(EMPTY_STRING))
-					.collect(Collectors.joining("\n\t")));
-		// @formatter:on
-	}
+		final AsciiTable table = new AsciiTable();
 
-	private String joinOrEmpty(Entry<String, Set<String>> entry) {
-		if (entry.getValue().isEmpty()) {
-			return EMPTY_STRING;
+		table.getRenderer().setCWC(new CWC_AbsoluteEven());
+		table.addRule();
+		table.addRow(null, String.format("%s<%s>", this.getClass().getSimpleName(),
+				getMetadata().getResourceType().getSimpleName()));
+		table.addRule();
+
+		if (authorizedAttributes.isEmpty()) {
+			return table.render();
 		}
 
-		return String.format("%s:\t%s", entry.getKey(), StringHelper.join(StringHelper.COMMA, entry.getValue()));
+		for (final Entry<String, Set<String>> entry : authorizedAttributes.entrySet()) {
+			table.addRow(entry.getKey(), StringHelper.join(StringHelper.COMMA, entry.getValue()));
+		}
+
+		table.addRule();
+
+		return table.render();
+//		// @formatter:off
+//		return String.format("%s<%s>[\n\t%s\n]",
+//				this.getClass().getSimpleName(), getMetadata().getResourceType().getSimpleName(),
+//				authorizedAttributes.entrySet()
+//					.stream()
+//					.map(entry -> joinOrEmpty(entry))
+//					.filter(string -> !string.equals(EMPTY_STRING))
+//					.collect(Collectors.joining("\n\t")));
+//		// @formatter:on
 	}
 
 }

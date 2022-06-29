@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.service.crud.rest.filter;
 
@@ -22,9 +22,10 @@ import multicados.internal.service.crud.rest.filter.Filter.AbstractFilterImpleme
 public abstract class AbstractSingularPluralFilter<T> extends AbstractFilterImplementor<T>
 		implements Filter<T>, Filter.Plural<T>, Filter.Singular<T> {
 
-	protected AbstractSingularFilter<T> singular = new AbstractSingularFilter<T>() {};
-	protected AbstractPluralFilter<T> plural = new AbstractPluralFilter<T>() {};
+	protected AbstractSingularFilter<T> singular = new AbstractSingularFilter<>() {};
+	protected AbstractPluralFilter<T> plural = new AbstractPluralFilter<>() {};
 
+	@Override
 	public T getEqual() {
 		return singular.equal;
 	}
@@ -33,6 +34,7 @@ public abstract class AbstractSingularPluralFilter<T> extends AbstractFilterImpl
 		singular.setEqual(equal);
 	}
 
+	@Override
 	public T getNot() {
 		return singular.not;
 	}
@@ -41,6 +43,7 @@ public abstract class AbstractSingularPluralFilter<T> extends AbstractFilterImpl
 		singular.setNot(not);
 	}
 
+	@Override
 	public T[] getIn() {
 		return plural.in;
 	}
@@ -49,6 +52,7 @@ public abstract class AbstractSingularPluralFilter<T> extends AbstractFilterImpl
 		plural.setIn(in);
 	}
 
+	@Override
 	public T[] getNi() {
 		return plural.ni;
 	}

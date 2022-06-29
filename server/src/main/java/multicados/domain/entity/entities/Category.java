@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.domain.entity.entities;
 
@@ -59,6 +59,7 @@ public class Category extends PermanentEntity<BigInteger>
 		return code;
 	}
 
+	@Override
 	public void setCode(String code) {
 		this.code = code;
 	}

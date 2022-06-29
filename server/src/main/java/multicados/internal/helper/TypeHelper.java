@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package multicados.internal.helper;
 
@@ -13,6 +13,8 @@ import java.lang.reflect.Type;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
@@ -35,6 +37,12 @@ public class TypeHelper {
 
 	static {
 		make(with(String.class, Integer.class).toA(Object::toString).toB(Integer::valueOf));
+
+		try {
+			TypeGraph.INSTANCE.close();
+		} catch (IOException any) {
+			throw new IllegalStateException(any);
+		}
 	}
 
 	public static Stack<Class<?>> getClassStack(Class<?> clazz) {
@@ -48,14 +56,14 @@ public class TypeHelper {
 
 		return stack;
 	}
-	
+
 	public static <T> Queue<Class<? super T>> getClassQueue(Class<T> clazz) {
 		Queue<Class<? super T>> queue = new ArrayDeque<>();
 		Class<? super T> superClass = clazz;
 
 		while (superClass != null && !superClass.equals(Object.class)) {
 			queue.add(superClass);
-			superClass = (Class<? super T>) superClass.getSuperclass();
+			superClass = superClass.getSuperclass();
 		}
 
 		return queue;
@@ -94,10 +102,15 @@ public class TypeHelper {
 
 	private static <A, B> void make(TypeGraphEntry<A, B> entry) {
 		TypeGraph.INSTANCE.add(entry);
+
 	}
 
 	public static <A, B> B cast(Class<A> typeA, Class<B> typeB, A value) throws Exception {
 		return TypeGraph.INSTANCE.locate(typeA, typeB).apply(value);
+	}
+
+	public static <A> Set<Class<?>> getAlternatives(Class<A> typeA) {
+		return TypeGraph.INSTANCE.alternatives.get(typeA);
 	}
 
 	public static class TypeGraph implements Closeable, Loggable {
@@ -110,10 +123,11 @@ public class TypeHelper {
 				salt) -> (PRIME * salt) + anyType.hashCode();
 
 		private Map<Integer, Map<Integer, Utils.HandledFunction<?, ?, Exception>>> convertersMap = new HashMap<>();
+		private Map<Class<?>, Set<Class<?>>> alternatives = new HashMap<>();
 
 		private volatile Access access = new Access() {};
 
-		private TypeGraph() {};
+		private TypeGraph() {}
 
 		private <A, B> int[] hash(Class<A> typeA, Class<B> typeB) {
 			int aHash = HASH_CODE_GENERATOR.apply(typeA, 1);
@@ -126,11 +140,7 @@ public class TypeHelper {
 		private <A, B> Utils.HandledFunction<A, B, Exception> locate(Class<A> typeA, Class<B> typeB) {
 			int[] hashPair = hash(typeA, typeB);
 
-			if (!convertersMap.containsKey(hashPair[0])) {
-				return null;
-			}
-
-			if (!convertersMap.get(hashPair[0]).containsKey(hashPair[1])) {
+			if (!convertersMap.containsKey(hashPair[0]) || !convertersMap.get(hashPair[0]).containsKey(hashPair[1])) {
 				return null;
 			}
 
@@ -143,6 +153,17 @@ public class TypeHelper {
 
 			addBy(hashPair[0], hashPair[1], entry.toBFunction);
 			addBy(hashPair[1], hashPair[0], entry.toAFunction);
+			addAlternatives(entry.typeA, entry.typeB);
+			addAlternatives(entry.typeB, entry.typeA);
+		}
+
+		private <A, B> void addAlternatives(Class<A> typeA, Class<B> typeB) {
+			if (!alternatives.containsKey(typeA)) {
+				alternatives.put(typeA, new HashSet<>(List.of(typeB)));
+				return;
+			}
+
+			alternatives.get(typeA).add(typeB);
 		}
 
 		private void addBy(int aHash, int bHash, Utils.HandledFunction<?, ?, Exception> converter) {
@@ -216,7 +237,8 @@ public class TypeHelper {
 		try {
 			return type.getConstructor();
 		} catch (NoSuchMethodException | SecurityException any) {
-			throw new IllegalArgumentException(String.format("Unable to locate %s whose argument is empty in type [%s]", Constructor.class.getSimpleName(), type.getName()));
+			throw new IllegalArgumentException(String.format("Unable to locate %s whose argument is empty in type [%s]",
+					Constructor.class.getSimpleName(), type.getName()));
 		}
 	}
 
