@@ -4,6 +4,7 @@
 package multicados.internal.domain;
 
 import java.util.Collection;
+import java.util.Deque;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -32,6 +33,10 @@ public interface DomainResourceGraph<T extends DomainResource> extends ContextBu
 	<E, C extends Collection<E>> C collect(Supplier<C> factory, Function<DomainResourceGraph<?>, E> mapper);
 
 	<E, C extends Collection<E>> C collect(DomainResourceGraphCollector<E, C> collector);
+
+	Deque<Class<? extends DomainResource>> getClassInheritance();
+
+	Deque<DomainResourceGraph<? extends DomainResource>> getGraphInheritance();
 
 	interface DomainResourceGraphCollector<E, C extends Collection<E>> {
 

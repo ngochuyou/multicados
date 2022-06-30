@@ -3,8 +3,11 @@
  */
 package multicados.internal.domain;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -94,6 +97,43 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		return null;
 	}
 
+	private <E> Deque<E> getInheritance(Function<DomainResourceGraph<?>, E> mapper) {
+		final Deque<Set<DomainResourceGraph<?>>> cache = getInheritance(new ArrayDeque<>());
+		final DistinctInheritanceDeque<E> queue = new DistinctInheritanceDeque<>();
+
+		while (!cache.isEmpty()) {
+			for (DomainResourceGraph<?> graph : cache.pop()) {
+				queue.add(mapper.apply(graph));
+			}
+		}
+
+		return queue;
+	}
+
+	private Deque<Set<DomainResourceGraph<?>>> getInheritance(Deque<Set<DomainResourceGraph<?>>> cache) {
+		cache.push(Set.of(this));
+
+		if (parents == null) {
+			return cache;
+		}
+
+		for (final DomainResourceGraph<? super T> parent : parents) {
+			((DomainResourceGraphImpl<? super T>) parent).getInheritance(cache);
+		}
+
+		return cache;
+	}
+
+	@Override
+	public Deque<Class<? extends DomainResource>> getClassInheritance() {
+		return getInheritance(DomainResourceGraph::getResourceType);
+	}
+
+	@Override
+	public Deque<DomainResourceGraph<? extends DomainResource>> getGraphInheritance() {
+		return getInheritance(Function.identity());
+	}
+
 	@Override
 	public Set<DomainResourceGraph<? super T>> getParents() {
 		return parents;
@@ -173,6 +213,44 @@ public class DomainResourceGraphImpl<T extends DomainResource> implements Domain
 		DomainResourceGraphImpl other = (DomainResourceGraphImpl) obj;
 
 		return Objects.equals(resourceType, other.resourceType);
+	}
+
+	private static class DistinctInheritanceDeque<E> extends ArrayDeque<E> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final Set<E> set = new HashSet<>();
+
+		@Override
+		public boolean contains(Object o) {
+			return set.contains(o);
+		}
+
+		@Override
+		public boolean containsAll(Collection<?> c) {
+			return set.containsAll(c);
+		}
+
+		@Override
+		public boolean add(E e) {
+			if (contains(e)) {
+				return false;
+			}
+
+			set.add(e);
+			return super.add(e);
+		}
+
+		@Override
+		public void push(E e) {
+			if (contains(e)) {
+				return;
+			}
+
+			set.add(e);
+			super.push(e);
+		}
+
 	}
 
 }

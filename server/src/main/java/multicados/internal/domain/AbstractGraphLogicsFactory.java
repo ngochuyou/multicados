@@ -7,6 +7,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,9 +68,9 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 				.get();
 	}
 	// @formatter:on
-
 	@SuppressWarnings("rawtypes")
-	protected abstract Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(ApplicationContext applicationContext) throws Exception;
+	protected abstract Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(
+			ApplicationContext applicationContext) throws Exception;
 
 	private <W extends GraphLogic<?>> Set<BeanDefinition> scan(Class<W> logicType) {
 		if (logger.isTraceEnabled()) {
@@ -152,36 +153,42 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 	}
 
 	@SuppressWarnings("rawtypes")
-	private Map<Class, LinkedHashSet<LogicEntry>> addFixedLogics(ApplicationContext applicationContext, Map<Class, LogicEntry> contributions)
-			throws Exception {
+	private Map<Class, LinkedHashSet<LogicEntry>> addFixedLogics(ApplicationContext applicationContext,
+			Map<Class, LogicEntry> contributions) throws Exception {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Adding fixed logics");
 		}
 
 		final Map<Class, LinkedHashSet<LogicEntry>> joinedLogic = new HashMap<>();
-		final HandledConsumer<Collection<Entry<Class, LogicEntry>>, Exception> finalContributionBuilder = (
-				logicEntries) -> {
-			for (final Entry<Class, LogicEntry> logicEntry : logicEntries) {
-				final Class resourceType = logicEntry.getKey();
-				final LogicEntry logic = logicEntry.getValue();
-
-				if (joinedLogic.containsKey(resourceType)) {
-					joinedLogic.get(resourceType).add(logic);
-					continue;
+		// @formatter:off
+		final HandledConsumer<Collection<Entry<Class, LogicEntry>>, Exception> finalContributionBuilder = 
+			(logicEntries) -> {
+				for (final Entry<Class, LogicEntry> logicEntry : logicEntries) {
+					final Class resourceType = logicEntry.getKey();
+					final LogicEntry logic = logicEntry.getValue();
+	
+					if (joinedLogic.containsKey(resourceType)) {
+						joinedLogic.get(resourceType).add(logic);
+						continue;
+					}
+					
+					final LinkedHashSet<LogicEntry> newLogicSet = new LinkedHashSet<>();
+					
+					newLogicSet.add(logic);
+					joinedLogic.put(resourceType, newLogicSet);
 				}
-				// @formatter:off
-				Utils.declare(new LinkedHashSet<LogicEntry>())
-					.consume(logics -> logics.add(logic))
-						.prepend(resourceType)
-					.consume(joinedLogic::put);
-				// @formatter:on
-			}
-		};
-
-		finalContributionBuilder.accept(getFixedLogics(applicationContext).stream()
+			};
+		// @formatter:on
+		final Collection<Entry<Class, Entry<Class, GraphLogic>>> fixedLogics = getFixedLogics(applicationContext);
+		finalContributionBuilder.accept(fixedLogics.stream()
 				.map(entry -> Map.entry(entry.getKey(), this.as(entry.getKey(), entry.getValue().getValue())))
 				.collect(Collectors.toList()));
 		finalContributionBuilder.accept(contributions.entrySet());
+
+		for (final Entry<Class, Entry<Class, GraphLogic>> entry : fixedLogics) {
+			System.out.println(String.format("%s:\t%s", entry.getKey().getSimpleName(), String.format("%s(%s)",
+					entry.getValue().getKey().getSimpleName(), entry.getValue().getValue().getLoggableName())));
+		}
 
 		return joinedLogic;
 	}
@@ -194,31 +201,39 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 		}
 
 		final Map<Class, LinkedHashSet<LogicEntry>> scopedLogicCollections = new HashMap<>();
+		/*
+		 * Construct the logic inheritance once per resource type
+		 **/
+		for (final DomainResourceGraph<?> graph : resourceContext.getResourceGraph()
+				.collect(DomainResourceGraphCollectors.toGraphsSet())) {
+			final Class<?> resourceType = graph.getResourceType();
 
-		for (final DomainResourceGraph graph : resourceContext.getResourceGraph()
-				.collect(DomainResourceGraphCollectors.toGraphsList())) {
-			final Class resourceType = graph.getResourceType();
-
-			if (!joinedLogics.containsKey(resourceType)) {
-				if (!scopedLogicCollections.containsKey(resourceType)) {
-					buildWithoutExsitingCollection(graph, scopedLogicCollections, null, noopSupplier);
-					continue;
-				}
-
-				buildWithExsitingCollection(graph, scopedLogicCollections, null, noopSupplier);
+			if (scopedLogicCollections.containsKey(resourceType)) {
 				continue;
 			}
 
-			final LinkedHashSet<LogicEntry> scopedLogics = joinedLogics.get(resourceType);
-
-			for (final LogicEntry logic : scopedLogics) {
-				if (!scopedLogicCollections.containsKey(resourceType)) {
-					buildWithoutExsitingCollection(graph, scopedLogicCollections, logic, noopSupplier);
+			final Deque<Class<? extends DomainResource>> inheritance = graph.getClassInheritance();
+			// reflect the logics collected scoped to the current resourceType
+			final LinkedHashSet<LogicEntry> logicEntrySet = new LinkedHashSet<>();
+			/* now from the top */
+			while (!inheritance.isEmpty()) {
+				/* make it drop */
+				final Class<? extends DomainResource> currentType = inheritance.pop();
+				// if the logics for this type have already been registered,
+				// put those into the logic set of resourceType
+				if (scopedLogicCollections.containsKey(currentType)) {
+					logicEntrySet.addAll(scopedLogicCollections.get(currentType));
 					continue;
 				}
-
-				buildWithExsitingCollection(graph, scopedLogicCollections, logic, noopSupplier);
+				// else, if there are provided logics in joinedLogics, scope them into
+				// the currentType logics, otherwise, scope a NO_OP logic
+				scopedLogicCollections.put(currentType,
+						joinedLogics.containsKey(currentType) ? joinedLogics.get(currentType) : with(noopSupplier));
+				// ultimately put the above into the logic set of resourceType as well
+				logicEntrySet.addAll(scopedLogicCollections.get(currentType));
 			}
+
+			scopedLogicCollections.put(resourceType, logicEntrySet);
 		}
 
 		return scopedLogicCollections;
@@ -243,144 +258,9 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 		// @formatter:on
 	}
 
-//	@SuppressWarnings("rawtypes")
-//	private Map<Class, LinkedHashSet<GraphLogic>> sort(Map<Class, LinkedHashSet<LogicEntry>> constructedLogics,
-//			DomainResourceContext resourceContext) {
-//		if (logger.isTraceEnabled()) {
-//			logger.trace("Sorting logics");
-//		}
-//
-//		final DomainResourceGraph<DomainResource> graphRoot = resourceContext.getResourceGraph();
-//		final Map<Class, DomainResourceGraph> graphCache = new HashMap<>();
-//		// @formatter:off
-//		return constructedLogics.entrySet().stream()
-//				.map(entry -> Map.entry(
-//						entry.getKey(),
-//						entry.getValue().stream()
-//							.sorted((one, two) -> compareLogics(graphRoot, graphCache, one, two))
-//							.map(logicEntry -> logicEntry.getValue())
-//							.<LinkedHashSet<GraphLogic>>collect(LinkedHashSet::new, (set, logic) -> set.add(logic), LinkedHashSet::addAll)))
-//				.collect(CollectionHelper.toMap());
-//		// @formatter:on
-//	}
-//
-//	@SuppressWarnings({ "rawtypes", "unchecked" })
-//	private int compareLogics(DomainResourceGraph<DomainResource> root, Map<Class, DomainResourceGraph> cache,
-//			LogicEntry one, LogicEntry two) {
-//		final Class classOne = one.getKey();
-//		final DomainResourceGraph<?> graphOne = cache.containsKey(classOne) ? cache.get(classOne)
-//				: root.locate(classOne);
-//		final Class classTwo = two.getKey();
-//		final DomainResourceGraph<?> graphTwo = cache.containsKey(classTwo) ? cache.get(classTwo)
-//				: root.locate(classTwo);
-//
-//		return doCompareLogics(graphOne, graphTwo);
-//	}
-//
-//	private int doCompareLogics(DomainResourceGraph<?> graphOne, DomainResourceGraph<?> graphTwo) {
-//		if (graphOne == graphTwo) {
-//			return 0;
-//		}
-//
-//		if (graphOne.getParents().contains(graphTwo)) {
-//			return -1;
-//		}
-//
-//		return 1;
-//	}
-
-	@SuppressWarnings("rawtypes")
-	private void buildWithExsitingCollection(DomainResourceGraph graph,
-			Map<Class, LinkedHashSet<LogicEntry>> logicEntriesCollections, LogicEntry contribution,
-			Supplier<GraphLogic> noopSupplier) {
-		final Class resourceType = graph.getResourceType();
-
-		if (logger.isTraceEnabled()) {
-			logger.trace("Building logics of type {} with exsiting logics", resourceType.getName());
-		}
-
-		final LinkedHashSet<LogicEntry> exsitingLogicsCollection = logicEntriesCollections.get(resourceType);
-
-		if (graph.getParents() == null) {
-			if (contribution == null) {
-				return;
-			}
-
-			logicEntriesCollections.put(resourceType, addAll(exsitingLogicsCollection, with(contribution)));
-			return;
-		}
-
-		for (final Object obj : graph.getParents()) {
-			final DomainResourceGraph<?> parentGraph = (DomainResourceGraph<?>) obj;
-			final LinkedHashSet<LogicEntry> parentLogicsCollection = logicEntriesCollections
-					.get(parentGraph.getResourceType());
-
-			if (CollectionHelper.isEmpty(parentLogicsCollection)) {
-				continue;
-			}
-
-			if (logger.isTraceEnabled()) {
-				logger.trace("{}: Located exsiting logics from parent type {}", resourceType.getName(),
-						parentGraph.getResourceType().getName());
-			}
-			// order matters
-			logicEntriesCollections.put(resourceType,
-					addAll(exsitingLogicsCollection, contribution == null ? parentLogicsCollection
-							: addAll(parentLogicsCollection, with(contribution))));
-			continue;
-		}
-	}
-
-	@SuppressWarnings("rawtypes")
-	private void buildWithoutExsitingCollection(DomainResourceGraph graph,
-			Map<Class, LinkedHashSet<LogicEntry>> logicsEntriesCollections, LogicEntry contribution,
-			Supplier<GraphLogic> noopSupplier) {
-		final Class resourceType = graph.getResourceType();
-
-		if (logger.isTraceEnabled()) {
-			logger.trace("Building logics of type {} without exsiting logics", resourceType.getName());
-		}
-
-		if (graph.getParents() == null) {
-			logicsEntriesCollections.put(resourceType, contribution == null ? with(noopSupplier) : with(contribution));
-			return;
-		}
-
-		for (final Object obj : graph.getParents()) {
-			final DomainResourceGraph<?> parentGraph = (DomainResourceGraph<?>) obj;
-			final LinkedHashSet<LogicEntry> parentLogicsCollection = logicsEntriesCollections
-					.get(parentGraph.getResourceType());
-
-			if (CollectionHelper.isEmpty(parentLogicsCollection)) {
-				continue;
-			}
-
-			if (logger.isTraceEnabled()) {
-				logger.trace("{}: Located exsiting logics from parent type {}", resourceType.getName(),
-						parentGraph.getResourceType().getName());
-			}
-
-			logicsEntriesCollections.put(resourceType,
-					contribution == null ? parentLogicsCollection : addAll(parentLogicsCollection, with(contribution)));
-		}
-	}
-
 	@SuppressWarnings("rawtypes")
 	private LinkedHashSet<LogicEntry> with(Supplier<GraphLogic> noopSupplier) {
 		return new LinkedHashSet<>(List.of(as(DomainResource.class, noopSupplier.get())));
-	}
-
-	private LinkedHashSet<LogicEntry> with(LogicEntry logicEntry) {
-		return new LinkedHashSet<>(List.of(logicEntry));
-	}
-
-	private LinkedHashSet<LogicEntry> addAll(LinkedHashSet<LogicEntry> logicEntriesCollection,
-			LinkedHashSet<LogicEntry> entries) {
-		final LinkedHashSet<LogicEntry> copiedLogicEntries = new LinkedHashSet<>(logicEntriesCollection);
-
-		copiedLogicEntries.addAll(entries);
-
-		return copiedLogicEntries;
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })

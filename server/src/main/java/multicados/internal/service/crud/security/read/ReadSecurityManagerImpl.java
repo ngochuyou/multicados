@@ -692,7 +692,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 	public void summary() {
 		if (logger.isDebugEnabled()) {
 			logger.debug("\n{}",
-					securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+					securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n\n")));
 		}
 	}
 

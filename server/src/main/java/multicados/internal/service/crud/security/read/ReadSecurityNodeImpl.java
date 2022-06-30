@@ -18,6 +18,8 @@ import org.springframework.util.StringUtils;
 
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_AbsoluteEven;
+import de.vandermeer.asciithemes.TA_Grid;
+import de.vandermeer.asciithemes.TA_GridConfig;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
@@ -35,9 +37,19 @@ import multicados.internal.service.crud.security.SecuredAttribute;
 public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractReadSecurityNode<D> {
 
 	private final Map<String, Set<String>> authorizedAttributes;
-	private final Map<String, List<String>> nonAssociationAttributes;
 	private final Map<String, String> aliasesByOrigins;
 	private final Map<String, String> originsByAliases;
+
+	private static final TA_Grid GRID;
+
+	static {
+		// @formatter:off
+		GRID = TA_Grid
+				.create("grid using UTF-8 light border characters")
+				.addCharacterMap(TA_GridConfig.RULESET_NORMAL,
+				' ', '-', '|', '+', '+', '+', '+', '+', '+', '+', '+', '+');
+		// @formatter:on
+	}
 
 	// @formatter:off
 	public ReadSecurityNodeImpl(
@@ -51,25 +63,14 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.declare(attributes)
 				.then(this::sort)
 				.get();
-		final DomainResourceMetadata<D> metadata = getMetadata();
-
 		authorizedAttributes = Utils
 				.declare(sortedAttributes)
 					.second(type)
 				.then(this::getPublicAttributes)
+				.then(this::removeEmpty)
 				.then(this::seal)
 				.then(Collections::unmodifiableMap)
 				.get();
-		nonAssociationAttributes = authorizedAttributes
-				.entrySet()
-				.stream()
-				.map(entry -> Map.entry(
-						entry.getKey(),
-						entry.getValue()
-							.stream()
-							.filter(attribute -> !metadata.isAssociation(attribute))
-							.collect(Collectors.toList())))
-				.collect(CollectionHelper.toMap());
 		aliasesByOrigins = Utils
 				.declare(sortedAttributes)
 					.second(modelContext.getMetadata(type))
@@ -148,6 +149,11 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 		return publicAttributes;
 	}
 
+	private Map<String, Set<String>> removeEmpty(Map<String, Set<String>> publicAttributes) {
+		return publicAttributes.entrySet().stream().filter(entry -> !entry.getValue().isEmpty())
+				.collect(CollectionHelper.toMap());
+	}
+
 	@Override
 	protected String getActualAttributeName(String requestedName) {
 		return originsByAliases.get(requestedName);
@@ -159,26 +165,23 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 	}
 
 	@Override
-	protected List<String> getNonAssociationAttributes(String credentialValue) {
-		return nonAssociationAttributes.get(credentialValue);
-	}
-
-	@Override
 	public String toString() {
-		final AsciiTable table = new AsciiTable();
-
-		table.getRenderer().setCWC(new CWC_AbsoluteEven());
-		table.addRule();
-		table.addRow(null, String.format("%s<%s>", this.getClass().getSimpleName(),
-				getMetadata().getResourceType().getSimpleName()));
-		table.addRule();
-
 		if (authorizedAttributes.isEmpty()) {
-			return table.render();
+			return String.format("%s<%s>(<<nothing was published>>)", this.getClass().getSimpleName(),
+					getMetadata().getResourceType().getSimpleName());
 		}
 
+		final AsciiTable table = new AsciiTable();
+
+		table.getContext().setGrid(GRID);
+		table.getRenderer().setCWC(new CWC_AbsoluteEven());
+		table.addRule();
+		table.addRow(null, String.format("%s<%s> Published attributes", this.getClass().getSimpleName(),
+				getMetadata().getResourceType().getSimpleName()));
+
 		for (final Entry<String, Set<String>> entry : authorizedAttributes.entrySet()) {
-			table.addRow(entry.getKey(), StringHelper.join(StringHelper.COMMA, entry.getValue()));
+			table.addRule();
+			table.addRow(entry.getKey(), StringHelper.join(entry.getValue()));
 		}
 
 		table.addRule();

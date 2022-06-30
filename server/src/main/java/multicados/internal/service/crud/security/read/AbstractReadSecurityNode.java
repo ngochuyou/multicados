@@ -74,8 +74,6 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 
 	protected abstract Set<String> getAuthorizedAttributes(String credentialValue);
 
-	protected abstract List<String> getNonAssociationAttributes(String credentialValue);
-
 	protected DomainResourceMetadata<D> getMetadata() {
 		return metadata;
 	}

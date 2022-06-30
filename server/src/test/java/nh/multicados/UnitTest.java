@@ -9,6 +9,9 @@ package nh.multicados;
  */
 public class UnitTest {
 
-	public static void main(String[] args) {}
+	public static void main(String[] args) {
+		System.out.println("name".hashCode());
+		System.out.println("name".hashCode());
+	}
 
 }

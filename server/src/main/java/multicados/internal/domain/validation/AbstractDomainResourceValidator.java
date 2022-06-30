@@ -40,7 +40,7 @@ public abstract class AbstractDomainResourceValidator<T extends DomainResource> 
 
 		@Override
 		public String getLoggableName() {
-			return String.format("%s, %s", left.getLoggableName(), right.getLoggableName());
+			return String.format("[%s, %s]", left.getLoggableName(), right.getLoggableName());
 		}
 
 	}
