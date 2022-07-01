@@ -50,9 +50,9 @@ import multicados.internal.file.engine.image.ImageService;
 @EnableSpringDataWebSupport
 @EnableAsync
 @EnableScheduling
-public class WebConfiguration implements WebMvcConfigurer {
+public class InternalWebConfiguration implements WebMvcConfigurer {
 
-	private static final Logger logger = LoggerFactory.getLogger(WebConfiguration.class);
+	private static final Logger logger = LoggerFactory.getLogger(InternalWebConfiguration.class);
 
 	@Bean
 	public FactoryBean<SessionFactory> sessionFactory(DataSource dataSource, Environment env) {

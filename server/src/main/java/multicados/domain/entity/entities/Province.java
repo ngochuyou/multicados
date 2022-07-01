@@ -16,6 +16,7 @@ import javax.persistence.Table;
 
 import multicados.domain.entity.PermanentEntity;
 import multicados.internal.domain.NamedResource;
+import multicados.internal.domain.annotation.Name;
 
 /**
  * @author Ngoc Huy
@@ -29,6 +30,7 @@ public class Province extends PermanentEntity<Integer> implements NamedResource 
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id;
 
+	@Name
 	@Column(nullable = false)
 	private String name;
 

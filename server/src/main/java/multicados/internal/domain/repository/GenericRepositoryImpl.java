@@ -427,4 +427,27 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 		// @formatter:on
 	}
 
+	@Override
+	public <D extends DomainResource> long count(Class<D> type, SharedSessionContract session) throws Exception {
+		return count(type, SpecificationHelper.none(), session);
+	}
+
+	@Override
+	public <D extends DomainResource> long count(Class<D> type, Specification<D> specification,
+			SharedSessionContract session) throws Exception {
+		// @formatter:off
+		return declare(criteriaBuilder.createQuery(Long.class))
+				.second(cq -> cq.from(type))
+				.<Selector<D, Long>>third((root, cq, builder) -> List.of(builder.count(root)))
+			.consume(this::doSelect)
+				.third(specification)
+			.then(this::doFilter)
+				.second(session)
+			.then(this::createHQL)
+			.consume(this::log)
+			.then(Query::getSingleResult)
+			.get();
+		// @formatter:on
+	}
+
 }

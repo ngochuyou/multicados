@@ -25,6 +25,4 @@ public class Error {
 		return message;
 	}
 
-
-
 }

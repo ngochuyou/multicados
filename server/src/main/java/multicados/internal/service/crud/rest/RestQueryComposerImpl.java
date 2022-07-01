@@ -32,7 +32,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
-import multicados.internal.domain.For;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.domain.metadata.AssociationType;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory;
@@ -136,9 +136,9 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			}
 
 			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
-				
+
 			classQueue.poll();
-			
+
 			final Map<String, Accessor> scopedAccessors = new HashMap<>();
 
 			while (!classQueue.isEmpty()) {
@@ -189,7 +189,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 			final List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
 			final List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
 			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
-			
+
 			classQueue.poll();
 
 			while (!classQueue.isEmpty()) {

@@ -10,9 +10,11 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.persistence.EntityManager;
+
 import multicados.domain.entity.entities.Category;
 import multicados.domain.entity.entities.Category_;
-import multicados.internal.domain.For;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.domain.validation.AbstractDomainResourceValidator;
 import multicados.internal.domain.validation.Validation;
 import multicados.internal.helper.CollectionHelper;
@@ -63,12 +65,12 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 	}
 	// @formatter:on
 	@Override
-	public Validation isSatisfiedBy(Category resource) {
-		return isSatisfiedBy(resource.getId(), resource);
+	public Validation isSatisfiedBy(EntityManager entityManager, Category resource) {
+		return isSatisfiedBy(entityManager, null, resource);
 	}
 
 	@Override
-	public Validation isSatisfiedBy(Serializable id, Category resource) {
+	public Validation isSatisfiedBy(EntityManager entityManager, Serializable id, Category resource) {
 		Validation result = Validation.success();
 
 		if (resource.getDescription() == null || !DESCRIPTION_PATTERN.matcher(resource.getDescription()).matches()) {

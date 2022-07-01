@@ -4,7 +4,7 @@
 package multicados.controller.query;
 
 import multicados.domain.entity.entities.Province;
-import multicados.internal.domain.For;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.service.crud.rest.AbstractRestQuery;
 
 /**

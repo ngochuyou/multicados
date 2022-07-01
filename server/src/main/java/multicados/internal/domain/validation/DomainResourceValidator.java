@@ -5,6 +5,8 @@ package multicados.internal.domain.validation;
 
 import java.io.Serializable;
 
+import javax.persistence.EntityManager;
+
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.GraphLogic;
 
@@ -14,9 +16,9 @@ import multicados.internal.domain.GraphLogic;
  */
 public interface DomainResourceValidator<T extends DomainResource> extends GraphLogic<T> {
 
-	Validation isSatisfiedBy(T resource);
+	Validation isSatisfiedBy(EntityManager entityManager, T resource) throws Exception;
 
-	Validation isSatisfiedBy(Serializable id, T resource);
+	Validation isSatisfiedBy(EntityManager entityManager, Serializable id, T resource) throws Exception;
 
 	<E extends T> DomainResourceValidator<E> and(DomainResourceValidator<E> next);
 

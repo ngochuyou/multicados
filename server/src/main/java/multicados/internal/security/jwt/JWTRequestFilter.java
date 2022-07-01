@@ -117,11 +117,11 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 			try {
 				if (HttpHelper.isJsonAccepted(request)) {
-					writer.write(objectMapper.writeValueAsString(Common.error("Unable to complete request")));
+					writer.write(objectMapper.writeValueAsString(Common.error(Common.UNABLE_TO_COMPLETE)));
 					return;
 				}
 
-				writer.write("Unable to complete request");
+				writer.write(Common.UNABLE_TO_COMPLETE);
 			} finally {
 				writer.flush();
 			}

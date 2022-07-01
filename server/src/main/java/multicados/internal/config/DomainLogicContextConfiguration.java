@@ -18,6 +18,8 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
 
 import multicados.internal.context.ContextBuilder;
+import multicados.internal.context.DomainLogicUtils;
+import multicados.internal.context.DomainLogicUtilsImpl;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceContextImpl;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
@@ -44,10 +46,11 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 
 	// @formatter:off
 	private final List<Map.Entry<Class<? extends ContextBuilder>, Class<? extends ContextBuilder>>> contextBuilderEntries = List.of(
+			entry(DomainLogicUtils.class, DomainLogicUtilsImpl.class),
 			entry(FileManagement.class, FileManagementImpl.class),
 			entry(DomainResourceContext.class, DomainResourceContextImpl.class),
-			entry(DomainResourceValidatorFactory.class, DomainResourceValidatorFactoryImpl.class),
 			entry(GenericRepository.class, GenericRepositoryImpl.class),
+			entry(DomainResourceValidatorFactory.class, DomainResourceValidatorFactoryImpl.class),
 			entry(DomainResourceBuilderFactory.class, DomainResourceBuilderFactoryImpl.class),
 			entry(ReadSecurityManager.class, ReadSecurityManagerImpl.class),
 			entry(GenericCRUDService.class, GenericCRUDServiceImpl.class),
@@ -56,7 +59,7 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
 		for (Entry<Class<? extends ContextBuilder>, Class<? extends ContextBuilder>> entry : contextBuilderEntries) {
-			final String beanIdentifier = entry.getKey().getName();
+			final String beanIdentifier = getBeanIdentifier(entry.getKey());
 			final Class<? extends ContextBuilder> beanClass = entry.getValue();
 			final GenericBeanDefinition beanDef = new GenericBeanDefinition();
 
@@ -66,6 +69,10 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 
 			registry.registerBeanDefinition(beanIdentifier, beanDef);
 		}
+	}
+
+	private String getBeanIdentifier(Class<? extends ContextBuilder> type) {
+		return type.getName();
 	}
 
 }

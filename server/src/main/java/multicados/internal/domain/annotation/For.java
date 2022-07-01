@@ -1,7 +1,7 @@
 /**
  *
  */
-package multicados.internal.domain;
+package multicados.internal.domain.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -10,6 +10,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import multicados.internal.domain.DomainResource;
 import multicados.internal.helper.StringHelper;
 
 /**

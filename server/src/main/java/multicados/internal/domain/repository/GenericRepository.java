@@ -99,4 +99,10 @@ public interface GenericRepository extends ContextBuilder {
 	<D extends DomainResource> Optional<Tuple> findOne(Class<D> type, Selector<D, Tuple> selector,
 			Specification<D> spec, LockModeType lockMode, SharedSessionContract session) throws Exception;
 
+	/* ==================== */
+	<D extends DomainResource> long count(Class<D> type, SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> long count(Class<D> type, Specification<D> specification, SharedSessionContract session)
+			throws Exception;
+
 }

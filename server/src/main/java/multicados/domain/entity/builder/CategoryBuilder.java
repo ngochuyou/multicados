@@ -8,7 +8,7 @@ import java.io.Serializable;
 import javax.persistence.EntityManager;
 
 import multicados.domain.entity.entities.Category;
-import multicados.internal.domain.For;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.domain.builder.AbstractDomainResourceBuilder;
 import multicados.internal.helper.StringHelper;
 

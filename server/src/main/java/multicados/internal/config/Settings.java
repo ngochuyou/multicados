@@ -44,7 +44,6 @@ public interface Settings {
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS = "multicados.domain.resource.named.chars";
 	public static final String DOMAIN_NAMED_RESOURCE_MAX_LENGTH = "multicados.domain.resource.named.max";
 	public static final String DOMAIN_NAMED_RESOURCE_MIN_LENGTH = "multicados.domain.resource.named.min";
-	public static final String DOMAIN_NAMED_RESOURCE_DEFAULT_FIELD_NAME = "multicados.domain.resource.named.field";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_ALPHABET = "multicados.domain.resource.named.alphabet";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC = "multicados.domain.resource.named.numeric";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL = "multicados.domain.resource.named.literal";

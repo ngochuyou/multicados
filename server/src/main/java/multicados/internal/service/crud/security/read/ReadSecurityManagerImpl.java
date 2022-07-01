@@ -80,7 +80,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 	public <D extends DomainResource> Map<String, String> translate(Class<D> resourceType,
 			Collection<String> attributes) {
 		@SuppressWarnings("unchecked")
-		ReadSecurityNode<D> readSecurityNode = securityNodes.get(resourceType);
+		final ReadSecurityNode<D> readSecurityNode = securityNodes.get(resourceType);
 
 		return readSecurityNode.translate(attributes);
 	}
@@ -418,7 +418,7 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 							}
 						}
 					}
-					
+
 					if (logger.isTraceEnabled()) {
 						logger.trace("Mask all");
 					}
@@ -690,8 +690,8 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 
 	@Override
 	public void summary() {
-		if (logger.isDebugEnabled()) {
-			logger.debug("\n{}",
+		if (logger.isInfoEnabled()) {
+			logger.info("\n{}",
 					securityNodes.values().stream().map(Object::toString).collect(Collectors.joining("\n\n")));
 		}
 	}

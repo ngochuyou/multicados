@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import multicados.domain.entity.Gender;
 import multicados.domain.entity.entities.User;
-import multicados.internal.domain.For;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.domain.builder.AbstractDomainResourceBuilder;
 
 /**

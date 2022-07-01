@@ -5,6 +5,8 @@ package multicados.internal.domain.validation;
 
 import java.io.Serializable;
 
+import javax.persistence.EntityManager;
+
 import multicados.internal.domain.DomainResource;
 
 /**
@@ -29,13 +31,14 @@ public abstract class AbstractDomainResourceValidator<T extends DomainResource> 
 		}
 
 		@Override
-		public Validation isSatisfiedBy(E resource) {
-			return right.isSatisfiedBy(resource).and(left.isSatisfiedBy(resource));
+		public Validation isSatisfiedBy(EntityManager entityManager, E resource) throws Exception {
+			return isSatisfiedBy(entityManager, null, resource);
 		}
 
 		@Override
-		public Validation isSatisfiedBy(Serializable id, E resource) {
-			return right.isSatisfiedBy(id, resource).and(left.isSatisfiedBy(id, resource));
+		public Validation isSatisfiedBy(EntityManager entityManager, Serializable id, E resource) throws Exception {
+			return right.isSatisfiedBy(entityManager, id, resource)
+					.and(left.isSatisfiedBy(entityManager, id, resource));
 		}
 
 		@Override

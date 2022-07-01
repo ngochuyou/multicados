@@ -5,24 +5,22 @@ package multicados.internal.service.crud.security.read;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.security.CredentialException;
+import multicados.internal.service.crud.DomainResourceAttributeTranslator;
 
 /**
  * @author Ngoc Huy
  *
  */
-public interface ReadSecurityManager extends ContextBuilder {
+public interface ReadSecurityManager extends DomainResourceAttributeTranslator, ContextBuilder {
 
 	<D extends DomainResource> List<String> check(Class<D> resourceType, Collection<String> requestedAttributes,
 			GrantedAuthority credential) throws CredentialException, UnknownAttributesException;
-
-	<D extends DomainResource> Map<String, String> translate(Class<D> resourceType, Collection<String> attributes);
 
 	interface WithType<D extends DomainResource> {
 

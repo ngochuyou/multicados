@@ -18,6 +18,7 @@ import multicados.domain.entity.PermanentEntity;
 import multicados.domain.validator.CategoryValidator;
 import multicados.internal.domain.EncryptedIdentifierResource;
 import multicados.internal.domain.NamedResource;
+import multicados.internal.domain.annotation.Name;
 import multicados.internal.helper.Base32;
 
 /**
@@ -39,6 +40,7 @@ public class Category extends PermanentEntity<BigInteger>
 	@Column(unique = true, length = CategoryValidator.MAX_CODE_LENGTH)
 	private String code;
 
+	@Name
 	@Column(unique = true, nullable = false)
 	private String name;
 

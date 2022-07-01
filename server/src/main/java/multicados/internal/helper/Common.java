@@ -39,6 +39,7 @@ public abstract class Common {
 
 	private static final String GENERAL_OK_MESSAGE = "Successfully done";
 	private static final String UNKNOWN_ERROR = "Unknown error";
+	public static final String UNABLE_TO_COMPLETE = "Unable to complete request";
 
 	public static String notEmpty(String... prefix) {
 		return String.format(COMMON_TEMPLATE, StringHelper.join(List.of(prefix)), NOT_EMPTY);

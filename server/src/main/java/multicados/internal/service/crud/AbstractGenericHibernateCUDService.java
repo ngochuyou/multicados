@@ -50,12 +50,12 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 		}
 
 		try {
-			DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
+			final DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
 			resource = resourceBuilder.buildInsertion(id, resource, session);
 
-			DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
-			Validation validation = validator.isSatisfiedBy(id, resource);
+			final DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
+			final Validation validation = validator.isSatisfiedBy(session, id, resource);
 
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
@@ -78,14 +78,14 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 		}
 
 		try {
-			T persistence = session.find(type, id);
+			final T persistence = session.find(type, id);
 
-			DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
+			final DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
 			model = resourceBuilder.buildUpdate(id, model, persistence, session);
 
-			DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
-			Validation validation = validator.isSatisfiedBy(id, model);
+			final DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
+			final Validation validation = validator.isSatisfiedBy(session, id, model);
 
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
@@ -101,8 +101,6 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 
 	@Override
 	public void summary() {
-		final Logger logger = LoggerFactory.getLogger(this.getClass());
-
 		logger.trace(eventListenerGroups.toString());
 	}
 

@@ -28,6 +28,7 @@ import org.springframework.core.type.filter.AssignableTypeFilter;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextBuilder;
+import multicados.internal.domain.annotation.For;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.HandledConsumer;
@@ -136,13 +137,13 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 
 	@SuppressWarnings("rawtypes")
 	private Constructor locateConstructor(Class<GraphLogic> logicClass) {
-		Constructor<?>[] constructors = logicClass.getConstructors();
+		final Constructor<?>[] constructors = logicClass.getConstructors();
 
 		if (constructors.length == 1) {
 			return constructors[0];
 		}
 
-		for (Constructor<?> constructor : constructors) {
+		for (final Constructor<?> constructor : constructors) {
 			if (constructor.isAnnotationPresent(Autowired.class)) {
 				return constructor;
 			}
@@ -161,19 +162,19 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 
 		final Map<Class, LinkedHashSet<LogicEntry>> joinedLogic = new HashMap<>();
 		// @formatter:off
-		final HandledConsumer<Collection<Entry<Class, LogicEntry>>, Exception> finalContributionBuilder = 
+		final HandledConsumer<Collection<Entry<Class, LogicEntry>>, Exception> finalContributionBuilder =
 			(logicEntries) -> {
 				for (final Entry<Class, LogicEntry> logicEntry : logicEntries) {
 					final Class resourceType = logicEntry.getKey();
 					final LogicEntry logic = logicEntry.getValue();
-	
+
 					if (joinedLogic.containsKey(resourceType)) {
 						joinedLogic.get(resourceType).add(logic);
 						continue;
 					}
-					
+
 					final LinkedHashSet<LogicEntry> newLogicSet = new LinkedHashSet<>();
-					
+
 					newLogicSet.add(logic);
 					joinedLogic.put(resourceType, newLogicSet);
 				}
@@ -184,11 +185,6 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 				.map(entry -> Map.entry(entry.getKey(), this.as(entry.getKey(), entry.getValue().getValue())))
 				.collect(Collectors.toList()));
 		finalContributionBuilder.accept(contributions.entrySet());
-
-		for (final Entry<Class, Entry<Class, GraphLogic>> entry : fixedLogics) {
-			System.out.println(String.format("%s:\t%s", entry.getKey().getSimpleName(), String.format("%s(%s)",
-					entry.getValue().getKey().getSimpleName(), entry.getValue().getValue().getLoggableName())));
-		}
 
 		return joinedLogic;
 	}
