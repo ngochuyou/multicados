@@ -43,13 +43,7 @@ public class RegexHelper extends RegExUtils {
 	}
 
 	public interface RegexGroupBuilder extends RegexBuilder {
-
-		@Override
-		RegexBuilder start();
-
-		@Override
-		RegexBuilder end();
-
+		
 		@Override
 		RegexGroupBuilder literal(String fragment);
 

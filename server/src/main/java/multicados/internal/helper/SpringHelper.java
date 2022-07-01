@@ -17,7 +17,7 @@ import multicados.internal.security.DomainUserDetails;
  * @author Ngoc Huy
  *
  */
-public class SpringHelper {
+public abstract class SpringHelper {
 
 	private SpringHelper() {}
 

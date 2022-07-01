@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
-import org.springframework.util.StringUtils;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.DomainLogicUtils;
@@ -118,15 +117,20 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 							.then(() -> DomainResourceValidatorFactoryImpl.AVAILABLE_LITERALS.get(configuredLiteralKey))
 							.orElseThrow(() -> new IllegalArgumentException(String.format("Unknown literal key %s", configuredLiteralKey))))
 				.get();
-		final Pattern pattern = Pattern.compile(declare(RegexHelper.start()).then(RegexBuilder::group)
-				.then(self -> StringUtils.hasLength(literal) ? self.literal(literal) : self)
-				.then(self -> isNaturalAlphabeticAccepted ? self.naturalAlphabet() : self)
-				.then(self -> isNaturalNumericAccepted ? self.naturalNumeric() : self)
-				.then(self -> CollectionHelper.isEmpty(acceptedCharacters) ? self
-						: self.literal(acceptedCharacters))
-				.then(RegexGroupBuilder::end).then(RegexBuilder::withLength)
-				.then(self -> self.min(minLength).max(maxLength)).then(RegexBuilder::end).then(RegexBuilder::build)
-				.get());
+		final Pattern pattern = declare(RegexHelper.start())
+				.then(RegexBuilder::group)
+					.then(self -> StringHelper.hasLength(literal) ? self.literal(literal) : self)
+					.then(self -> isNaturalAlphabeticAccepted ? self.naturalAlphabet() : self)
+					.then(self -> isNaturalNumericAccepted ? self.naturalNumeric() : self)
+					.then(self -> CollectionHelper.isEmpty(acceptedCharacters) ? self
+							: self.literal(acceptedCharacters))
+				.then(RegexGroupBuilder::end)
+					.then(RegexBuilder::withLength)
+					.then(self -> self.min(minLength).max(maxLength))
+				.then(RegexBuilder::end)
+				.then(RegexBuilder::build)
+				.then(Pattern::compile)
+				.get();
 		final String errorMessage = declare(acceptedCharacters).consume(
 				characters -> doWhen(isNaturalAlphabeticAccepted).then(f -> characters.add('L')).orElse(f -> {}))
 				.consume(characters -> doWhen(isNaturalNumericAccepted).then(f -> characters.add('N')).orElse(f -> {}))

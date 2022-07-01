@@ -20,7 +20,7 @@ import org.springframework.util.StringUtils;
  * @author Ngoc Huy
  *
  */
-public class StringHelper extends StringUtils {
+public abstract class StringHelper extends StringUtils {
 
 	public static final String[] EMPTY_STRING_ARRAY = new String[0];
 
