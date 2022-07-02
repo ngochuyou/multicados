@@ -13,15 +13,20 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation.OptionalAssociation;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadataImpl.DomainAssociation.OptionalAssociation;
 
 /**
+ * Fully describes a {@link DomainResource}
+ * 
+ * The root role of this implementation is the
+ * {@link DomainResourceAttributesMetadata}, any other metadata will be
+ * registered as a dependency
+ * 
  * @author Ngoc Huy
  *
  */
-public class DomainResourceMetadataImpl<T extends DomainResource> implements DomainResourceMetadata<T> {
-
-	private final Class<T> resourceType;
+public class DomainResourceAttributesMetadataImpl<T extends DomainResource> extends AbstractDomainResourceMetadata<T>
+		implements DomainResourceAttributesMetadata<T> {
 
 	private final List<String> declaredAttributeNames;
 	private final List<String> unwrappedAttributeNames;
@@ -32,7 +37,9 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	private final Map<String, ComponentPath> componentPaths;
 	private final Map<String, DomainAssociation> associations;
 
-	public DomainResourceMetadataImpl(
+	private final Map<Class<? extends DomainResourceMetadata<T>>, DomainResourceMetadata<T>> additionalMetadatas;
+
+	public DomainResourceAttributesMetadataImpl(
 	// @formatter:off
 			Class<T> resourceType,
 			List<String> declaredAttributeNames,
@@ -41,9 +48,10 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 			Map<String, Class<?>> attributeTypes,
 			List<String> nonLazyAttributeNames,
 			Map<String, ComponentPath> componentPaths,
-			Map<String, DomainAssociation> associations) {
+			Map<String, DomainAssociation> associations,
+			Map<Class<? extends DomainResourceMetadata<T>>, DomainResourceMetadata<T>> additionalMetadatas) {
 		// @formatter:on
-		this.resourceType = resourceType;
+		super(resourceType);
 		this.declaredAttributeNames = unmodifiableList(declaredAttributeNames);
 		this.unwrappedAttributeNames = unmodifiableList(unwrappedAttributeNames);
 		this.wrappedAttributeNames = unmodifiableList(wrappedAttributeNames);
@@ -51,11 +59,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		this.attributeTypes = unmodifiableMap(attributeTypes);
 		this.componentPaths = unmodifiableMap(componentPaths);
 		this.associations = unmodifiableMap(associations);
-	}
-
-	@Override
-	public Class<T> getResourceType() {
-		return resourceType;
+		this.additionalMetadatas = unmodifiableMap(additionalMetadatas);
 	}
 
 	@Override
@@ -118,6 +122,22 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 		return componentPaths.containsKey(attributeName);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public <M extends DomainResourceMetadata<T>> M unwrap(Class<M> type) {
+		if (type.equals(DomainResourceAttributesMetadata.class)) {
+			return (M) this;
+		}
+
+		final M target = (M) additionalMetadatas.get(type);
+
+		if (target == null) {
+			throw new IllegalArgumentException(String.format("Metadata role %s not found", type));
+		}
+
+		return target;
+	}
+
 	public Map<String, Class<?>> getAttributeTypes() {
 		return attributeTypes;
 	}
@@ -140,7 +160,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 	@Override
 	public String toString() {
 		if (wrappedAttributeNames.isEmpty()) {
-			return String.format("%s<%s>(<<empty>>)", this.getClass().getSimpleName(), resourceType.getName());
+			return String.format("%s<%s>(<<empty>>)", this.getClass().getSimpleName(), getResourceType().getName());
 		}
 		// @formatter:off
 		return String.format("%s<%s>(\n"
@@ -163,7 +183,7 @@ public class DomainResourceMetadataImpl<T extends DomainResource> implements Dom
 				+ "\t\t%s\n"
 				+ "\t],\n"
 				+ ")",
-				this.getClass().getSimpleName(), resourceType.getName(),
+				this.getClass().getSimpleName(), getResourceType().getName(),
 				collectList(unwrappedAttributeNames, Function.identity()),
 				collectList(wrappedAttributeNames, Function.identity()),
 				collectList(nonLazyAttributeNames, Function.identity()),

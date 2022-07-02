@@ -7,8 +7,11 @@ import java.io.Serializable;
 import java.util.regex.Pattern;
 
 import javax.persistence.EntityManager;
+import javax.persistence.criteria.Path;
 
-import org.hibernate.Session;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.persister.entity.EntityPersister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,15 +24,15 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 
 	private static final Logger logger = LoggerFactory.getLogger(NamedResourceValidator.class);
 
-	private final String fieldName;
+	private final String nameFieldName;
 	private final String errorMessage;
 	private final Pattern pattern;
 
 	private final GenericRepository genericRepository;
 
-	NamedResourceValidator(GenericRepository genericRepository, String fieldName, Pattern pattern, String errorMessage)
-			throws Exception {
-		this.fieldName = fieldName;
+	NamedResourceValidator(Class<? extends NamedResource> resourceType, GenericRepository genericRepository,
+			String fieldName, Pattern pattern, String errorMessage) throws Exception {
+		this.nameFieldName = fieldName;
 		this.errorMessage = errorMessage;
 		this.pattern = pattern;
 		if (logger.isDebugEnabled()) {
@@ -45,18 +48,38 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 		final Validation result = Validation.success();
 
 		if (resource.getName() == null || !pattern.matcher(resource.getName()).matches()) {
-			result.bad(fieldName, errorMessage);
+			result.bad(nameFieldName, errorMessage);
 		}
 
 		final Class<? extends NamedResource> resourceType = resource.getClass();
-		final Session session = (Session) entityManager;
+		final SharedSessionContractImplementor session = (SharedSessionContractImplementor) entityManager;
 
-		if (genericRepository.count(resourceType,
-				(root, cq, builder) -> builder.equal(root.get(fieldName), resource.getName()), session) != 0) {
-			result.bad(fieldName, String.format("Duplicate name '%s'", resource.getName()));
+		if (count(resource, resourceType, session) != 0) {
+			result.bad(nameFieldName, String.format("Duplicate name '%s'", resource.getName()));
 		}
 
 		return result;
+	}
+
+	private long count(NamedResource resource, final Class<? extends NamedResource> resourceType,
+			final SharedSessionContractImplementor session) throws Exception {
+		final EntityPersister persister = session.getFactory().unwrap(SessionFactoryImplementor.class).getMetamodel()
+				.entityPersister(resourceType);
+		final Serializable identifier = persister.getIdentifier(resource, session);
+		// @formatter:off
+		return genericRepository.count(resourceType,
+				(root, cq, builder) -> {
+					final Path<Object> identifierPath = root.get(persister.getIdentifierPropertyName());
+					return builder.and(
+							// has this name
+							builder.equal(root.get(nameFieldName), resource.getName()),
+							// but not this id
+							identifier != null ?
+									builder.notEqual(identifierPath, identifier) :
+												builder.isNotNull(identifierPath));
+				},
+				session);
+		// @formatter:on
 	}
 
 	@Override
@@ -68,7 +91,7 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((fieldName == null) ? 0 : fieldName.hashCode());
+		result = prime * result + ((nameFieldName == null) ? 0 : nameFieldName.hashCode());
 		result = prime * result + ((pattern == null) ? 0 : pattern.toString().hashCode());
 		return result;
 	}
@@ -82,10 +105,10 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 
 		final NamedResourceValidator other = (NamedResourceValidator) obj;
 
-		if (fieldName == null) {
-			if (other.fieldName != null)
+		if (nameFieldName == null) {
+			if (other.nameFieldName != null)
 				return false;
-		} else if (!fieldName.equals(other.fieldName))
+		} else if (!nameFieldName.equals(other.nameFieldName))
 			return false;
 		if (pattern == null) {
 			if (other.pattern != null)
@@ -97,7 +120,7 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 
 	@Override
 	public String getLoggableName() {
-		return String.format("%s(%s)", this.getClass().getSimpleName(), fieldName);
+		return String.format("%s(%s)", this.getClass().getSimpleName(), nameFieldName);
 	}
 
 }

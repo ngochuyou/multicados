@@ -104,7 +104,7 @@ public class FileController extends AbstractController {
 	}
 
 	private ResponseEntity<?> doGetBytesDirectly(HttpServletRequest request, String path) throws IOException {
-		File file = new File(path);
+		final File file = new File(path);
 
 		if (file.exists() && file.isFile()) {
 			if (logger.isDebugEnabled()) {

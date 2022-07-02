@@ -34,7 +34,7 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.annotation.For;
 import multicados.internal.domain.metadata.AssociationType;
-import multicados.internal.domain.metadata.DomainResourceMetadata;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.CollectionHelper;
@@ -185,7 +185,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				continue;
 			}
 
-			final DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType);
+			final DomainResourceAttributesMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType).unwrap(DomainResourceAttributesMetadata.class);
 			final List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
 			final List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
 			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
@@ -245,7 +245,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	@SuppressWarnings("unchecked")
 	private void assertAssociationTypeEquality(
 	// @formatter:off
-			DomainResourceMetadata<? extends DomainResource> metadata,
+			DomainResourceAttributesMetadata<? extends DomainResource> metadata,
 			Class<? extends RestQuery<?>> queryType,
 			String associationName,
 			Class<? extends DomainResource> associationTypeInQuery) throws NoSuchFieldException, SecurityException {
@@ -309,12 +309,13 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		// @formatter:on
 	}
 
-	private boolean determineBatching(DomainResourceMetadata<?> associationOwnerMetadata, String associationName,
+	private boolean determineBatching(DomainResourceAttributesMetadata<?> associationOwnerMetadata, String associationName,
 			boolean isQueryBatched) {
 		return isQueryBatched
 				&& associationOwnerMetadata.getAssociationType(associationName) == AssociationType.COLLECTION;
 	}
 
+	@SuppressWarnings("unchecked")
 	private <D extends DomainResource> BiDeclaration<List<ComposedNonBatchingRestQuery<?>>, List<ComposedRestQuery<?>>> composeAssociationQuery(
 	// @formatter:off
 			RestQuery<?> owningQuery,
@@ -326,7 +327,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		final List<ComposedNonBatchingRestQuery<?>> composedNonBatchingQueries = new ArrayList<>(
 				rawNonBatchingQueries.size());
 		int index = owningQuery.getAttributes().size();
-		final DomainResourceMetadata<?> resourceMetadata = resourceContext.getMetadata(owningQuery.getResourceType());
+		final DomainResourceAttributesMetadata<?> resourceMetadata = resourceContext.getMetadata(owningQuery.getResourceType()).unwrap(DomainResourceAttributesMetadata.class);
 
 		for (RestQuery<?> rawNonBatchingQuery : rawNonBatchingQueries) {
 			// @formatter:off
@@ -396,7 +397,7 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	private <D extends DomainResource> TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> filterAssociationsFromBasicAttributes(
 			RestQuery<?> owningQuery, Set<String> basicAttributes, List<List<RestQuery<?>>> associationQueries)
 			throws Exception {
-		final DomainResourceMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType());
+		final DomainResourceAttributesMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType()).unwrap(DomainResourceAttributesMetadata.class);
 		final List<String> filteredBasicAttributes = new ArrayList<>(basicAttributes.size());
 
 		for (final String attribute : basicAttributes) {

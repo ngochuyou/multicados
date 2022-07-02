@@ -9,6 +9,7 @@ import static multicados.internal.helper.Utils.HandledFunction.identity;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import javax.servlet.FilterChain;
@@ -25,6 +26,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.WebUtils;
@@ -75,7 +77,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 		try {
-			String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+			final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
 			if (authHeader == null || !authHeader.startsWith(jwtSecurityContext.getHeaderPrefix())) {
 				if (logger.isTraceEnabled()) {
@@ -104,6 +106,14 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 				.consume(this::doPostValidation);
 
 			filterChain.doFilter(request, response);
+			return;
+		} catch (UsernameNotFoundException unfe) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(Common.notFound(List.of(unfe.getMessage())));
+			}
+			
+			filterChain.doFilter(request, response);
+			return;
 		} catch (Exception any) {
 			any.printStackTrace();
 
@@ -113,7 +123,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
-			PrintWriter writer = response.getWriter();
+			final PrintWriter writer = response.getWriter();
 
 			try {
 				if (HttpHelper.isJsonAccepted(request)) {
@@ -125,6 +135,8 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			} finally {
 				writer.flush();
 			}
+			
+			return;
 		}
 	}
 
@@ -139,7 +151,15 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	}
 
 	private UserDetails tryLocatingFromOnMemoryContext(Candidate candidate) {
-		return onMemoryUserDetailsContext.get(candidate.getUsername());
+		final UserDetails onMemoryUserDetails = onMemoryUserDetailsContext.get(candidate.getUsername());
+
+		if (logger.isDebugEnabled()) {
+			if (onMemoryUserDetails != null) {
+				logger.debug("Found {} on memory cache", onMemoryUserDetails.getUsername());
+			}
+		}
+
+		return onMemoryUserDetails;
 	}
 
 	private UserDetails tryLocatingFromDataSource(Candidate candidate, UserDetails onMemoryUserDetails) {
@@ -149,18 +169,17 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 	private TriDeclaration<Candidate, DomainUserDetails, UsernamePasswordAuthenticationToken> validate(
 			Candidate candidate, DomainUserDetails userDetails) {
-		LocalDateTime now = LocalDateTime.now();
+		final LocalDateTime now = LocalDateTime.now();
 
 		if (candidate.getExpiration() == null || candidate.getExpiration().isBefore(now)) {
 			return declare(candidate, userDetails, EXPIRED_TOKEN);
 		}
-		// 2022-06-09T16:47:07.743
-		// 2022-06-09T16:47:07.743701
+
 		if (candidate.getVersion() == null || !candidate.getVersion().isEqual(userDetails.getVersion())) {
 			return declare(candidate, userDetails, STALE_TOKEN);
 		}
 
-		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(userDetails, null,
+		final UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(userDetails, null,
 				userDetails.getAuthorities());
 
 		token.setDetails(new WebAuthenticationDetailsSource().buildDetails(candidate.getRequest()));
@@ -171,9 +190,9 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	private void doPostValidation(
 			TriDeclaration<Candidate, DomainUserDetails, UsernamePasswordAuthenticationToken> validation)
 			throws Exception {
-		UsernamePasswordAuthenticationToken token = validation.getThird();
-		HttpServletRequest request = validation.getFirst().getRequest();
-		HttpServletResponse response = validation.getFirst().getResponse();
+		final UsernamePasswordAuthenticationToken token = validation.getThird();
+		final HttpServletRequest request = validation.getFirst().getRequest();
+		final HttpServletResponse response = validation.getFirst().getResponse();
 
 		if (token == EXPIRED_TOKEN) {
 			response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -188,6 +207,7 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			return;
 		}
 
+		onMemoryUserDetailsContext.put(validation.getSecond());
 		SecurityContextHolder.getContext().setAuthentication(token);
 	}
 

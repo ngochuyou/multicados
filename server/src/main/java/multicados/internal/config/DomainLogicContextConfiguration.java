@@ -18,8 +18,6 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
 
 import multicados.internal.context.ContextBuilder;
-import multicados.internal.context.DomainLogicUtils;
-import multicados.internal.context.DomainLogicUtilsImpl;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceContextImpl;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
@@ -46,7 +44,6 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 
 	// @formatter:off
 	private final List<Map.Entry<Class<? extends ContextBuilder>, Class<? extends ContextBuilder>>> contextBuilderEntries = List.of(
-			entry(DomainLogicUtils.class, DomainLogicUtilsImpl.class),
 			entry(FileManagement.class, FileManagementImpl.class),
 			entry(DomainResourceContext.class, DomainResourceContextImpl.class),
 			entry(GenericRepository.class, GenericRepositoryImpl.class),

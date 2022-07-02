@@ -48,6 +48,10 @@ public interface Settings {
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_NATURAL_NUMERIC = "multicados.domain.resource.named.numeric";
 	public static final String DOMAIN_NAMED_RESOURCE_ACCEPTED_LITERAL = "multicados.domain.resource.named.literal";
 
+	public static final String USER_DEFAULT_PHOTO_FILENAME = "multicados.user.photo";
+	
 	public static final String DEFAULT_PRODUCTION_PROFILE = "PROD";
-
+	
+	public static final	String HBM_FLUSH_MODE = "org.hibernate.flushMode";
+	
 }

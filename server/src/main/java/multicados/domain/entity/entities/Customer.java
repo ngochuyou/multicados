@@ -24,7 +24,7 @@ public class Customer extends User {
 		setRole(Role.CUSTOMER);
 	}
 
-	public Boolean getSubscribed() {
+	public Boolean isSubscribed() {
 		return subscribed;
 	}
 

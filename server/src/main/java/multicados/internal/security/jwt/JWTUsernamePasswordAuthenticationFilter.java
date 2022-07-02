@@ -4,6 +4,7 @@
 package multicados.internal.security.jwt;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Optional;
 
 import javax.servlet.FilterChain;
@@ -15,9 +16,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -65,41 +68,56 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
 			throws AuthenticationException, IOException, ServletException {
 		// TODO Auto-generated method stub
-		String username = Optional.ofNullable(request.getParameter(jwtSecurityContext.getUsernameParam()))
+		final String username = Optional.ofNullable(request.getParameter(jwtSecurityContext.getUsernameParam()))
 				.orElseThrow(() -> usernameNotFoundException);
-		String password = Optional.ofNullable(request.getParameter(jwtSecurityContext.getPasswordParam()))
+		final String password = Optional.ofNullable(request.getParameter(jwtSecurityContext.getPasswordParam()))
 				.orElseThrow(() -> passwordNotFoundException);
-		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
+		final UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
 
-		return this.getAuthenticationManager().authenticate(token);
+		try {
+			return this.getAuthenticationManager().authenticate(token);
+		} catch (AuthenticationException any) {
+			if (any instanceof InternalAuthenticationServiceException) {
+				if (any.getCause() instanceof IllegalStateException) {
+					if (any.getCause().getCause() instanceof UsernameNotFoundException) {
+						throw (UsernameNotFoundException) any.getCause().getCause();
+					}
+				}
+			}
+
+			throw any;
+		}
 	}
 
 	@Override
 	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
 			Authentication authentication) throws IOException, ServletException {
-		DomainUserDetails userDetails = (DomainUserDetails) authentication.getPrincipal();
+		final DomainUserDetails userDetails = (DomainUserDetails) authentication.getPrincipal();
 
 		onMemoryUserDetailsContext.put(userDetails);
+
+		final PrintWriter writer = response.getWriter();
 
 		try {
 			response.addCookie(jwtStrategy.generateCookie(userDetails));
 			response.setStatus(HttpStatus.OK.value());
 
 			if (HttpHelper.isTextAccepted(request)) {
-				response.getWriter().write(SUCCESSFULLY_LOGGED_IN);
-				response.getWriter().flush();
+				writer.write(SUCCESSFULLY_LOGGED_IN);
 				HttpHelper.text(response);
 				return;
 			}
 
 			if (HttpHelper.isJsonAccepted(request)) {
-				response.getWriter().write(objectMapper.writeValueAsString(Common.payload(SUCCESSFULLY_LOGGED_IN)));
-				response.getWriter().flush();
+				writer.write(objectMapper.writeValueAsString(Common.payload(SUCCESSFULLY_LOGGED_IN)));
 				HttpHelper.json(response);
 				return;
 			}
 		} catch (Exception any) {
 			throw new ServletException(any);
+		} finally {
+			writer.flush();
+			writer.close();
 		}
 	}
 

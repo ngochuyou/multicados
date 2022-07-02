@@ -78,7 +78,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 					List.of(new SimpleGrantedAuthority(tuple.get(User_.ROLE, Role.class).name())));
 			// @formatter:on
 		} catch (Exception any) {
-			any.printStackTrace();
 			throw new IllegalStateException(any);
 		}
 	}

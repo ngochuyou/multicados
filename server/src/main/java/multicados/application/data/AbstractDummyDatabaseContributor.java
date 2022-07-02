@@ -28,7 +28,7 @@ import multicados.internal.config.Settings;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.AssociationType;
-import multicados.internal.domain.metadata.DomainResourceMetadata;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
@@ -64,8 +64,7 @@ public abstract class AbstractDummyDatabaseContributor {
 
 	@SuppressWarnings("unchecked")
 	private List<Map<String, Object>> getArray(String uri) throws StreamReadException, DatabindException, IOException {
-		return objectMapper.readValue(new ClassPathResource(uri).getInputStream(),
-				List.class);
+		return objectMapper.readValue(new ClassPathResource(uri).getInputStream(), List.class);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -77,6 +76,7 @@ public abstract class AbstractDummyDatabaseContributor {
 		return TypeHelper.cast((Class<Object>) value.getClass(), (Class<Object>) expecting, value);
 	}
 
+	@SuppressWarnings("unchecked")
 	private <E extends DomainResource, T extends E> List<T> toInstances(List<Map<String, Object>> objMaps,
 			Class<E> type, SessionFactoryImplementor sfi) throws Exception {
 		if (objMaps.isEmpty()) {
@@ -101,9 +101,10 @@ public abstract class AbstractDummyDatabaseContributor {
 				}).filter(Objects::nonNull).collect(Collectors.toList());
 
 		return IntStream.range(0, batchSize).mapToObj(index -> {
-			DomainResourceTuplizer<T> tuplizer = instanceEntries.get(index).getValue();
-			DomainResourceMetadata<T> metadata = resourceContext.getMetadata(tuplizer.getResourceType());
-			Map<String, Object> state = objMaps.get(index);
+			final DomainResourceTuplizer<T> tuplizer = instanceEntries.get(index).getValue();
+			final DomainResourceAttributesMetadata<T> metadata = resourceContext.getMetadata(tuplizer.getResourceType())
+					.unwrap(DomainResourceAttributesMetadata.class);
+			final Map<String, Object> state = objMaps.get(index);
 
 			for (Map.Entry<String, Object> entry : state.entrySet()) {
 				try {
@@ -136,7 +137,8 @@ public abstract class AbstractDummyDatabaseContributor {
 
 	@SuppressWarnings("unchecked")
 	private Object resolveValue(String attributeName, Object value,
-			DomainResourceMetadata<? extends DomainResource> metadata, SessionFactoryImplementor sfi) throws Exception {
+			DomainResourceAttributesMetadata<? extends DomainResource> metadata, SessionFactoryImplementor sfi)
+			throws Exception {
 		if (metadata.isAssociation(attributeName)
 				&& metadata.getAssociationType(attributeName) == AssociationType.ENTITY) {
 			Class<? extends DomainResource> associationJavaType = (Class<? extends DomainResource>) metadata

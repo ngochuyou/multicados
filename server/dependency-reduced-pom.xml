@@ -27,6 +27,14 @@
                   <mainClass>multicados.application.MulticadosBootEntry</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>nh.multicados</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.MF</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>

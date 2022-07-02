@@ -30,6 +30,7 @@ import org.springframework.core.type.filter.TypeFilter;
 
 import multicados.internal.config.Settings;
 import multicados.internal.context.ContextBuilder;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadataBuilder;
 import multicados.internal.domain.metadata.DomainResourceMetadataBuilderImpl;
@@ -83,7 +84,7 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends DomainResource> DomainResourceMetadata<T> getMetadata(Class<T> resourceType) {
-		return (DomainResourceMetadata<T>) metadatasMap.get(resourceType);
+		return (DomainResourceAttributesMetadata<T>) metadatasMap.get(resourceType);
 	}
 
 	@SuppressWarnings("unchecked")

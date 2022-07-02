@@ -3,6 +3,7 @@
  */
 package multicados.controller.controllers;
 
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -40,9 +41,10 @@ public class RestCategoryController extends AbstractController {
 	@GetMapping
 	@Transactional(readOnly = true)
 	public ResponseEntity<?> getCategories(CategoryQuery query, Authentication authentication) throws Exception {
-		return ResponseEntity.ok(
-				crudService.readAll(query, SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(),
-						sessionFactory.getCurrentSession()));
+		final Session session = sessionFactory.getCurrentSession();
+
+		return ResponseEntity.ok(crudService.readAll(query,
+				SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(), session));
 	}
 
 	@PostMapping

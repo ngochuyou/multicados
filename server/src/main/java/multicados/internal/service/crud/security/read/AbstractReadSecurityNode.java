@@ -12,6 +12,7 @@ import org.hibernate.internal.util.collections.CollectionHelper;
 import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.domain.DomainResource;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.security.CredentialException;
 
@@ -21,11 +22,12 @@ import multicados.internal.security.CredentialException;
  */
 public abstract class AbstractReadSecurityNode<D extends DomainResource> implements ReadSecurityNode<D> {
 
-	private final DomainResourceMetadata<D> metadata;
+	private final DomainResourceAttributesMetadata<D> metadata;
 	private final ReadFailureExceptionHandler exceptionHandler;
 
+	@SuppressWarnings("unchecked")
 	public AbstractReadSecurityNode(DomainResourceMetadata<D> metadata, ReadFailureExceptionHandler exceptionHandler) {
-		this.metadata = metadata;
+		this.metadata = metadata.unwrap(DomainResourceAttributesMetadata.class);
 		this.exceptionHandler = exceptionHandler;
 	}
 
@@ -74,7 +76,7 @@ public abstract class AbstractReadSecurityNode<D extends DomainResource> impleme
 
 	protected abstract Set<String> getAuthorizedAttributes(String credentialValue);
 
-	protected DomainResourceMetadata<D> getMetadata() {
+	protected DomainResourceAttributesMetadata<D> getMetadata() {
 		return metadata;
 	}
 

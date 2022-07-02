@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import multicados.internal.domain.DomainResource;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 
 /**
@@ -20,9 +21,11 @@ public class DefaultReadSecurityNode<D extends DomainResource> extends AbstractR
 
 	private final Set<String> authorizedAttributes;
 
+	@SuppressWarnings("unchecked")
 	public DefaultReadSecurityNode(DomainResourceMetadata<D> metadata, ReadFailureExceptionHandler exceptionThrower) {
 		super(metadata, exceptionThrower);
-		authorizedAttributes = new HashSet<>(metadata.getAttributeNames());
+		authorizedAttributes = new HashSet<>(
+				metadata.unwrap(DomainResourceAttributesMetadata.class).getAttributeNames());
 	}
 
 	@Override

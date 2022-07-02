@@ -7,6 +7,7 @@ import java.io.Closeable;
 
 import multicados.internal.context.ContextBuilder;
 import multicados.internal.context.Loggable;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.DomainResourceTuplizer;
 
@@ -27,13 +28,13 @@ public interface DomainResourceContext extends ContextBuilder {
 		<D extends DomainResource> void register(Class<D> expectingType, MetadataEntryObserver<D> observer)
 				throws IllegalAccessException;
 
-		<D extends DomainResource> void notify(DomainResourceMetadata<D> metadata);
+		<D extends DomainResource> void notify(DomainResourceAttributesMetadata<D> metadata);
 
 	}
 
 	public interface MetadataEntryObserver<D extends DomainResource> {
 
-		void notify(DomainResourceMetadata<D> metadata);
+		void notify(DomainResourceAttributesMetadata<D> metadata);
 
 	}
 

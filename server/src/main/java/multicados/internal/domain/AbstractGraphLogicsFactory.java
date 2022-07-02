@@ -181,6 +181,7 @@ public abstract class AbstractGraphLogicsFactory extends ContextBuilder.Abstract
 			};
 		// @formatter:on
 		final Collection<Entry<Class, Entry<Class, GraphLogic>>> fixedLogics = getFixedLogics(applicationContext);
+
 		finalContributionBuilder.accept(fixedLogics.stream()
 				.map(entry -> Map.entry(entry.getKey(), this.as(entry.getKey(), entry.getValue().getValue())))
 				.collect(Collectors.toList()));

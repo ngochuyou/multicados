@@ -3,8 +3,6 @@
  */
 package multicados.internal.domain.builder;
 
-import java.io.Serializable;
-
 import javax.persistence.EntityManager;
 
 import multicados.internal.context.ContextBuildListener;
@@ -23,21 +21,21 @@ public interface DomainResourceBuilder<T extends DomainResource> extends GraphLo
 	 * <em>Example:</em> While inserting an user we always hash the password.
 	 * Whereas an update has to perform a check to determine if the user is updating
 	 * their password or not, then make the decision to hash/update that password
-	 *
-	 * @param model
+	 * 
+	 * @param persistence
+	 * @param entityManger
 	 * @return entity {@link DomainResource}
 	 * @throws Exception
 	 */
-	T buildInsertion(Serializable id, T model, EntityManager entityManager) throws Exception;
+	T buildInsertion(T persistence, EntityManager entityManager) throws Exception;
 
 	/**
-	 * @param id
-	 * @param model the requested data to update
-	 * @param resource the persistent entity
+	 * @param model        the requested data model to update
 	 * @param entityManger
+	 * @param resource     the persistent entity
 	 * @return persisted {@link DomainResource}
 	 */
-	T buildUpdate(Serializable id, T model, T persistence, EntityManager entityManger);
+	T buildUpdate(T model, T persistence, EntityManager entityManger);
 
 	<E extends T> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next);
 

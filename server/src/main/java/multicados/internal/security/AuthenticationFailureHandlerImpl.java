@@ -4,6 +4,7 @@
 package multicados.internal.security;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -11,10 +12,11 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import multicados.internal.helper.Common;
@@ -37,32 +39,54 @@ public class AuthenticationFailureHandlerImpl implements AuthenticationFailureHa
 	@Override
 	public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
 			AuthenticationException exception) throws IOException, ServletException {
+
 		if (exception != null) {
+			if (exception instanceof UsernameNotFoundException) {
+				response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+				writeBody(request, response, exception);
+				return;
+			}
+
+			if (exception instanceof LockedException) {
+				response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+				writeBody(request, response, exception);
+				return;
+			}
+
 			if (logger.isErrorEnabled()) {
 				logger.error(exception.getMessage());
 			}
 
-			response.getWriter().write(resolveBody(request, response, exception));
-			response.getWriter().flush();
+			writeBody(request, response, exception);
 		}
 
 		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 	}
 
-	private String resolveBody(HttpServletRequest request, HttpServletResponse response,
-			AuthenticationException exception) throws JsonProcessingException {
-		if (HttpHelper.isJsonAccepted(request)) {
-			HttpHelper.json(response);
-			return mapper.writeValueAsString(Common.error(exception.getMessage()));
-		}
+	private void writeBody(HttpServletRequest request, HttpServletResponse response, Throwable exception)
+			throws IOException {
+		final PrintWriter writer = response.getWriter();
 
-		if (HttpHelper.isTextAccepted(request)) {
-			HttpHelper.text(response);
-			return exception.getMessage();
-		}
+		try {
+			if (HttpHelper.isJsonAccepted(request)) {
+				HttpHelper.json(response);
+				writer.write(mapper.writeValueAsString(Common.error(exception.getMessage())));
+				return;
+			}
 
-		HttpHelper.all(response);
-		return null;
+			writer.write(exception.getMessage());
+
+			if (HttpHelper.isTextAccepted(request)) {
+				HttpHelper.text(response);
+				return;
+			}
+
+			HttpHelper.all(response);
+			return;
+		} finally {
+			writer.flush();
+			writer.close();
+		}
 	}
 
 }

@@ -14,10 +14,14 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.hibernate.FlushMode;
+import org.hibernate.Session;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseEntity.BodyBuilder;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.context.request.WebRequest;
 
 import multicados.domain.entity.Role;
 import multicados.internal.helper.CollectionHelper;
@@ -94,6 +98,23 @@ public abstract class AbstractController {
 					.map(entry -> Map.entry(entry.getKey(), entry.getValue().getMessage()))
 					.collect(CollectionHelper.toMap()));
 		// @formatter:on
+	}
+
+	protected Session useManualSession(Session session) {
+		session.setHibernateFlushMode(FlushMode.MANUAL);
+		return session;
+	}
+
+	protected ResponseEntity<?> resolveBody(Throwable cause, WebRequest request, BodyBuilder response, String message) {
+		if (HttpHelper.isJsonAccepted(request)) {
+			return response.body(Common.error(message));
+		}
+
+		return response.body(message);
+	}
+
+	protected BodyBuilder getBadRequest() {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST);
 	}
 
 }

@@ -5,7 +5,6 @@ package multicados.internal.domain.builder;
 
 import static java.util.Map.entry;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -21,8 +20,10 @@ import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.GraphLogic;
+import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.PermanentResource;
+import multicados.internal.domain.metadata.IdentifiableResourceMetadata;
 import multicados.internal.helper.StringHelper;
 
 /**
@@ -51,7 +52,7 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 	protected Collection<Entry<Class, Entry<Class, GraphLogic>>> getFixedLogics(ApplicationContext applicationContext) {
 		// @formatter:off
 		return List.of(
-				// entry(IdentifiableResource.class, entry(IdentifiableResource.class, IDENTIFIABLE_RESOURCE_BUILDER)),
+				entry(IdentifiableResource.class, entry(IdentifiableResource.class, new IdentifiableResourceBuilder(applicationContext.getBean(DomainResourceContext.class)))),
 				entry(NamedResource.class, entry(NamedResource.class, NAMED_RESOURCE_BUILDER)),
 				entry(PermanentResource.class, entry(PermanentResource.class, PERMANENT_RESOURCE_BUILDER)));
 		// @formatter:on
@@ -75,15 +76,13 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 	private static final AbstractDomainResourceBuilder<NamedResource> NAMED_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
 
 		@Override
-		public NamedResource buildInsertion(Serializable id, NamedResource resource, EntityManager entityManager)
-				throws Exception {
+		public NamedResource buildInsertion(NamedResource resource, EntityManager entityManager) throws Exception {
 			resource.setName(StringHelper.normalizeString(resource.getName()));
 			return resource;
 		}
 
 		@Override
-		public NamedResource buildUpdate(Serializable id, NamedResource model, NamedResource resource,
-				EntityManager entityManger) {
+		public NamedResource buildUpdate(NamedResource model, NamedResource resource, EntityManager entityManger) {
 			resource.setName(StringHelper.normalizeString(model.getName()));
 			return resource;
 		}
@@ -102,14 +101,14 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 
 	private static final AbstractDomainResourceBuilder<PermanentResource> PERMANENT_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
 		@Override
-		public PermanentResource buildInsertion(Serializable id, PermanentResource resource,
-				EntityManager entityManager) throws Exception {
+		public PermanentResource buildInsertion(PermanentResource resource, EntityManager entityManager)
+				throws Exception {
 			resource.setActive(Boolean.TRUE);
 			return resource;
 		}
 
 		@Override
-		public PermanentResource buildUpdate(Serializable id, PermanentResource model, PermanentResource resource,
+		public PermanentResource buildUpdate(PermanentResource model, PermanentResource resource,
 				EntityManager entityManger) {
 			return resource;
 		}
@@ -126,68 +125,67 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 
 	};
 
-//	@SuppressWarnings("rawtypes")
-//	private static final AbstractDomainResourceBuilder<IdentifiableResource> IDENTIFIABLE_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
-//
-//		private static final Map<Class<? extends Serializable>, Class<? extends Serializable>> TYPE_KEY_RESOLVERS = Map
-//				.of(String.class, String.class);
-//
-//		private static final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> HANDLER_RESOLVERS;
-//
-//		static {
-//			final Map<Class<? extends Serializable>, Utils.HandledFunction<Serializable, Serializable, Exception>> handlerResolvers = new HashMap<>(
-//					8);
-//
-//			handlerResolvers.put(String.class, id -> StringHelper.normalizeString((String) id));
-//			handlerResolvers.put(null, id -> id);
-//
-//			HANDLER_RESOLVERS = Collections.unmodifiableMap(handlerResolvers);
-//		}
-//
-//		@SuppressWarnings("unchecked")
-//		@Override
-//		public IdentifiableResource buildInsertion(Serializable id, IdentifiableResource resource,
-//				EntityManager entityManager) throws Exception {
-//			if (id == null) {
-//				return resource;
-//			}
-//			// @formatter:off
-//			resource.setId(HANDLER_RESOLVERS
-//					.get(TYPE_KEY_RESOLVERS.get(id.getClass()))
-//					.apply(id));
-//			// @formatter:on
-//			return resource;
-//		}
-//
-//		@Override
-//		public IdentifiableResource buildUpdate(Serializable id, IdentifiableResource model,
-//				IdentifiableResource resource, EntityManager entityManger) {
-//			return resource;
-//		}
-//
-//		@Override
-//		public String getLoggableName() {
-//			return "IdentifiableResourceBuilder";
-//		}
-//
-//		@Override
-//		public String toString() {
-//			return getLoggableName();
-//		}
-//
-//	};
-//
+	@SuppressWarnings("rawtypes")
+	private static class IdentifiableResourceBuilder extends AbstractDomainResourceBuilder<IdentifiableResource<?>>
+			implements FixedLogic {
+
+		private static final Logger logger = LoggerFactory.getLogger(DomainResourceBuilderFactoryImpl.class);
+
+		private final DomainResourceContext resourceContext;
+
+		public IdentifiableResourceBuilder(DomainResourceContext resourceContext) {
+			this.resourceContext = resourceContext;
+		}
+
+		@SuppressWarnings("unchecked")
+		private IdentifiableResource doMandatory(IdentifiableResource persistence) {
+			final Class<? extends IdentifiableResource> resourceType = persistence.getClass();
+
+			if (resourceContext.getMetadata(resourceType).unwrap(IdentifiableResourceMetadata.class)
+					.isIdentifierAutoGenerated()) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Stripping identifier off resource type {}", resourceType.getName());
+				}
+
+				persistence.setId(null);
+			}
+
+			return persistence;
+		}
+
+		@Override
+		public IdentifiableResource buildInsertion(IdentifiableResource persistence, EntityManager entityManager)
+				throws Exception {
+			return doMandatory(persistence);
+		}
+
+		@Override
+		public IdentifiableResource buildUpdate(IdentifiableResource model, IdentifiableResource persistence,
+				EntityManager entityManger) {
+			return persistence;
+		}
+
+		@Override
+		public String getLoggableName() {
+			return "IdentifiableResourceBuilder";
+		}
+
+		@Override
+		public String toString() {
+			return getLoggableName();
+		}
+
+	}
+
 	private static final AbstractDomainResourceBuilder<DomainResource> NO_OP_BUILDER = new AbstractDomainResourceBuilder<>() {
 
 		@Override
-		public DomainResource buildInsertion(Serializable id, DomainResource resource, EntityManager entityManager)
-				throws Exception {
+		public DomainResource buildInsertion(DomainResource resource, EntityManager entityManager) throws Exception {
 			return resource;
 		}
 
 		@Override
-		public DomainResource buildUpdate(Serializable id, DomainResource model, DomainResource resource,
-				EntityManager entityManger) {
+		public DomainResource buildUpdate(DomainResource model, DomainResource resource, EntityManager entityManger) {
 			return resource;
 		}
 

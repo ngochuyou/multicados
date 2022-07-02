@@ -22,7 +22,7 @@ import de.vandermeer.asciithemes.TA_Grid;
 import de.vandermeer.asciithemes.TA_GridConfig;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
-import multicados.internal.domain.metadata.DomainResourceMetadata;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
@@ -73,7 +73,7 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.get();
 		aliasesByOrigins = Utils
 				.declare(sortedAttributes)
-					.second(modelContext.getMetadata(type))
+					.second(modelContext.getMetadata(type).unwrap(DomainResourceAttributesMetadata.class))
 				.then(this::getAlias)
 				.then(Collections::unmodifiableMap)
 				.get();
@@ -91,7 +91,8 @@ public class ReadSecurityNodeImpl<D extends DomainResource> extends AbstractRead
 				.collect(CollectionHelper.toMap());
 	}
 
-	private Map<String, String> getAlias(List<SecuredAttribute<D>> attributes, DomainResourceMetadata<D> metadata) {
+	private Map<String, String> getAlias(List<SecuredAttribute<D>> attributes,
+			DomainResourceAttributesMetadata<D> metadata) {
 		final Map<String, String> aliasMap = metadata.getAttributeNames().stream()
 				.map(attribute -> Map.entry(attribute, attribute))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

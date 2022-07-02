@@ -40,6 +40,7 @@ import org.springframework.security.core.GrantedAuthority;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.repository.Selector;
@@ -99,8 +100,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 	private <E extends DomainResource> List<Map<String, Object>> resolveRows(Class<E> type, List<Tuple> tuples,
 			List<String> checkedProperties, int offset) {
-		Map<String, String> translatedAttributes = readSecurityManager.translate(type, checkedProperties);
-		int span = checkedProperties.size();
+		final Map<String, String> translatedAttributes = readSecurityManager.translate(type, checkedProperties);
+		final int span = checkedProperties.size();
 		// @formatter:off
 		return tuples.stream()
 				.map(tuple -> IntStream.range(offset, span + offset)
@@ -116,7 +117,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 	}
 
 	@Override
-	public <E extends DomainResource> List<Map<String, Object>> readAll(
+	public <S extends Serializable, E extends IdentifiableResource<S>> List<Map<String, Object>> readAll(
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
@@ -128,7 +129,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 	}
 
 	@Override
-	public <E extends DomainResource> List<Map<String, Object>> readAll(
+	public <S extends Serializable, E extends IdentifiableResource<S>> List<Map<String, Object>> readAll(
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
@@ -139,7 +140,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 	}
 
 	@Override
-	public <E extends DomainResource> List<Map<String, Object>> readAll(
+	public <S extends Serializable, E extends IdentifiableResource<S>> List<Map<String, Object>> readAll(
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
@@ -151,7 +152,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 	}
 
 	@Override
-	public <E extends DomainResource> List<Map<String, Object>> readAll(
+	public <S extends Serializable, E extends IdentifiableResource<S>> List<Map<String, Object>> readAll(
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
@@ -160,15 +161,15 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
-		List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
-		List<Tuple> tuples = genericRepository.findAll(type, toSelector(checkedProperties), specification, pageable,
-				session);
+		final List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
+		final List<Tuple> tuples = genericRepository.findAll(type, toSelector(checkedProperties), specification,
+				pageable, session);
 
 		return resolveRows(type, tuples, checkedProperties);
 	}
 
 	@Override
-	public <E extends DomainResource> Map<String, Object> readById(
+	public <S extends Serializable, E extends IdentifiableResource<S>> Map<String, Object> readById(
 	// @formatter:off
 			Class<E> type,
 			Serializable id,
@@ -180,7 +181,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 	}
 
 	@Override
-	public <E extends DomainResource> Map<String, Object> readOne(
+	public <S extends Serializable, E extends IdentifiableResource<S>> Map<String, Object> readOne(
 	// @formatter:off
 			Class<E> type,
 			Collection<String> properties,
@@ -188,9 +189,9 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			GrantedAuthority credential,
 			Session session) throws Exception {
 		// @formatter:on
-		List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
-		Optional<Tuple> optionalTuple = genericRepository.findOne(type, toSelector(checkedProperties), specification,
-				session);
+		final List<String> checkedProperties = readSecurityManager.check(type, properties, credential);
+		final Optional<Tuple> optionalTuple = genericRepository.findOne(type, toSelector(checkedProperties),
+				specification, session);
 
 		if (optionalTuple.isEmpty()) {
 			return null;
@@ -293,7 +294,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				Root<T> root,
 				Map<String, Function<Path<?>, Path<?>>> selectionProducers,
 				List<Selection<?>> basicSelections) throws Exception {
-			for (ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
+			for (final ComposedRestQuery<?> nonBatchingQuery : nonBatchingQueries) {
 				declare(nonBatchingQuery.getAssociationName())
 						.flat(joinName -> (Join<?, ?>) selectionProducers.get(joinName).apply(root), HandledFunction.identity())
 					.consume(this::cache)
@@ -328,7 +329,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 		@SuppressWarnings("unchecked")
 		private List<Selection<?>> produceAssociationBasicSelections(Join<?, ?> join, List<String> joinedAttributes,
 				List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries) throws Exception {
-			List<Selection<?>> selections = new ArrayList<>(joinedAttributes.size() + joinedNonBatchingQueries.size());
+			final List<Selection<?>> selections = new ArrayList<>(
+					joinedAttributes.size() + joinedNonBatchingQueries.size());
 			// @formatter:off
 			for (String joinedAttribute : joinedAttributes) {
 				declare(join.getJavaType())
@@ -347,7 +349,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				Entry<Join<?, ?>, String> joinEntry,
 				List<ComposedNonBatchingRestQuery<?>> joinedNonBatchingQueries,
 				List<Selection<?>> associationBasicSelections) throws Exception {
-			for (ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
+			for (final ComposedRestQuery<?> nonBatchingAssociationQuery : joinedNonBatchingQueries) {
 				declare(nonBatchingAssociationQuery.getAssociationName())
 					.flat(
 						associationName -> joinEntry.getKey().join(associationName),
@@ -399,9 +401,9 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				Utils.Entry<From<?, ?>, String> fromEntry,
 				ComposedRestQuery<?> composedAssocationQuery,
 				List<Predicate> basicPredicates) throws Exception {
-			for (ComposedRestQuery<?> nonBatchingQuery : composedAssocationQuery.getNonBatchingAssociationQueries()) {
-				String nextJoinRole = resolveJoinRole(fromEntry.getValue(), nonBatchingQuery.getAssociationName());
-				Predicate associationPredicate = resolvePredicates(
+			for (final ComposedRestQuery<?> nonBatchingQuery : composedAssocationQuery.getNonBatchingAssociationQueries()) {
+				final String nextJoinRole = resolveJoinRole(fromEntry.getValue(), nonBatchingQuery.getAssociationName());
+				final Predicate associationPredicate = resolvePredicates(
 						fromsCache.containsKey(nextJoinRole) ? fromsCache.get(nextJoinRole)
 								: fromEntry.getKey().join(composedAssocationQuery.getAssociationName()),
 						nextJoinRole,
@@ -427,11 +429,11 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				return new ArrayList<>();
 			}
 
-			List<Predicate> predicates = new ArrayList<>();
+			final List<Predicate> predicates = new ArrayList<>();
 
 			for (Map.Entry<String, Filter<?>> filterEntry : filters.entrySet()) {
 				// @formatter:off
-				Predicate filterPredicate = extractFilterPredicate(
+				final Predicate filterPredicate = extractFilterPredicate(
 						resourceType,
 						from,
 						filterEntry.getKey(),
@@ -454,15 +456,17 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				String attributeName,
 				Filter<?> filter) {
 			// @formatter:on
-			List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter.getExpressionProducers();
+			final List<BiFunction<Path<?>, CriteriaBuilder, Predicate>> expressionProducers = filter
+					.getExpressionProducers();
 			// @formatter:off
-			Path<?> attributePath = selectionProducersProvider
+			final Path<?> attributePath = selectionProducersProvider
 					.getSelectionProducers(resourceType)
 					.get(attributeName)
 					.apply(from);
 			// @formatter:on
+			final int size = expressionProducers.size();
+
 			Predicate predicate = expressionProducers.get(0).apply(attributePath, criteriaBuilder);
-			int size = expressionProducers.size();
 
 			for (int i = 1; i < size; i++) {
 				predicate = criteriaBuilder.or(predicate,
@@ -474,7 +478,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 		private List<Map<String, Object>> doReadAll(Session session) throws Exception {
 			// @formatter:off
-			List<Tuple> tuples = genericRepository.findAll(
+			final List<Tuple> tuples = genericRepository.findAll(
 					rootResourceType,
 					resolveSelector(),
 					resolveSpecification(),
@@ -490,7 +494,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 		private Map<String, Object> doRead(Session session) throws Exception {
 			// @formatter:off
-			Optional<Tuple> optionalTuple = genericRepository.findOne(
+			final Optional<Tuple> optionalTuple = genericRepository.findOne(
 					rootResourceType,
 					resolveSelector(),
 					resolveSpecification(),
@@ -500,8 +504,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				return null;
 			}
 
-			Map<String, Object> record = transformRow(optionalTuple.get());
-			Map<String, String> translatedAttributes = translatedAttributesLoader.get();
+			final Map<String, Object> record = transformRow(optionalTuple.get());
+			final Map<String, String> translatedAttributes = translatedAttributesLoader.get();
 
 			for (ComposedRestQuery<?> batchingQuery : batchingQueries) {
 				record.put(translatedAttributes.get(batchingQuery.getAssociationName()),
@@ -527,14 +531,14 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				Map<String, String> translatedAttributes,
 				Tuple tuple) {
 			// @formatter:on
-			Map<String, Object> record = new HashMap<>(translatedAttributes.size(), 1f);
-			int basicAttributesSpan = attributes.size();
+			final Map<String, Object> record = new HashMap<>(translatedAttributes.size(), 1f);
+			final int basicAttributesSpan = attributes.size();
 
 			for (int i = 0; i < basicAttributesSpan; i++) {
 				record.put(translatedAttributes.get(attributes.get(i)), tuple.get(i));
 			}
 
-			for (ComposedNonBatchingRestQuery<?> composedNonBatchingRestQuery : composedQuery
+			for (final ComposedNonBatchingRestQuery<?> composedNonBatchingRestQuery : composedQuery
 					.getNonBatchingAssociationQueries()) {
 				// @formatter:off
 				record.put(translatedAttributes.get(composedNonBatchingRestQuery.getAssociationName()),
@@ -577,8 +581,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 	private class AssociationTuple implements Tuple {
 
-		private ComposedNonBatchingRestQuery<?> composedQuery;
-		private Tuple owningTuple;
+		private final ComposedNonBatchingRestQuery<?> composedQuery;
+		private final Tuple owningTuple;
 
 		public AssociationTuple(ComposedNonBatchingRestQuery<?> composedQuery, Tuple owningTuple) {
 			this.composedQuery = composedQuery;

@@ -34,6 +34,7 @@ import multicados.internal.context.ContextBuilder;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
@@ -360,8 +361,11 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 
 			private class WithCredentialImpl implements WithCredential<D> {
 
+				@SuppressWarnings("unchecked")
 				private final Set<String> remainingFields = new HashSet<>(
-						context.getMetadata(type).getAttributeNames());
+						context.getMetadata(type)
+							.unwrap(DomainResourceAttributesMetadata.class)
+							.getAttributeNames());
 
 				private final WithType<D> owningType;
 				private final GrantedAuthority[] credentials;
@@ -407,10 +411,11 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 					return owningType.credentials(credentials);
 				}
 
+				@SuppressWarnings("unchecked")
 				@Override
 				public WithCredential<D> mask() {
 					for (GrantedAuthority crudCredential : credentials) {
-						for (String attribute : context.getMetadata(type).getAttributeNames()) {
+						for (String attribute : (List<String>) context.getMetadata(type).unwrap(DomainResourceAttributesMetadata.class).getAttributeNames()) {
 							try {
 								setProperty(type, crudCredential, attribute, Boolean.TRUE);
 							} catch (CredentialException any) {
@@ -426,10 +431,11 @@ public class ReadSecurityManagerImpl extends ContextBuilder.AbstractContextBuild
 					return this;
 				}
 
+				@SuppressWarnings("unchecked")
 				@Override
 				public WithCredential<D> publish() {
 					for (GrantedAuthority crudCredential : credentials) {
-						for (String attribute : context.getMetadata(type).getAttributeNames()) {
+						for (String attribute : (List<String>) context.getMetadata(type).unwrap(DomainResourceAttributesMetadata.class).getAttributeNames()) {
 							try {
 								setProperty(type, crudCredential, attribute, Boolean.FALSE);
 							} catch (CredentialException any) {

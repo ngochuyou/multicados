@@ -3,8 +3,6 @@
  */
 package multicados.internal.domain.builder;
 
-import java.io.Serializable;
-
 import javax.persistence.EntityManager;
 
 import org.slf4j.LoggerFactory;
@@ -41,16 +39,14 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public T buildInsertion(Serializable id, T model, EntityManager entityManager) throws Exception {
-			return childBuilder.buildInsertion(id, (T) parentBuilder.buildInsertion(id, model, entityManager),
-					entityManager);
+		public T buildInsertion(T model, EntityManager entityManager) throws Exception {
+			return childBuilder.buildInsertion((T) parentBuilder.buildInsertion(model, entityManager), entityManager);
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public T buildUpdate(Serializable id, T model, T persistence, EntityManager entityManger) {
-			return childBuilder.buildUpdate(id, model, (T) parentBuilder.buildUpdate(id, model, persistence, entityManger),
-					entityManger);
+		public T buildUpdate(T model, T persistence, EntityManager entityManger) {
+			return childBuilder.buildUpdate(model, (T) parentBuilder.buildUpdate(model, persistence, entityManger), entityManger);
 		}
 
 		@Override

@@ -281,8 +281,8 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 				}
 			}));
 
-			ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env, identifierDelimiter);
-			ImageService imageService = new ImageService(applicationContext, env);
+			final ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env, identifierDelimiter);
+			final ImageService imageService = new ImageService(applicationContext, env);
 
 			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
 			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));

@@ -24,7 +24,7 @@ import org.springframework.lang.Nullable;
 
 import multicados.internal.domain.DomainComponent;
 import multicados.internal.domain.DomainResource;
-import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadataImpl.DomainAssociation;
 import multicados.internal.helper.CollectionHelper;
 
 /**
@@ -33,7 +33,7 @@ import multicados.internal.helper.CollectionHelper;
  */
 public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadataBuilder {
 
-	private static final Logger logger = LoggerFactory.getLogger(DomainResourceMetadataImpl.class);
+	private static final Logger logger = LoggerFactory.getLogger(DomainResourceAttributesMetadataImpl.class);
 
 	@Override
 	public <D extends DomainResource> DomainResourceMetadata<D> build(Class<D> resourceType,
@@ -58,8 +58,8 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 		final Map<String, DomainAssociation> associations = locateAssociations(resourceType, wrappedAttributes,
 				attributeTypes, componentPaths, onGoingMetadatas);
 
-		return new DomainResourceMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
-				attributesToBeUnwrapped, attributeTypes, wrappedAttributes, componentPaths, associations);
+		return new DomainResourceAttributesMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
+				attributesToBeUnwrapped, attributeTypes, wrappedAttributes, componentPaths, associations, Map.of());
 	}
 
 	private <D extends DomainResource> Map<String, DomainAssociation> locateAssociations(Class<D> resourceType,
@@ -84,15 +84,15 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			Class<D> resourceType, Map<String, DomainAssociation> declaredAssociations,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> onGoingMetadatas)
 			throws Exception {
-		final DomainResourceMetadataImpl<?> parentMetadata = locateParentMetadata(resourceType, onGoingMetadatas);
+		final DomainResourceAttributesMetadataImpl<?> parentMetadata = locateParentMetadata(resourceType, onGoingMetadatas);
 
 		if (parentMetadata == null) {
 			return Collections.emptyMap();
 		}
 		// @formatter:off
 		declare(parentMetadata)
-			.then(DomainResourceMetadataImpl.class::cast)
-			.then(DomainResourceMetadataImpl::getAssociations)
+			.then(DomainResourceAttributesMetadataImpl.class::cast)
+			.then(DomainResourceAttributesMetadataImpl::getAssociations)
 			.consume(parentAssociations -> declaredAssociations.putAll(parentAssociations));
 		// @formatter:on
 		return declaredAssociations;
@@ -161,15 +161,15 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			Map<String, ComponentPath> declaredComponentPaths,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> onGoingMetadatas)
 			throws Exception {
-		final DomainResourceMetadataImpl<?> parentMetadata = locateParentMetadata(resourceType, onGoingMetadatas);
+		final DomainResourceAttributesMetadataImpl<?> parentMetadata = locateParentMetadata(resourceType, onGoingMetadatas);
 
 		if (parentMetadata == null) {
 			return Collections.emptyMap();
 		}
 		// @formatter:off
 		declare(parentMetadata)
-			.then(DomainResourceMetadataImpl.class::cast)
-			.then(DomainResourceMetadataImpl::getComponentPaths)
+			.then(DomainResourceAttributesMetadataImpl.class::cast)
+			.then(DomainResourceAttributesMetadataImpl::getComponentPaths)
 			.consume(parentComponentPaths -> declaredComponentPaths.putAll(parentComponentPaths));
 		// @formatter:on
 		return declaredComponentPaths;
@@ -274,7 +274,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 			throws Exception {
 		// @formatter:off
 		return declare(locateParentMetadata(resourceType, onGoingMetadatas))
-				.then(DomainResourceMetadataImpl.class::cast)
+				.then(DomainResourceAttributesMetadataImpl.class::cast)
 				.then(metadata -> Optional.ofNullable(metadata).map(self -> self.getAttributeTypes()).orElse(Collections.<String, Class<? extends DomainResource>>emptyMap()))
 				.then(parentAttributeTypes -> declare(attributeTypes).consume(self -> self.putAll(parentAttributeTypes)).get())
 				.get();
@@ -282,7 +282,7 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 	}
 
 	private <D extends DomainResource> Map<String, Class<?>> getAttributeTypes(Class<D> resourceType,
-			List<String> attributeNames, DomainResourceMetadataImpl<?> parentMetadata)
+			List<String> attributeNames, DomainResourceAttributesMetadataImpl<?> parentMetadata)
 			throws NoSuchFieldException, SecurityException {
 		final Map<String, Class<?>> typesMap = new HashMap<>(attributeNames.size(), 1.5f);
 
@@ -369,9 +369,9 @@ public class DomainResourceMetadataBuilderImpl implements DomainResourceMetadata
 		// @formatter:on
 	}
 
-	private <D extends DomainResource> DomainResourceMetadataImpl<?> locateParentMetadata(Class<D> resourceType,
+	private <D extends DomainResource> DomainResourceAttributesMetadataImpl<?> locateParentMetadata(Class<D> resourceType,
 			Map<Class<? extends DomainResource>, DomainResourceMetadata<? extends DomainResource>> onGoingMetadatas) {
-		return (DomainResourceMetadataImpl<?>) onGoingMetadatas.get(resourceType.getSuperclass());
+		return (DomainResourceAttributesMetadataImpl<?>) onGoingMetadatas.get(resourceType.getSuperclass());
 	}
 
 }

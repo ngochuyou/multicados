@@ -28,15 +28,16 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 
 import multicados.internal.config.Settings;
-import multicados.internal.context.DomainLogicUtils;
 import multicados.internal.context.Loggable;
 import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.GraphLogic;
+import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.annotation.Name;
+import multicados.internal.domain.metadata.NamedResourceMetadata;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Common;
@@ -87,9 +88,13 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 
 		final List<Entry<Class, Entry<Class, GraphLogic>>> fixedLogics = new ArrayList<>();
 
-		fixedLogics
-				.addAll((Collection<? extends Entry<Class, Entry<Class, GraphLogic>>>) constructNamedResourceValidators(
-						applicationContext));
+		final GenericRepository genericRepository = applicationContext.getBean(GenericRepository.class);
+		final DomainResourceContext resourceContext = applicationContext.getBean(DomainResourceContext.class);
+
+		fixedLogics.addAll((Collection) constructNamedResourceValidators(applicationContext.getBean(Environment.class),
+				resourceContext, genericRepository));
+		fixedLogics.add(Map.entry(IdentifiableResource.class, Map.entry(IdentifiableResource.class,
+				new IdentifiableResourceValidator(resourceContext, genericRepository))));
 
 		if (logger.isTraceEnabled()) {
 			logger.trace(Utils.Access.getClosingMessage(new Loggable() {}));
@@ -99,9 +104,10 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 		// @formatter:on
 	}
 
+	@SuppressWarnings("unchecked")
 	private Collection<Entry<Class<? extends NamedResource>, Entry<Class<? extends NamedResource>, GraphLogic<? extends NamedResource>>>> constructNamedResourceValidators(
-			ApplicationContext applicationContext) throws Exception {
-		final Environment env = applicationContext.getBean(Environment.class);
+			Environment env, DomainResourceContext resourceContext, GenericRepository genericRepository)
+			throws Exception {
 		// @formatter:off
 		final List<Character> acceptedCharacters = Stream.of(SpringHelper.getOrDefault(env, Settings.DOMAIN_NAMED_RESOURCE_ACCEPTED_CHARS, HandledFunction.identity(), StringHelper.EMPTY_STRING)
 				.split(StringHelper.WHITESPACE_CHAR_CLASS))
@@ -140,21 +146,19 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 				.then((one, two) -> List.of(one, two))
 				.then((messages) -> StringHelper.join(StringHelper.SPACE, messages)).get();
 		// @formatter:on
-		final DomainLogicUtils logicUtils = applicationContext.getBean(DomainLogicUtils.class);
 		final List<Entry<Class<? extends NamedResource>, Entry<Class<? extends NamedResource>, GraphLogic<? extends NamedResource>>>> validators = new ArrayList<>();
-		final GenericRepository genericRepository = applicationContext.getBean(GenericRepository.class);
 
-		for (final Class<? extends NamedResource> resourceType : getNamedResourceTypes(
-				applicationContext.getBean(DomainResourceContext.class))) {
-			final Field scopedField = logicUtils.getScopingMetadata(resourceType).getScopedAttributeNames().get(0);
+		for (final Class<? extends NamedResource> resourceType : getNamedResourceTypes(resourceContext)) {
+			final Field scopedField = (Field) resourceContext.getMetadata(resourceType)
+					.unwrap(NamedResourceMetadata.class).getScopedAttributeNames().get(0);
 			// @Name is guaranteed to present here, see
 			// DomainLogicUtils#getMetadataProvider()
 			if (!scopedField.getDeclaredAnnotation(Name.class).useDefault()) {
 				continue;
 			}
 
-			validators.add(entry(resourceType, entry(resourceType,
-					new NamedResourceValidator(genericRepository, scopedField.getName(), pattern, errorMessage))));
+			validators.add(entry(resourceType, entry(resourceType, new NamedResourceValidator(resourceType,
+					genericRepository, scopedField.getName(), pattern, errorMessage))));
 		}
 
 		return validators;
@@ -201,7 +205,7 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 
 		@Override
 		public Validation isSatisfiedBy(EntityManager entityManager, Serializable id, DomainResource resource) {
-			return isSatisfiedBy(null, null, resource);
+			return Validation.success();
 		}
 
 		@SuppressWarnings("unchecked")

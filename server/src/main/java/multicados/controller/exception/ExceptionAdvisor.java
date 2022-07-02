@@ -1,24 +1,18 @@
 /**
  *
  */
-package multicados.controller.controllers;
+package multicados.controller.exception;
 
 import static multicados.internal.helper.HttpHelper.isJsonAccepted;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import javax.persistence.PersistenceException;
 
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.ResponseEntity.BodyBuilder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindException;
@@ -42,47 +36,9 @@ import multicados.internal.service.crud.security.read.UnknownAttributesException
 @ControllerAdvice
 public class ExceptionAdvisor extends ResponseEntityExceptionHandler {
 
-	private final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<?>>> persistenceExceptionHandler;
-
-	public ExceptionAdvisor() {
-		final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<?>>> persistenceExceptionHandler = new HashMap<>();
-
-		persistenceExceptionHandler.put(ConstraintViolationException.class, (cause, request) -> {
-			BodyBuilder response = ResponseEntity.status(HttpStatus.BAD_REQUEST);
-
-			if (HttpHelper.isJsonAccepted(request)) {
-				return response.body(Common.error("Some of the provided information did not meet the guideline"));
-			}
-
-			return response.body(cause.getMessage());
-		});
-
-		this.persistenceExceptionHandler = Collections.unmodifiableMap(persistenceExceptionHandler);
-	}
-
-//	private BodyBuilder text(BodyBuilder response) {
-//		return response.header(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_EVENT_STREAM_VALUE, MediaType.TEXT_HTML_VALUE,
-//				MediaType.TEXT_MARKDOWN_VALUE, MediaType.TEXT_PLAIN_VALUE, MediaType.TEXT_XML_VALUE);
-//	}
-//
-//	private BodyBuilder json(BodyBuilder response) {
-//		return response.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-//	}
-
 	@ExceptionHandler(PersistenceException.class)
 	public ResponseEntity<?> handlePersistenceException(PersistenceException ex, WebRequest request) {
-		final Throwable cause = ex.getCause();
-		final BiFunction<Throwable, WebRequest, ResponseEntity<?>> handler = persistenceExceptionHandler
-				.get(cause.getClass());
-
-		if (handler == null) {
-			final String message = "Unknown error";
-
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body(!isJsonAccepted(request) ? message : Common.error(message));
-		}
-
-		return handler.apply(cause, request);
+		return PersistenceExceptionAdvisor.INSTANCE.handle(ex, request);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)

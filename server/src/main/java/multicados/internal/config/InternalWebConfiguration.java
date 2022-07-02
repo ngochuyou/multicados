@@ -10,6 +10,7 @@ import java.util.concurrent.Executor;
 
 import javax.sql.DataSource;
 
+import org.hibernate.FlushMode;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy;
 import org.hibernate.cfg.AvailableSettings;
@@ -30,6 +31,8 @@ import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -38,6 +41,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 
 import multicados.internal.file.engine.image.ImageService;
+import multicados.internal.helper.SpringHelper;
 
 /**
  * @author Ngoc Huy
@@ -55,17 +59,17 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 	private static final Logger logger = LoggerFactory.getLogger(InternalWebConfiguration.class);
 
 	@Bean
-	public FactoryBean<SessionFactory> sessionFactory(DataSource dataSource, Environment env) {
+	public FactoryBean<SessionFactory> sessionFactory(DataSource dataSource, Environment env) throws Exception {
 		logger.info("Creating {} bean", LocalSessionFactoryBean.class.getName());
 
-		LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
+		final LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
 
 		sessionFactory.setDataSource(dataSource);
 		sessionFactory.setPackagesToScan(new String[] { env.getProperty(Settings.SCANNED_ENTITY_PACKAGES) });
 		// snake_case for columns
 		sessionFactory.setPhysicalNamingStrategy(new CamelCaseToUnderscoresNamingStrategy());
 
-		Properties properties = new Properties();
+		final Properties properties = new Properties();
 
 		properties.put(AvailableSettings.DIALECT, "org.hibernate.dialect.MySQL8Dialect");
 		properties.put(AvailableSettings.SHOW_SQL, true);
@@ -75,6 +79,8 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 		properties.put(AvailableSettings.STATEMENT_BATCH_SIZE, 50);
 		properties.put(AvailableSettings.ORDER_INSERTS, true);
 		properties.put(AvailableSettings.ORDER_UPDATES, true);
+		properties.put(Settings.HBM_FLUSH_MODE,
+				SpringHelper.getOrDefault(env, Settings.HBM_FLUSH_MODE, FlushMode::valueOf, FlushMode.MANUAL));
 
 		sessionFactory.setHibernateProperties(properties);
 
@@ -105,6 +111,11 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 		executor.setThreadNamePrefix(ImageService.EXECUTOR_NAME);
 
 		return executor;
+	}
+
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
 	}
 
 	@Override

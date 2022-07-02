@@ -3,8 +3,6 @@
  */
 package multicados.domain.entity.builder;
 
-import java.io.Serializable;
-
 import javax.persistence.EntityManager;
 
 import multicados.domain.entity.entities.Category;
@@ -25,12 +23,12 @@ public class CategoryBuilder extends AbstractDomainResourceBuilder<Category> {
 	}
 
 	@Override
-	public Category buildInsertion(Serializable id, Category model, EntityManager entityManager) throws Exception {
+	public Category buildInsertion(Category model, EntityManager entityManager) throws Exception {
 		return mandatoryBuild(model, model);
 	}
 
 	@Override
-	public Category buildUpdate(Serializable id, Category model, Category persistence, EntityManager entityManger) {
+	public Category buildUpdate(Category model, Category persistence, EntityManager entityManger) {
 		return mandatoryBuild(model, persistence);
 	}
 

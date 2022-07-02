@@ -4,19 +4,25 @@
 package multicados.internal.service.crud;
 
 import java.io.Serializable;
+import java.util.List;
+import java.util.Optional;
+
+import javax.persistence.EntityNotFoundException;
+import javax.persistence.PersistenceException;
 
 import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import multicados.internal.context.ContextBuilder;
-import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
+import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.builder.DomainResourceBuilder;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
 import multicados.internal.domain.validation.DomainResourceValidator;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.domain.validation.Validation;
+import multicados.internal.helper.Common;
 import multicados.internal.service.ServiceResult;
 import multicados.internal.service.crud.event.ServiceEventListenerGroups;
 
@@ -43,8 +49,8 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 	}
 
 	@Override
-	public <T extends DomainResource> ServiceResult create(Serializable id, T resource, Class<T> type, Session session,
-			boolean flushOnFinish) {
+	public <S extends Serializable, T extends IdentifiableResource<S>> ServiceResult create(Serializable id, T model,
+			Class<T> type, Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Creating a resource of type %s with identifier %s", type.getName(), id));
 		}
@@ -52,40 +58,58 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 		try {
 			final DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
-			resource = resourceBuilder.buildInsertion(id, resource, session);
+			resourceBuilder.buildInsertion(model, session);
 
 			final DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
-			final Validation validation = validator.isSatisfiedBy(session, id, resource);
+			final Validation validation = validator.isSatisfiedBy(session, id, model);
 
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
 			}
 
-			session.save(resource);
-			eventListenerGroups.firePostPersist(type, resource);
+			session.save(model);
+			eventListenerGroups.firePostPersist(type, model);
 
 			return ServiceResult.success(session, flushOnFinish);
 		} catch (Exception any) {
+			// if the exception is indirectly PersistenceException, wrap it in
+			// a PersistenceException so that we handle it in via ExceptionAdvisor
+			if (any instanceof PersistenceException) {
+				if (!any.getClass().equals(PersistenceException.class)) {
+					return ServiceResult.failed(new PersistenceException(any));
+				}
+			}
+
 			return ServiceResult.failed(any);
 		}
 	}
 
+	private void throwNotFound(Serializable id) {
+		throw new PersistenceException(
+				new EntityNotFoundException(id == null ? Common.notFound() : Common.notFound(List.of(id.toString()))));
+	}
+
 	@Override
-	public <T extends DomainResource> ServiceResult update(Serializable id, T model, Class<T> type, Session session,
-			boolean flushOnFinish) {
+	public <S extends Serializable, T extends IdentifiableResource<S>> ServiceResult update(Serializable id, T model,
+			Class<T> type, Session session, boolean flushOnFinish) {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Updating a resource of type %s with identifier %s", type.getName(), id));
 		}
 
 		try {
-			final T persistence = session.find(type, id);
+			final Serializable actualId = Optional.ofNullable(id).orElse(model.getId());
+			final T persistence = session.find(type, actualId);
+
+			if (persistence == null) {
+				throwNotFound(actualId);
+			}
 
 			final DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);
 
-			model = resourceBuilder.buildUpdate(id, model, persistence, session);
+			resourceBuilder.buildUpdate(model, persistence, session);
 
 			final DomainResourceValidator<T> validator = validatorFactory.getValidator(type);
-			final Validation validation = validator.isSatisfiedBy(session, id, model);
+			final Validation validation = validator.isSatisfiedBy(session, actualId, model);
 
 			if (!validation.isOk()) {
 				return ServiceResult.bad(validation);
@@ -101,7 +125,9 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 
 	@Override
 	public void summary() {
-		logger.trace(eventListenerGroups.toString());
+		if (logger.isDebugEnabled()) {
+			logger.debug(eventListenerGroups.toString());
+		}
 	}
 
 }

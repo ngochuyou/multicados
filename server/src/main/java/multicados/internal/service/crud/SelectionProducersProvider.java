@@ -25,7 +25,7 @@ import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.metadata.ComponentPath;
-import multicados.internal.domain.metadata.DomainResourceMetadata;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.helper.Utils;
 
 /**
@@ -38,6 +38,7 @@ public class SelectionProducersProvider {
 
 	private final Map<Class<? extends DomainResource>, Map<String, Function<Path<?>, Path<?>>>> selectionProducers;
 
+	@SuppressWarnings("unchecked")
 	public SelectionProducersProvider(DomainResourceContext resourceContext) throws Exception {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Resolving selection producers map");
@@ -47,7 +48,8 @@ public class SelectionProducersProvider {
 
 		for (final Class<? extends DomainResource> type : resourceContext.getResourceGraph()
 				.collect(DomainResourceGraphCollectors.toTypesSet())) {
-			final DomainResourceMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(type);
+			final DomainResourceAttributesMetadata<? extends DomainResource> metadata = resourceContext
+					.getMetadata(type).unwrap(DomainResourceAttributesMetadata.class);
 
 			if (metadata == null) {
 				continue;
@@ -89,7 +91,7 @@ public class SelectionProducersProvider {
 
 	private Function<Path<?>, Path<?>> resolveComponentPathProducers(
 	// @formatter:off
-			DomainResourceMetadata<? extends DomainResource> metadata,
+			DomainResourceAttributesMetadata<? extends DomainResource> metadata,
 			String attributeName) {
 		final List<Function<Path<?>, Path<?>>> pathNodes = individuallyResolveComponentPathProducers(
 				metadata,
@@ -105,7 +107,7 @@ public class SelectionProducersProvider {
 
 	@SuppressWarnings("rawtypes")
 	private List<Function<Path<?>, Path<?>>> individuallyResolveComponentPathProducers(
-			DomainResourceMetadata<? extends DomainResource> metadata, String attributeName,
+			DomainResourceAttributesMetadata<? extends DomainResource> metadata, String attributeName,
 			ComponentPath componentPath) {
 		final Queue<String> nodeNames = componentPath.getPath();
 
@@ -154,7 +156,8 @@ public class SelectionProducersProvider {
 		}).collect(Collectors.toList());
 	}
 
-	public <D extends DomainResource> Map<String, Function<Path<?>, Path<?>>> getSelectionProducers(Class<D> resourceType) {
+	public <D extends DomainResource> Map<String, Function<Path<?>, Path<?>>> getSelectionProducers(
+			Class<D> resourceType) {
 		return selectionProducers.get(resourceType);
 	}
 

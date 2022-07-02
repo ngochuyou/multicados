@@ -15,6 +15,7 @@ import java.util.function.Function;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.metadata.ComponentPath;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.TypeHelper;
@@ -30,6 +31,7 @@ public class DomainResourceTuplizerImpl<D extends DomainResource> extends Abstra
 
 	private final Map<String, Accessor> accessors;
 
+	@SuppressWarnings("unchecked")
 	public DomainResourceTuplizerImpl(
 	// @formatter:off
 			DomainResourceMetadata<D> metadata,
@@ -38,8 +40,9 @@ public class DomainResourceTuplizerImpl<D extends DomainResource> extends Abstra
 			Function<Class<? extends DomainResource>, AbstractDomainResourceTuplizer<?>> parentTuplizerProvider) throws Exception {
 		// @formatter:on
 		super(metadata.getResourceType());
-		accessors = Collections.unmodifiableMap(
-				resolveAccessors(metadata, cachedAccessorProvider, accessorEntryConsumer, parentTuplizerProvider));
+		accessors = Collections
+				.unmodifiableMap(resolveAccessors(metadata.unwrap(DomainResourceAttributesMetadata.class),
+						cachedAccessorProvider, accessorEntryConsumer, parentTuplizerProvider));
 	}
 
 	@Override
@@ -49,7 +52,7 @@ public class DomainResourceTuplizerImpl<D extends DomainResource> extends Abstra
 
 	private Map<String, Accessor> resolveAccessors(
 	// @formatter:off
-			DomainResourceMetadata<D> metadata,
+			DomainResourceAttributesMetadata<D> metadata,
 			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer,
 			Function<Class<? extends DomainResource>, AbstractDomainResourceTuplizer<?>> parentTuplizerProvider) throws Exception {

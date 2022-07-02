@@ -5,6 +5,7 @@ package multicados.internal.domain.metadata;
 
 import static multicados.internal.helper.Utils.declare;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,6 +17,9 @@ import java.util.Objects;
 import javax.persistence.metamodel.Attribute;
 
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.id.Assigned;
+import org.hibernate.id.CompositeNestedGeneratedValueGenerator;
+import org.hibernate.id.IdentifierGenerator;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.tuple.entity.EntityMetamodel;
 import org.hibernate.type.CollectionType;
@@ -27,10 +31,15 @@ import org.slf4j.LoggerFactory;
 
 import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.Entity;
-import multicados.internal.domain.metadata.DomainResourceMetadataImpl.DomainAssociation;
+import multicados.internal.domain.IdentifiableResource;
+import multicados.internal.domain.NamedResource;
+import multicados.internal.domain.annotation.Name;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadataImpl.DomainAssociation;
 import multicados.internal.file.domain.FileResource;
 import multicados.internal.helper.TypeHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.BiDeclaration;
+import multicados.internal.helper.Utils.HandledBiFunction;
 
 /**
  * @author Ngoc Huy
@@ -63,8 +72,9 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 		final Map<String, DomainAssociation> associations = locateAssociations(metamodel, wrappedAttributes);
 		final Map<String, ComponentPath> componentPaths = resolveComponentPaths(metamodel, wrappedAttributes);
 
-		return new DomainResourceMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
-				attributesToBeUnwrapped, attributeTypes, nonLazyAttributes, componentPaths, associations);
+		return new DomainResourceAttributesMetadataImpl<>(resourceType, declaredAttributeNames, wrappedAttributes,
+				attributesToBeUnwrapped, attributeTypes, nonLazyAttributes, componentPaths, associations,
+				MetadataDecorator.INSTANCE.getDecorations(resourceType, persister));
 	}
 
 	public Map<String, ComponentPath> resolveComponentPaths(EntityMetamodel metamodel, List<String> wrappedAttributes)
@@ -162,13 +172,13 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 			// @formatter:off
 			if (nullabilities[attributeIndex]) {
 				associations.put(attributeName,
-						new DomainResourceMetadataImpl.DomainAssociation.OptionalAssociation(attributeName,
+						new DomainResourceAttributesMetadataImpl.DomainAssociation.OptionalAssociation(attributeName,
 								associationType));
 
 				return associations;
 			}
 
-			associations.put(attributeName, new DomainResourceMetadataImpl.DomainAssociation.MandatoryAssociation(
+			associations.put(attributeName, new DomainResourceAttributesMetadataImpl.DomainAssociation.MandatoryAssociation(
 					attributeName, associationType));
 
 			return associations;
@@ -404,6 +414,81 @@ public class HibernateDomainResourceMetadataBuilder implements DomainResourceMet
 			List<String> attributesToBeJoinnedWithIdentifier) {
 		attributesToBeJoinnedWithIdentifier.add(metamodel.getIdentifierProperty().getName());
 		return attributesToBeJoinnedWithIdentifier;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static class MetadataDecorator {
+
+		private static final MetadataDecorator INSTANCE = new MetadataDecorator();
+		// @formatter:off
+		private final List<HandledBiFunction<Class, EntityPersister, BiDeclaration<Class, DomainResourceMetadata>, Exception>> metadataContributors = List
+				.of(
+						this::resolveIdentifiableResourceLogics,
+						this::resolveNamedResourceLogics);
+		// @formatter:on
+		public <D extends DomainResource> Map<Class<? extends DomainResourceMetadata<D>>, DomainResourceMetadata<D>> getDecorations(
+				Class<D> resourceType, EntityPersister persister) throws Exception {
+			final Map<Class<? extends DomainResourceMetadata<D>>, DomainResourceMetadata<D>> metadatas = new HashMap<>(
+					0);
+
+			for (final HandledBiFunction<Class, EntityPersister, BiDeclaration<Class, DomainResourceMetadata>, Exception> filter : metadataContributors) {
+				final BiDeclaration<Class, DomainResourceMetadata> filterEntry = filter.apply(resourceType, persister);
+
+				if (filterEntry.getSecond() == null) {
+					continue;
+				}
+
+				metadatas.put(filterEntry.getFirst(), filterEntry.getSecond());
+			}
+
+			return metadatas;
+		}
+
+		private <D extends DomainResource> BiDeclaration<Class<? extends DomainResourceMetadata<D>>, DomainResourceMetadata<D>> resolveNamedResourceLogics(
+				Class<D> resourceType, EntityPersister persister) {
+			if (!NamedResource.class.isAssignableFrom(resourceType)) {
+				return declare((Class<? extends DomainResourceMetadata<D>>) NamedResourceMetadata.class, null);
+			}
+
+			final List<Field> scopedFields = new ArrayList(0);
+
+			for (Field field : resourceType.getDeclaredFields()) {
+				if (!field.isAnnotationPresent(Name.class)) {
+					continue;
+				}
+
+				scopedFields.add(field);
+			}
+
+			if (scopedFields.size() == 0) {
+				throw new IllegalArgumentException(Name.Message.getMissingMessage(resourceType));
+			}
+			// @formatter:off
+			return declare(
+					(Class<? extends DomainResourceMetadata<D>>) NamedResourceMetadata.class,
+					(DomainResourceMetadata<D>) new NamedResourceMetadataImpl<>((Class<? extends NamedResource>) resourceType, scopedFields));
+			// @formatter:on
+		}
+
+		private <D extends DomainResource> BiDeclaration<Class<? extends DomainResourceMetadata<D>>, DomainResourceMetadata<D>> resolveIdentifiableResourceLogics(
+				Class<D> resourceType, EntityPersister persister) {
+			if (!IdentifiableResource.class.isAssignableFrom(resourceType)) {
+				return declare((Class<? extends DomainResourceMetadata<D>>) IdentifiableResourceMetadata.class, null);
+			}
+
+			final IdentifierGenerator identifierGenerator = persister.getEntityMetamodel().getIdentifierProperty()
+					.getIdentifierGenerator();
+			final boolean isIdentifierAutoGenerated = !(identifierGenerator instanceof CompositeNestedGeneratedValueGenerator
+					|| identifierGenerator instanceof Assigned);
+
+			// @formatter:off
+			return declare(
+					(Class<? extends DomainResourceMetadata<D>>) IdentifiableResourceMetadata.class,
+					(DomainResourceMetadata<D>) new IdentifiableResourceMetadataImpl<>(
+							(Class<? extends IdentifiableResource<?>>) resourceType, isIdentifierAutoGenerated));
+			// @formatter:on
+		}
+
 	}
 
 }

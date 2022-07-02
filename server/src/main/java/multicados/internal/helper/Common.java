@@ -25,6 +25,7 @@ public abstract class Common {
 	private static final String COMMON_TEMPLATE = "%s %s";
 	private static final String INVALID_PATTERN_TEMPLATE = "Invalid pattern, expect following characters: %s.";
 	private static final String NOT_FOUND_TEMPLATE = "%s not found";
+	private static final String EXISTED_TEMPLATE = "%s already existed";
 	private static final String INVALID_LENGTH_TEMPLATE = "Invalid length, expect length to be in %d and %d range.";
 
 	private static final String NOT_EMPTY = "must not be empty";
@@ -65,12 +66,28 @@ public abstract class Common {
 		return join(SPACE, List.of(USER, username));
 	}
 
+	public static String notFound() {
+		return notFound(null);
+	}
+
 	public static String notFound(Collection<String> preficies) {
 		if (CollectionHelper.isEmpty(preficies)) {
 			return notFound(List.of(RESOURCE));
 		}
 
 		return String.format(NOT_FOUND_TEMPLATE, join(SPACE, preficies));
+	}
+	
+	public static String existed() {
+		return existed(null);
+	}
+
+	public static String existed(Collection<String> preficies) {
+		if (CollectionHelper.isEmpty(preficies)) {
+			return existed(List.of(RESOURCE));
+		}
+
+		return String.format(EXISTED_TEMPLATE, join(SPACE, preficies));
 	}
 
 	public static String invalidLength(int min, int max) {

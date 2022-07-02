@@ -22,6 +22,7 @@ import org.springframework.util.Assert;
 
 import multicados.internal.domain.Entity;
 import multicados.internal.domain.metadata.ComponentPath;
+import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
 import multicados.internal.helper.Utils;
@@ -39,6 +40,7 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 
 	private final Map<String, Accessor> accessors;
 
+	@SuppressWarnings("unchecked")
 	public HibernateResourceTuplizer(
 	// @formatter:off
 			DomainResourceMetadata<E> metadata,
@@ -48,9 +50,10 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 			throws Exception {
 		// @formatter:on
 		super(metadata.getResourceType());
-		this.accessors = Collections.unmodifiableMap(
-				resolveAccessors(metadata, sfi.getMetamodel().entityPersister(metadata.getResourceType()),
-						cachedAccessorProvider, accessorEntryConsumer));
+		this.accessors = Collections
+				.unmodifiableMap(resolveAccessors(metadata.unwrap(DomainResourceAttributesMetadata.class),
+						sfi.getMetamodel().entityPersister(metadata.getResourceType()), cachedAccessorProvider,
+						accessorEntryConsumer));
 	}
 
 	@Override
@@ -58,8 +61,8 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 		return accessors;
 	}
 
-	private Map<String, Accessor> resolveAccessors(DomainResourceMetadata<E> metadata, EntityPersister persister,
-			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
+	private Map<String, Accessor> resolveAccessors(DomainResourceAttributesMetadata<E> metadata,
+			EntityPersister persister, BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer) throws Exception {
 		final Class<E> resourceType = metadata.getResourceType();
 		final List<String> wrappedAttributeNames = metadata.getWrappedAttributeNames();
