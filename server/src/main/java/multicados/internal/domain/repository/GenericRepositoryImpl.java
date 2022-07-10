@@ -22,9 +22,11 @@ import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Root;
 
+import org.hibernate.Session;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.query.Query;
@@ -42,7 +44,7 @@ import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraph;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.PermanentResource;
-import multicados.internal.helper.SpecificationHelper;
+import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.Utils;
 
 /**
@@ -55,7 +57,8 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 
 	private static final Pageable DEFAULT_PAGEABLE = Pageable.ofSize(10);
 	private static final Pageable SINGLE_ROW_PAGEABLE = Pageable.ofSize(1);
-	private static final LockModeType DEFAULT_LOCK_MODE = LockModeType.NONE;
+	private static final LockModeType DEFAULT_FIND_LOCK_MODE = LockModeType.NONE;
+	private static final LockModeType DEFAULT_UPDATE_LOCK_MODE = LockModeType.NONE;
 
 	private final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications;
 
@@ -121,7 +124,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 		}
 		// shouldn't be null here
 		if (interfaces.isEmpty()) {
-			return SpecificationHelper.none();
+			return HibernateHelper.none();
 		}
 		// @formatter:off
 		return IntStream.range(1, interfaces.size())
@@ -142,7 +145,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
 			SharedSessionContract session) throws Exception {
-		return findAll(type, selector, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
+		return findAll(type, selector, DEFAULT_PAGEABLE, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -154,7 +157,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector, Pageable pageable,
 			SharedSessionContract session) throws Exception {
-		return findAll(type, selector, pageable, DEFAULT_LOCK_MODE, session);
+		return findAll(type, selector, pageable, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -221,7 +224,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
 			Specification<D> spec, SharedSessionContract session) throws Exception {
-		return findAll(type, selector, spec, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
+		return findAll(type, selector, spec, DEFAULT_PAGEABLE, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -233,7 +236,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<Tuple> findAll(Class<D> type, Selector<D, Tuple> selector,
 			Specification<D> spec, Pageable pageable, SharedSessionContract session) throws Exception {
-		return findAll(type, selector, spec, pageable, DEFAULT_LOCK_MODE, session);
+		return findAll(type, selector, spec, pageable, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -272,7 +275,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 
 	@Override
 	public <D extends DomainResource> List<D> findAll(Class<D> type, SharedSessionContract session) throws Exception {
-		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session);
+		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -284,7 +287,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, SharedSessionContract session)
 			throws Exception {
-		return findAll(type, pageable, DEFAULT_LOCK_MODE, session);
+		return findAll(type, pageable, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -310,7 +313,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<D> findAll(Class<D> type, SharedSessionContract session,
 			Specification<D> spec) throws Exception {
-		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_LOCK_MODE, session, spec);
+		return findAll(type, DEFAULT_PAGEABLE, DEFAULT_FIND_LOCK_MODE, session, spec);
 	}
 
 	@Override
@@ -322,7 +325,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> List<D> findAll(Class<D> type, Pageable pageable, SharedSessionContract session,
 			Specification<D> spec) throws Exception {
-		return findAll(type, pageable, DEFAULT_LOCK_MODE, session, spec);
+		return findAll(type, pageable, DEFAULT_FIND_LOCK_MODE, session, spec);
 	}
 
 	@Override
@@ -350,31 +353,31 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> Optional<D> findById(Class<D> type, Serializable id,
 			SharedSessionContract session) throws Exception {
-		return findById(type, id, DEFAULT_LOCK_MODE, session);
+		return findById(type, id, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
 	public <D extends DomainResource> Optional<D> findById(Class<D> type, Serializable id, LockModeType lockMode,
 			SharedSessionContract session) throws Exception {
-		return findOne(type, SpecificationHelper.hasId(type, id, session), lockMode, session);
+		return findOne(type, HibernateHelper.hasId(type, id, session), lockMode, session);
 	}
 
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findById(Class<D> type, Serializable id,
 			Selector<D, Tuple> selector, SharedSessionContract session) throws Exception {
-		return findById(type, id, selector, DEFAULT_LOCK_MODE, session);
+		return findById(type, id, selector, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findById(Class<D> type, Serializable id,
 			Selector<D, Tuple> selector, LockModeType lockMode, SharedSessionContract session) throws Exception {
-		return findOne(type, selector, SpecificationHelper.hasId(type, id, session), lockMode, session);
+		return findOne(type, selector, HibernateHelper.hasId(type, id, session), lockMode, session);
 	}
 
 	@Override
 	public <D extends DomainResource> Optional<D> findOne(Class<D> type, Specification<D> spec,
 			SharedSessionContract session) throws Exception {
-		return findOne(type, spec, DEFAULT_LOCK_MODE, session);
+		return findOne(type, spec, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -401,7 +404,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@Override
 	public <D extends DomainResource> Optional<Tuple> findOne(Class<D> type, Selector<D, Tuple> selector,
 			Specification<D> spec, SharedSessionContract session) throws Exception {
-		return findOne(type, selector, spec, DEFAULT_LOCK_MODE, session);
+		return findOne(type, selector, spec, DEFAULT_FIND_LOCK_MODE, session);
 	}
 
 	@Override
@@ -429,7 +432,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 
 	@Override
 	public <D extends DomainResource> long count(Class<D> type, SharedSessionContract session) throws Exception {
-		return count(type, SpecificationHelper.none(), session);
+		return count(type, HibernateHelper.none(), session);
 	}
 
 	@Override
@@ -448,6 +451,34 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 			.then(Query::getSingleResult)
 			.get();
 		// @formatter:on
+	}
+
+	@Override
+	public <D extends DomainResource> int update(Class<D> type, SetStatementBuilder<D> setStatementBuilder,
+			WhereStatementBuilder<D> specification, SharedSessionContract session) throws Exception {
+		return update(type, type, setStatementBuilder, specification, DEFAULT_UPDATE_LOCK_MODE, session);
+	}
+
+	@Override
+	public <D extends DomainResource> int update(Class<D> type, Serializable id,
+			SetStatementBuilder<D> setStatementBuilder, WhereStatementBuilder<D> specification, LockModeType lockMode,
+			SharedSessionContract sessionContract) throws Exception {
+		if (!(sessionContract instanceof Session)) {
+			throw new IllegalArgumentException(String.format("Unable to perform locking with session type %s",
+					sessionContract.getClass().getName()));
+		}
+
+		if (lockMode != LockModeType.NONE) {
+			findOne(type, (root, cq, builder) -> List.of(builder.count(root)),
+					HibernateHelper.hasId(type, id, sessionContract), lockMode, sessionContract);
+		}
+
+		final CriteriaUpdate<D> cu = criteriaBuilder.createCriteriaUpdate(type);
+		final Root<D> from = cu.from(type);
+
+		setStatementBuilder.build(from, cu, criteriaBuilder).where(specification.build(from, cu, criteriaBuilder));
+
+		return sessionContract.createQuery(cu).executeUpdate();
 	}
 
 }

@@ -35,7 +35,7 @@ public @interface For {
 		}
 
 		private static String getMissingMessage(String trailingInfo) {
-			return String.format("%s is missing on %s", For.class, trailingInfo);
+			return String.format("@%s is missing on %s", For.class, trailingInfo);
 		}
 
 	}

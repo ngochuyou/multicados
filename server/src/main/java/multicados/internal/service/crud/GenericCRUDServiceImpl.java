@@ -46,7 +46,7 @@ import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.domain.repository.Selector;
 import multicados.internal.domain.validation.DomainResourceValidatorFactory;
 import multicados.internal.helper.CollectionHelper;
-import multicados.internal.helper.SpecificationHelper;
+import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.Entry;
@@ -88,7 +88,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			ReadSecurityManager readSecurityManager,
 			GenericRepository genericRepository) throws Exception {
 		// @formatter:on
-		super(resourceContext, builderFactory, validatorFactory);
+		super(resourceContext, builderFactory, validatorFactory, genericRepository);
 		this.readSecurityManager = readSecurityManager;
 		this.genericRepository = genericRepository;
 
@@ -177,7 +177,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			GrantedAuthority credential,
 			Session entityManager) throws Exception {
 		// @formatter:on
-		return readOne(type, properties, SpecificationHelper.hasId(type, id, entityManager), credential, entityManager);
+		return readOne(type, properties, HibernateHelper.hasId(type, id, entityManager), credential, entityManager);
 	}
 
 	@Override

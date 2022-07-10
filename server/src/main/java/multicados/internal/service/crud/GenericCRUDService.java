@@ -26,19 +26,19 @@ public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends Dom
 
 	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Serializable id, E model,
 			Class<E> type, EM entityManager) {
-		return create(id, model, type, entityManager, false);
+		return create(type, id, model, entityManager, false);
 	}
 
-	<S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Serializable id, E model,
-			Class<E> type, EM entityManager, boolean flushOnFinish);
+	<S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Class<E> type, Serializable id,
+			E model, EM entityManager, boolean flushOnFinish);
 
 	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult update(Serializable id, E model,
 			Class<E> type, EM entityManager) {
-		return update(id, model, type, entityManager, false);
+		return update(type, id, model, entityManager, false);
 	}
 
-	<S extends Serializable, E extends IdentifiableResource<S>> ServiceResult update(Serializable id, E model,
-			Class<E> type, EM entityManager, boolean flushOnFinish);
+	<S extends Serializable, E extends IdentifiableResource<S>> ServiceResult update(Class<E> type, Serializable id,
+			E model, EM entityManager, boolean flushOnFinish);
 
 	/* ==================== */
 	<S extends Serializable, E extends IdentifiableResource<S>> List<TUPLE> readAll(Class<E> type,

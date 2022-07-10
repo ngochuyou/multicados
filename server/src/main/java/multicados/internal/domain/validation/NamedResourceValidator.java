@@ -35,6 +35,7 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 		this.nameFieldName = fieldName;
 		this.errorMessage = errorMessage;
 		this.pattern = pattern;
+		
 		if (logger.isDebugEnabled()) {
 			logger.debug("Compliant pattern is {} for field [{}]", pattern, fieldName);
 		}

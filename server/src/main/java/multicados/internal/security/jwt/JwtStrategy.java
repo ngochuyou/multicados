@@ -12,16 +12,13 @@ import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
 import javax.servlet.http.Cookie;
-
-import org.springframework.core.env.Environment;
-import org.springframework.util.StringUtils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import multicados.internal.helper.HttpHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.security.DomainUserDetails;
 
@@ -29,9 +26,9 @@ import multicados.internal.security.DomainUserDetails;
  * @author Ngoc Huy
  *
  */
-class JWTStrategy {
+class JwtStrategy {
 
-	private final JWTSecurityContext jwtSecurityContext;
+	private final JwtSecurityContext jwtSecurityContext;
 
 	private final String secret;
 	private final ZoneId zone;
@@ -40,7 +37,7 @@ class JWTStrategy {
 
 	private final Cookie logoutCookie;
 
-	JWTStrategy(JWTSecurityContext jwtSecurityContext, String secret, ZoneId zone, Duration expirationDuration)
+	JwtStrategy(JwtSecurityContext jwtSecurityContext, String secret, ZoneId zone, Duration expirationDuration)
 			throws Exception {
 		this.jwtSecurityContext = jwtSecurityContext;
 		this.secret = secret;
@@ -48,12 +45,9 @@ class JWTStrategy {
 		this.expirationDuration = expirationDuration;
 		maxAge = Long.valueOf(expirationDuration.toSeconds()).intValue();
 		// @formatter:off
-		logoutCookie = Utils.<String, String>declare(jwtSecurityContext.getCookieName(), null)
-				.then(Cookie::new)
+		logoutCookie = Utils.declare(jwtSecurityContext.getCookieName())
+				.then(HttpHelper::createInvalidateHttpOnlyCookie)
 				.consume(cookie -> cookie.setPath(jwtSecurityContext.getWholeDomainPath()))
-				.consume(cookie -> cookie.setSecure(jwtSecurityContext.isCookieSecured()))
-				.consume(cookie -> cookie.setHttpOnly(true))
-				.consume(cookie -> cookie.setMaxAge(0))
 				.get();
 		// @formatter:on
 	}
@@ -86,33 +80,21 @@ class JWTStrategy {
 		return expirationDuration;
 	}
 
-	<T> T getOrDefault(Environment env, String propName, Function<String, T> producer, T defaultValue) {
-		String configuredValue = env.getProperty(propName);
-
-		if (!StringUtils.hasLength(configuredValue)) {
-			return defaultValue;
-		}
-
-		return producer.apply(configuredValue);
-	}
-
 	public Cookie generateCookie(DomainUserDetails userDetails) throws Exception {
 		// @formatter:off
-		Cookie cookie = declare(createClaims(userDetails), userDetails.getUsername())
+		final Cookie cookie = declare(createClaims(userDetails), userDetails.getUsername())
 			.then(this::createToken)
 				.prepend(jwtSecurityContext.getCookieName())
-			.then(Cookie::new)
+			.then(HttpHelper::createHttpOnlyCookie)
 			.get();
 		// @formatter:on
 		cookie.setPath(jwtSecurityContext.getWholeDomainPath());
-		cookie.setSecure(jwtSecurityContext.isCookieSecured());
-		cookie.setHttpOnly(true);
 		cookie.setMaxAge(maxAge);
 
 		return cookie;
 	}
 
-	public Cookie getLogoutCookie() throws Exception {
+	public Cookie getLogoutCookie() {
 		return logoutCookie;
 	}
 

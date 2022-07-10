@@ -3,6 +3,8 @@
  */
 package multicados.controller.exception;
 
+import static org.springframework.http.ResponseEntity.badRequest;
+
 import java.sql.BatchUpdateException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collections;
@@ -21,16 +23,17 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.id.IdentifierGenerationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseEntity.BodyBuilder;
 import org.springframework.web.context.request.WebRequest;
 
-import multicados.controller.controllers.AbstractController;
 import multicados.internal.helper.Common;
+import multicados.internal.helper.HttpHelper;
 
 /**
  * @author Ngoc Huy
  *
  */
-class PersistenceExceptionAdvisor extends AbstractController {
+class PersistenceExceptionAdvisor {
 
 	static final PersistenceExceptionAdvisor INSTANCE = new PersistenceExceptionAdvisor();
 
@@ -41,19 +44,19 @@ class PersistenceExceptionAdvisor extends AbstractController {
 
 		handlers.put(ConstraintViolationException.class, this::handleConstraintViolation);
 
-		handlers.put(EntityNotFoundException.class,
-				(enfe, request) -> resolveBody(enfe, request, getBadRequest(), enfe.getMessage()));
+		handlers.put(EntityNotFoundException.class, (enfe, request) -> resolveBody(enfe, request,
+				ResponseEntity.status(HttpStatus.NOT_FOUND), enfe.getMessage()));
 
 		handlers.put(EntityExistsException.class,
-				(eee, request) -> handlers.get(EntityExistsException.class).apply(eee, request));
+				(eee, request) -> handlers.get(EntityNotFoundException.class).apply(eee, request));
 
 		handlers.put(HibernateException.class,
-				(he, request) -> resolveBody(he, request, getBadRequest(), "Invalid resource"));
+				(he, request) -> resolveBody(he, request, badRequest(), "Invalid resource"));
 
 		handlers.put(IdentifierGenerationException.class,
-				(ide, request) -> resolveBody(ide, request, getBadRequest(), "Unable to identify resource"));
+				(ide, request) -> resolveBody(ide, request, badRequest(), "Unable to identify resource"));
 
-		handlers.put(PropertyValueException.class, (pve, request) -> resolveBody(pve, request, getBadRequest(),
+		handlers.put(PropertyValueException.class, (pve, request) -> resolveBody(pve, request, badRequest(),
 				String.format("Attribute '%s' is missing", PropertyValueException.class.cast(pve).getPropertyName())));
 
 		this.handlers = Collections.unmodifiableMap(handlers);
@@ -90,7 +93,20 @@ class PersistenceExceptionAdvisor extends AbstractController {
 			}
 		}
 
-		return resolveBody(cve, request, getBadRequest(),
+		return resolveBody(cve, request, badRequest(),
 				"Some of the provided information did not meet the requirements");
 	}
+
+	private ResponseEntity<?> resolveBody(Throwable cause, WebRequest request, BodyBuilder response, String message) {
+		if (HttpHelper.isJsonAccepted(request)) {
+			return response.body(Common.error(message));
+		}
+
+		if (HttpHelper.isTextAccepted(request)) {
+			return response.body(message);
+		}
+		
+		return response.body(null);
+	}
+
 }

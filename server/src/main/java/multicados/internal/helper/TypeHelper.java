@@ -58,7 +58,7 @@ public class TypeHelper {
 	}
 
 	public static <T> Queue<Class<? super T>> getClassQueue(Class<T> clazz) {
-		Queue<Class<? super T>> queue = new ArrayDeque<>();
+		final Queue<Class<? super T>> queue = new ArrayDeque<>();
 		Class<? super T> superClass = clazz;
 
 		while (superClass != null && !superClass.equals(Object.class)) {

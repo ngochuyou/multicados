@@ -164,4 +164,13 @@ public abstract class StringHelper extends StringUtils {
 		return string.matches(NUMERIC_PATTERN);
 	}
 
+	/**
+	 * @see <a href="https://stackoverflow.com/a/20044013/10264578">This article</a>
+	 */
+	private static final String UUID_PATTERN = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
+
+	public static final boolean isUUID(String string) {
+		return string.matches(UUID_PATTERN);
+	}
+
 }

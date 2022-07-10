@@ -6,9 +6,6 @@ package multicados.internal.file.engine;
 import static multicados.internal.helper.Utils.declare;
 
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
@@ -17,13 +14,12 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cache.spi.access.EntityDataAccess;
 import org.hibernate.cache.spi.access.NaturalIdDataAccess;
 import org.hibernate.engine.config.spi.ConfigurationService;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.persister.entity.SingleTableEntityPersister;
 import org.hibernate.persister.spi.PersisterCreationContext;
 import org.hibernate.proxy.HibernateProxy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import multicados.internal.config.Settings;
 import multicados.internal.file.domain.Directory;
@@ -36,7 +32,6 @@ import multicados.internal.file.domain.FileResource;
 public class FileResourcePersisterImpl extends SingleTableEntityPersister implements FileResourcePersister {
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger logger = LoggerFactory.getLogger(FileResourcePersisterImpl.class);
 
 	private static final String MESSAGE = String.format("Insertions on %s must always contain every property values",
 			FileResource.class.getSimpleName());
@@ -55,7 +50,8 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 			throws Exception {
 		// @formatter:on
 		super(persistentClass, cacheAccessStrategy, naturalIdRegionAccessStrategy, creationContext);
-		FileResourceSessionFactory sfi = FileResourceSessionFactory.class.cast(creationContext.getSessionFactory());
+		final FileResourceSessionFactory sfi = FileResourceSessionFactory.class
+				.cast(creationContext.getSessionFactory());
 
 		sfi.addObserver(this);
 		// @formatter:off
@@ -132,23 +128,13 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 
 	@Override
 	public void sessionFactoryCreated(SessionFactory factory) {
-		createDirectory();
-	}
-
-	private void createDirectory() {
-		Path path = Paths.get(directoryPath);
-
-		if (!Files.exists(path)) {
-			logger.debug("Creating new directory with path [{}]", path);
-			path.toFile().mkdir();
+		if (!(factory instanceof SessionFactoryImplementor)) {
 			return;
 		}
 
-		if (Files.isDirectory(path)) {
-			return;
-		}
+		final SessionFactoryImplementor sfi = (SessionFactoryImplementor) factory;
 
-		throw new IllegalArgumentException(String.format("%s has already existed but it's not a directory", path));
+		sfi.getServiceRegistry().requireService(DirectoryInitializer.class).createDirectory(directoryPath);
 	}
 
 	@Override

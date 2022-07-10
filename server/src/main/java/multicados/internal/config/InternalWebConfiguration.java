@@ -17,9 +17,11 @@ import org.hibernate.cfg.AvailableSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.FactoryBean;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -42,6 +44,7 @@ import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 
 import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.helper.SpringHelper;
+import multicados.service.domain.customer.CredentialResetService;
 
 /**
  * @author Ngoc Huy
@@ -54,6 +57,8 @@ import multicados.internal.helper.SpringHelper;
 @EnableSpringDataWebSupport
 @EnableAsync
 @EnableScheduling
+@EnableCaching(proxyTargetClass = true)
+@Import(DomainLogicContextConfiguration.class)
 public class InternalWebConfiguration implements WebMvcConfigurer {
 
 	private static final Logger logger = LoggerFactory.getLogger(InternalWebConfiguration.class);
@@ -94,7 +99,7 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 
 	@Bean
 	public MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter() {
-		MappingJackson2HttpMessageConverter jsonConverter = new MappingJackson2HttpMessageConverter();
+		final MappingJackson2HttpMessageConverter jsonConverter = new MappingJackson2HttpMessageConverter();
 
 		jsonConverter.setDefaultCharset(StandardCharsets.UTF_8);
 
@@ -103,12 +108,24 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 
 	@Bean(name = ImageService.EXECUTOR_NAME)
 	public Executor imageServiceExecutor() {
-		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
 		executor.setCorePoolSize(5);
 		executor.setMaxPoolSize(10);
 		executor.setQueueCapacity(50);
 		executor.setThreadNamePrefix(ImageService.EXECUTOR_NAME);
+
+		return executor;
+	}
+
+	@Bean(name = CredentialResetService.EXECUTOR_NAME)
+	public Executor credentialResetMailer() {
+		final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+
+		executor.setCorePoolSize(10);
+		executor.setMaxPoolSize(20);
+		executor.setQueueCapacity(100);
+		executor.setThreadNamePrefix(CredentialResetService.EXECUTOR_NAME);
 
 		return executor;
 	}
@@ -120,14 +137,15 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 
 	@Override
 	public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
-		Hibernate5Module h5module = new Hibernate5Module();
+		final Hibernate5Module h5module = new Hibernate5Module();
 
 		h5module.disable(Hibernate5Module.Feature.FORCE_LAZY_LOADING);
 
-		for (HttpMessageConverter<?> mc : converters) {
+		for (final HttpMessageConverter<?> mc : converters) {
 			if (mc instanceof MappingJackson2HttpMessageConverter
 					|| mc instanceof MappingJackson2XmlHttpMessageConverter) {
 				((AbstractJackson2HttpMessageConverter) mc).getObjectMapper().registerModule(h5module);
+				return;
 			}
 		}
 	}

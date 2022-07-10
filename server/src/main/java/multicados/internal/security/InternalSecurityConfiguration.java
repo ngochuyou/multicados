@@ -5,8 +5,6 @@ package multicados.internal.security;
 
 import static multicados.internal.helper.Utils.declare;
 
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
@@ -35,16 +33,19 @@ import org.springframework.web.filter.CorsFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import multicados.internal.config.DNSUtils;
 import multicados.internal.config.Settings;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.locale.ZoneContext;
-import multicados.internal.security.jwt.JWTLogoutFilter;
-import multicados.internal.security.jwt.JWTRequestFilter;
-import multicados.internal.security.jwt.JWTSecurityContext;
-import multicados.internal.security.jwt.JWTSecurityContextImpl;
-import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
+import multicados.internal.security.jwt.HeaderBasedJwtAdvisor;
+import multicados.internal.security.jwt.JwtAdvisor;
+import multicados.internal.security.jwt.JwtLogoutFilter;
+import multicados.internal.security.jwt.JwtRequestFilter;
+import multicados.internal.security.jwt.JwtSecurityContext;
+import multicados.internal.security.jwt.JwtSecurityContextImpl;
+import multicados.internal.security.jwt.JwtUsernamePasswordAuthenticationFilter;
 
 /**
  * @author Ngoc Huy
@@ -53,32 +54,35 @@ import multicados.internal.security.jwt.JWTUsernamePasswordAuthenticationFilter;
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(securedEnabled = true)
-public class SecurityConfiguration {
+public class InternalSecurityConfiguration {
 
 	private final Environment env;
 
 	private final UserDetailsService userDetailsService;
 	private final AuthenticationFailureHandler authenticationFailureHandler;
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
-	private final JWTSecurityContext jwtSecurityContext;
+	private final JwtSecurityContext jwtSecurityContext;
 	private final ObjectMapper objectMapper;
 
 	private final AccessDeniedHandler accessDeniedHandler;
 	private final AuthenticationEntryPoint accessDeniedAuthenticationEntryPoint;
 	private final FilterChainExceptionHandlingFilter chainExceptionHandlingFilter;
 
-	private final JWTRequestFilter jwtRequestFilter;
+	private final JwtAdvisor jwtAdvisor;
+	private final JwtRequestFilter jwtRequestFilter;
 
-	public SecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper,
+	public InternalSecurityConfiguration(Environment env, ZoneContext zoneContext, ObjectMapper objectMapper,
 			UserDetailsService userDetailsService) throws Exception {
 		this.env = env;
 		this.objectMapper = objectMapper;
 		onMemoryUserDetailsContext = new OnMemoryUserDetailsContextImpl();
-		jwtSecurityContext = new JWTSecurityContextImpl(env, zoneContext);
+		jwtSecurityContext = new JwtSecurityContextImpl(env, zoneContext);
 		authenticationFailureHandler = new AuthenticationFailureHandlerImpl(objectMapper);
 		this.userDetailsService = userDetailsService;
-		jwtRequestFilter = new JWTRequestFilter(env, userDetailsService, onMemoryUserDetailsContext, jwtSecurityContext,
-				objectMapper);
+
+		jwtAdvisor = new HeaderBasedJwtAdvisor(jwtSecurityContext);
+		jwtRequestFilter = new JwtRequestFilter(env, jwtSecurityContext, jwtAdvisor, userDetailsService,
+				onMemoryUserDetailsContext, objectMapper);
 
 		accessDeniedHandler = new AccessDeniedHandlerImpl(objectMapper);
 		accessDeniedAuthenticationEntryPoint = new AccessDeniedAuthenticationEntryPoint(accessDeniedHandler);
@@ -86,11 +90,17 @@ public class SecurityConfiguration {
 	}
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public OnMemoryUserDetailsContext onMemoryUserDetailsContext() {
+		return onMemoryUserDetailsContext;
+	}
+
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http, DNSUtils dnsUtils) throws Exception {
 		// @formatter:off
 		declare(http)
 			.consume(this::cacheRequests)
 			.consume(this::csrf)
+				.second(dnsUtils)
 			.consume(this::cors)
 			.consume(this::publicEndpoints)
 			.consume(this::securedEndpoints)
@@ -107,8 +117,7 @@ public class SecurityConfiguration {
 		final AuthenticationManagerBuilder authenticationManagerBuilder = http
 				.getSharedObject(AuthenticationManagerBuilder.class);
 
-		authenticationManagerBuilder
-			.userDetailsService(userDetailsService);
+		authenticationManagerBuilder.userDetailsService(userDetailsService);
 
 		final AuthenticationManager authenticationManager = authenticationManagerBuilder.build();
 
@@ -118,16 +127,22 @@ public class SecurityConfiguration {
 	}
 
 	@Bean
+	public JwtSecurityContext jwtSecurityContext() {
+		return jwtSecurityContext;
+	}
+	
+	@Bean
 	public AbstractAuthenticationProcessingFilter jwtUsernamePasswordAuthenticationFilter(
 			ApplicationContext applicationContext, HttpSecurity http) throws Exception {
-		return new JWTUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
+		return new JwtUsernamePasswordAuthenticationFilter(onMemoryUserDetailsContext, jwtSecurityContext,
 				authenticationFailureHandler, applicationContext.getBean(AuthenticationManager.class), objectMapper);
 	}
 
 	@Bean
 	public AbstractAuthenticationProcessingFilter jwtLogoutFilter(ApplicationContext applicationContext,
 			HttpSecurity http) throws Exception {
-		return new JWTLogoutFilter(jwtSecurityContext, applicationContext.getBean(AuthenticationManager.class));
+		return new JwtLogoutFilter(jwtSecurityContext, applicationContext.getBean(AuthenticationManager.class),
+				objectMapper, jwtAdvisor);
 	}
 
 	private boolean isInDevMode() {
@@ -153,8 +168,8 @@ public class SecurityConfiguration {
 		http.csrf().disable();
 	}
 
-	private void cors(HttpSecurity http) throws Exception {
-		new CorsConfigurer().configure(http);
+	private void cors(HttpSecurity http, DNSUtils dnsUtils) throws Exception {
+		new CorsConfigurer().configure(http, dnsUtils);
 	}
 
 	private static final String ENDPOINT_PATTERN_PARTS_DELIMITER = "\\\\";
@@ -227,18 +242,15 @@ public class SecurityConfiguration {
 
 		private CorsConfigurer() {}
 
-		public void configure(HttpSecurity http) throws Exception {
+		public void configure(HttpSecurity http, DNSUtils dnsUtils) throws Exception {
 			if (!isInDevMode()) {
 				http.cors();
 				return;
 			}
 			// @formatter:off
-			CorsConfiguration configuration = declare(new CorsConfiguration())
+			final CorsConfiguration configuration = declare(new CorsConfiguration())
 					.consume(self -> self.setAllowCredentials(true)).get();
-			DatagramSocket socket = declare(new DatagramSocket()).consume(self -> self.connect(InetAddress.getByName("8.8.8.8"), 10002)).get();
-			String clientURLTemplate = String.format("http://%s:%s", socket.getLocalAddress().getHostAddress(), "%s");
-
-			socket.close();
+			final String clientURLTemplate = String.format("http://%s:%s", dnsUtils.getHostAddress(), "%s");
 
 			declare(Stream.of(
 						SpringHelper.getArrayOrDefault(env, Settings.SECURITY_DEV_CLIENT_PORTS, HandledFunction.identity(), StringHelper.EMPTY_STRING_ARRAY))

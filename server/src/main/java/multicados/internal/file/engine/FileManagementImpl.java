@@ -111,18 +111,19 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 				+ "\t\t\t\t\t\t=          BUILDING FILE RESOURCE MANAGEMENT           =\n"
 				+ "\t\t\t\t\t\t========================================================\n");
 		// @formatter:on
-		BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
-		StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi, bootstrapServiceRegistry,
-				new ProvidedServicesLocator(applicationContext, sfi, env));
-		MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(standardServiceRegistry);
-		BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry, metadataBuildingOptions);
+		final BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
+		final StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi,
+				bootstrapServiceRegistry, new ProvidedServicesLocator(applicationContext, sfi, env));
+		final MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(
+				standardServiceRegistry);
+		final BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry,
+				metadataBuildingOptions);
 
 		declare(metadataBuildingOptions).then(MetadataBuildingOptionsImpl.class::cast)
 				.consume(self -> self.makeReflectionManager(bootstrapContext));
 
 		sessionFactory = build(env, sfi, standardServiceRegistry, bootstrapContext, metadataBuildingOptions);
 	}
-
 	// @formatter:off
 	private FileResourceSessionFactory build(
 			Environment env,
@@ -244,6 +245,7 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 								AvailableSettings.USE_SECOND_LEVEL_CACHE, Boolean.TRUE,
 								AvailableSettings.STATEMENT_BATCH_SIZE, 0,
 								Settings.FILE_RESOURCE_ROOT_DIRECTORY, rootDirectory,
+								Settings.FILE_RESOURCE_PUBLIC_DIRECTORY, rootDirectory + SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_PUBLIC_DIRECTORY, HandledFunction.identity(), "public\\"),
 								Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, identifierDelimiter,
 								Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, Integer::valueOf, 30)));
 						})
@@ -289,7 +291,8 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
 			providedServices.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
 			providedServices.add(new ProvidedService<>(MutableIdentifierGeneratorFactory.class, serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class)));
-
+			providedServices.add(new ProvidedService<>(DirectoryInitializer.class, new DirectoryInitializerImpl()));
+			
 			this.providedServices = Collections.unmodifiableList(providedServices);
 		}
 		// @formatter:on

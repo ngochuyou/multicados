@@ -8,6 +8,7 @@ import javax.persistence.EntityManager;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
+import multicados.internal.domain.AbstractGraphLogicsFactory;
 import multicados.internal.domain.DomainResource;
 import multicados.internal.helper.Utils.Access;
 
@@ -25,7 +26,8 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		return new CompositeDomainResourceBuilder<>(this, next);
 	}
 
-	private class CompositeDomainResourceBuilder<T extends D> extends AbstractDomainResourceBuilder<T> {
+	private static class CompositeDomainResourceBuilder<D extends DomainResource, T extends D>
+			extends AbstractDomainResourceBuilder<T> implements AbstractGraphLogicsFactory.FixedLogic {
 
 		private final DomainResourceBuilder<D> parentBuilder;
 		private final DomainResourceBuilder<T> childBuilder;
@@ -46,7 +48,8 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 		@SuppressWarnings("unchecked")
 		@Override
 		public T buildUpdate(T model, T persistence, EntityManager entityManger) {
-			return childBuilder.buildUpdate(model, (T) parentBuilder.buildUpdate(model, persistence, entityManger), entityManger);
+			return childBuilder.buildUpdate(model, (T) parentBuilder.buildUpdate(model, persistence, entityManger),
+					entityManger);
 		}
 
 		@Override

@@ -3,14 +3,11 @@
  */
 package multicados.controller.controllers;
 
-import static multicados.internal.helper.Common.error;
-import static org.springframework.http.ResponseEntity.ok;
 import static org.springframework.http.ResponseEntity.status;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -20,15 +17,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.ResponseEntity.BodyBuilder;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.web.context.request.WebRequest;
 
-import multicados.domain.entity.Role;
 import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Common;
 import multicados.internal.helper.HttpHelper;
 import multicados.internal.service.ServiceResult;
-import multicados.security.userdetails.UserDetailsServiceImpl.DomainUser;
 
 /**
  * @author Ngoc Huy
@@ -36,57 +29,65 @@ import multicados.security.userdetails.UserDetailsServiceImpl.DomainUser;
  */
 public abstract class AbstractController {
 
-	protected static final DomainUser ANONYMOUS = new DomainUser("anonymous", "anonymous", false, false,
-			LocalDateTime.now(), List.of(new SimpleGrantedAuthority(Role.ANONYMOUS.name())));
-
 	/**
 	 * Construct a {@link ResponseEntity} body based on the
 	 * {@link HttpHeaders.CONTENT_TYPE} with 404 code
-	 *
-	 * @param request
+	 * 
 	 * @param preficies the message which is included in the body
+	 * @param request
+	 *
 	 * @return the {@link ResponseEntity}
 	 */
-	protected ResponseEntity<?> sendNotFound(HttpServletRequest request, Collection<String> preficies) {
-		if (HttpHelper.isJsonAccepted(request)) {
-			return sendNotFound(error(Common.notFound(preficies)));
-		}
-
-		if (HttpHelper.isTextAccepted(request)) {
-			return sendNotFound(Common.notFound(preficies));
-		}
-
-		return sendNotFound(null);
-	}
-
-	protected <T> ResponseEntity<?> sendNotFound(T body) {
-		return status(HttpStatus.NOT_FOUND).body(body);
+	protected ResponseEntity<?> sendNotFound(Collection<String> preficies, HttpServletRequest request) {
+		return doSendWithError((BodyBuilder) ResponseEntity.notFound(), Common.notFound(preficies), request);
 	}
 
 	/**
 	 * Construct a {@link ResponseEntity} body based on the
 	 * {@link HttpHeaders.CONTENT_TYPE} with 200 code
+	 * 
+	 * @param body    the data to be included in the response body
+	 * @param request
 	 *
 	 * @param <T>     body type
-	 * @param request
-	 * @param body    the data to be included in the response body
 	 * @return
 	 */
-	protected <T> ResponseEntity<?> sendOk(HttpServletRequest request, T body) {
-		if (HttpHelper.isJsonAccepted(request)) {
-			return ok(Common.payload(body));
-		}
-
-		if (HttpHelper.isTextAccepted(request)) {
-			return ok(body.toString());
-		}
-
-		return ok(body);
+	protected <T> ResponseEntity<?> sendOk(T body, HttpServletRequest request) {
+		return doSendWithPayload(ResponseEntity.ok(), Common.payload(body), request);
 	}
 
-	protected <T> ResponseEntity<?> sendResult(ServiceResult result, T body) throws Exception {
+	/**
+	 * Construct a {@link ResponseEntity} body based on the
+	 * {@link HttpHeaders.CONTENT_TYPE} with 400 code
+	 * 
+	 * @param request
+	 * @param message the data to be included in the response body
+	 *
+	 * @param <T>     body type
+	 * @return
+	 */
+	protected <T> ResponseEntity<?> sendBad(String message, HttpServletRequest request) {
+		return doSendWithError(ResponseEntity.badRequest(), message, request);
+	}
+
+	/**
+	 * Construct a {@link ResponseEntity} body based on the
+	 * {@link HttpHeaders.CONTENT_TYPE} with 403 code
+	 * 
+	 * @param request
+	 * @param message the data to be included in the response body
+	 *
+	 * @param <T>     body type
+	 * @return
+	 */
+	protected <T> ResponseEntity<?> sendForbidden(String message, HttpServletRequest request) {
+		return doSendWithError(ResponseEntity.status(HttpStatus.FORBIDDEN), message, request);
+	}
+
+	protected <T> ResponseEntity<?> sendResult(ServiceResult result, T body, HttpServletRequest request)
+			throws Exception {
 		if (result.isOk()) {
-			return ok(body);
+			return sendOk(body, request);
 		}
 
 		if (result.getException() != null) {
@@ -100,21 +101,38 @@ public abstract class AbstractController {
 		// @formatter:on
 	}
 
+	protected ResponseEntity<?> doSendWithError(BodyBuilder responseBuilder, Object body, HttpServletRequest request) {
+		return doSend(responseBuilder, () -> Common.error(body), request);
+	}
+
+	protected ResponseEntity<?> doSendWithPayload(BodyBuilder responseBuilder, Object body,
+			HttpServletRequest request) {
+		return doSend(responseBuilder, () -> Common.payload(body), request);
+	}
+
+	private ResponseEntity<?> doSend(BodyBuilder responseBuilder, Supplier<Object> bodySupplier,
+			HttpServletRequest request) {
+		if (HttpHelper.isJsonAccepted(request)) {
+			return responseBuilder.body(bodySupplier.get());
+		}
+
+		if (HttpHelper.isTextAccepted(request)) {
+			return responseBuilder.body(bodySupplier.get().toString());
+		}
+
+		return responseBuilder.body(null);
+	}
+
+	/* ========================================================== */
+
 	protected Session useManualSession(Session session) {
 		session.setHibernateFlushMode(FlushMode.MANUAL);
 		return session;
 	}
 
-	protected ResponseEntity<?> resolveBody(Throwable cause, WebRequest request, BodyBuilder response, String message) {
-		if (HttpHelper.isJsonAccepted(request)) {
-			return response.body(Common.error(message));
-		}
-
-		return response.body(message);
-	}
-
-	protected BodyBuilder getBadRequest() {
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST);
+	protected Session useAutoSession(Session session) {
+		session.setHibernateFlushMode(FlushMode.AUTO);
+		return session;
 	}
 
 }

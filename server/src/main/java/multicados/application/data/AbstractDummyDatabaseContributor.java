@@ -176,7 +176,7 @@ public abstract class AbstractDummyDatabaseContributor {
 				.get();
 
 		for (E e : instances) {
-			ServiceResult result = crudService.create(e.getId(), e, type, entityManager, true);
+			ServiceResult result = crudService.create(type, e.getId(), e, entityManager, true);
 
 			if (result.isOk()) {
 				continue;

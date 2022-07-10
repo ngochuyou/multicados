@@ -22,7 +22,7 @@ import multicados.internal.locale.ZoneContext;
  * @author Ngoc Huy
  *
  */
-public class JWTSecurityContextImpl implements JWTSecurityContext {
+public class JwtSecurityContextImpl implements JwtSecurityContext {
 
 	private static final Duration DEFAULT_DURATION = Duration.ofDays(7);
 	private static final String DEFAULT_HEADER_PREFIX = "JWTBearer";
@@ -35,7 +35,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private static final String VERSION_KEY = "version";
 	private static final String EXPIRATION_KEY = "expiration";
 
-	private final JWTStrategy strategy;
+	private final JwtStrategy strategy;
 	private final String headerPrefix;
 	private final String cookieName;
 	private final String tokenEndpoint;
@@ -44,7 +44,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	private final String passwordParam;
 	private final boolean isCookieSecured;
 
-	public JWTSecurityContextImpl(Environment env, ZoneContext zoneContext) throws Exception {
+	public JwtSecurityContextImpl(Environment env, ZoneContext zoneContext) throws Exception {
 		HandledFunction<String, String, Exception> exact = identity();
 
 		headerPrefix = getOrDefault(env, Settings.SECURITY_JWT_HEADER_PREFIX, exact, DEFAULT_HEADER_PREFIX);
@@ -58,11 +58,11 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 		strategy = buildJWTContext(env, zoneContext);
 	}
 
-	private JWTStrategy buildJWTContext(Environment env, ZoneContext zoneContext) throws Exception {
+	private JwtStrategy buildJWTContext(Environment env, ZoneContext zoneContext) throws Exception {
 		// @formatter:off
 		return declare(env)
 			.flat(this::locateSecret, self -> zoneContext.getZone(), this::locateDuration)
-			.then((secret, zone, duration) -> new JWTStrategy(this, secret, zone, duration))
+			.then((secret, zone, duration) -> new JwtStrategy(this, secret, zone, duration))
 			.get();
 		// @formatter:on
 	}
@@ -87,7 +87,7 @@ public class JWTSecurityContextImpl implements JWTSecurityContext {
 	}
 
 	@Override
-	public JWTStrategy getStrategy() {
+	public JwtStrategy getStrategy() {
 		return strategy;
 	}
 

@@ -3,6 +3,8 @@
  */
 package multicados.controller.controllers;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import multicados.controller.query.CategoryQuery;
 import multicados.domain.entity.entities.Category;
 import multicados.internal.helper.SpringHelper;
+import multicados.internal.security.FixedAnonymousAuthenticationToken;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
 
 /**
@@ -32,10 +35,14 @@ public class RestCategoryController extends AbstractController {
 	private final GenericCRUDServiceImpl crudService;
 	private final SessionFactory sessionFactory;
 
+	private final FixedAnonymousAuthenticationToken anonymousToken;
+
 	@Autowired
-	public RestCategoryController(GenericCRUDServiceImpl crudService, SessionFactory sessionFactory) {
+	public RestCategoryController(GenericCRUDServiceImpl crudService, SessionFactory sessionFactory,
+			FixedAnonymousAuthenticationToken anonymousToken) {
 		this.crudService = crudService;
 		this.sessionFactory = sessionFactory;
+		this.anonymousToken = anonymousToken;
 	}
 
 	@GetMapping
@@ -44,21 +51,24 @@ public class RestCategoryController extends AbstractController {
 		final Session session = sessionFactory.getCurrentSession();
 
 		return ResponseEntity.ok(crudService.readAll(query,
-				SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(), session));
+				SpringHelper.getUserDetails(authentication, anonymousToken.getPrincipal()).getCRUDAuthority(),
+				session));
 	}
 
 	@PostMapping
 	@Transactional
-	public ResponseEntity<?> createCategory(@RequestBody Category category) throws Exception {
-		return sendResult(crudService.create(null, category, Category.class, sessionFactory.getCurrentSession(), true),
-				category);
+	public ResponseEntity<?> createCategory(@RequestBody Category category, HttpServletRequest request)
+			throws Exception {
+		return sendResult(crudService.create(Category.class, null, category, sessionFactory.getCurrentSession(), true),
+				category, request);
 	}
 
 	@PatchMapping
 	@Transactional
-	public ResponseEntity<?> patchCategory(@RequestBody Category category) throws Exception {
-		return sendResult(crudService.update(null, category, Category.class, sessionFactory.getCurrentSession(), true),
-				category);
+	public ResponseEntity<?> patchCategory(@RequestBody Category category, HttpServletRequest request)
+			throws Exception {
+		return sendResult(crudService.update(Category.class, null, category, sessionFactory.getCurrentSession(), true),
+				category, request);
 	}
 
 }

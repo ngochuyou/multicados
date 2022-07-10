@@ -7,9 +7,9 @@ package multicados.internal.security.jwt;
  * @author Ngoc Huy
  *
  */
-public interface JWTSecurityContext {
+public interface JwtSecurityContext {
 
-	JWTStrategy getStrategy();
+	JwtStrategy getStrategy();
 
 	String getHeaderPrefix();
 

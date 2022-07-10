@@ -20,6 +20,11 @@ public class OnMemoryUserDetailsContextImpl implements OnMemoryUserDetailsContex
 	private final MutexMap mutecies = new MutexMap();
 
 	@Override
+	public boolean contains(String username) {
+		return mutecies.containsKey(username);
+	}
+
+	@Override
 	public void put(UserDetails userDetails) {
 		String username = userDetails.getUsername();
 
@@ -47,17 +52,17 @@ public class OnMemoryUserDetailsContextImpl implements OnMemoryUserDetailsContex
 		return mutecies.get(username).userDetails;
 	}
 
-	@SuppressWarnings("unused")
-	private void remove(String username) {
+	@Override
+	public void remove(String username) {
 		if (!mutecies.containsKey(username)) {
 			return;
 		}
 
 		synchronized (mutecies.get(username).lock) {
-			Mutex mutex = mutecies.remove(username);
+			final Mutex mutex = mutecies.remove(username);
 
 			if (logger.isDebugEnabled()) {
-				logger.debug("Exit: {}", username);
+				logger.debug("Exit: {}", mutex.userDetails.getUsername());
 			}
 		}
 	}

@@ -100,17 +100,18 @@ public class DomainResourceBuilderFactoryImpl extends AbstractGraphLogicsFactory
 	};
 
 	private static final AbstractDomainResourceBuilder<PermanentResource> PERMANENT_RESOURCE_BUILDER = new AbstractDomainResourceBuilder<>() {
+
 		@Override
-		public PermanentResource buildInsertion(PermanentResource resource, EntityManager entityManager)
+		public PermanentResource buildInsertion(PermanentResource persistence, EntityManager entityManager)
 				throws Exception {
-			resource.setActive(Boolean.TRUE);
-			return resource;
+			persistence.setActive(Boolean.TRUE);
+			return persistence;
 		}
 
 		@Override
-		public PermanentResource buildUpdate(PermanentResource model, PermanentResource resource,
+		public PermanentResource buildUpdate(PermanentResource model, PermanentResource persistence,
 				EntityManager entityManger) {
-			return resource;
+			return persistence;
 		}
 
 		@Override

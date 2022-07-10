@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import multicados.controller.query.DistrictQuery;
 import multicados.controller.query.ProvinceQuery;
 import multicados.internal.helper.SpringHelper;
+import multicados.internal.security.FixedAnonymousAuthenticationToken;
 import multicados.internal.service.crud.GenericCRUDServiceImpl;
 
 /**
@@ -28,9 +29,13 @@ public class RestLocationController extends AbstractController {
 	private final SessionFactory sessionFactory;
 	private final GenericCRUDServiceImpl crudService;
 
-	public RestLocationController(SessionFactory sessionFactory, GenericCRUDServiceImpl crudService) {
+	private final FixedAnonymousAuthenticationToken anonymousToken;
+
+	public RestLocationController(SessionFactory sessionFactory, GenericCRUDServiceImpl crudService,
+			FixedAnonymousAuthenticationToken anonymousToken) {
 		this.sessionFactory = sessionFactory;
 		this.crudService = crudService;
+		this.anonymousToken = anonymousToken;
 	}
 
 	@GetMapping("/district")
@@ -38,7 +43,7 @@ public class RestLocationController extends AbstractController {
 	public ResponseEntity<?> getDistricts(DistrictQuery districtQuery, Authentication authentication)
 			throws HibernateException, Exception {
 		return ResponseEntity.ok(crudService.readAll(districtQuery,
-				SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(),
+				SpringHelper.getUserDetails(authentication, anonymousToken.getPrincipal()).getCRUDAuthority(),
 				sessionFactory.getCurrentSession()));
 	}
 
@@ -47,7 +52,7 @@ public class RestLocationController extends AbstractController {
 	public ResponseEntity<?> getProvices(ProvinceQuery provinceQuery, Authentication authentication)
 			throws HibernateException, Exception {
 		return ResponseEntity.ok(crudService.readAll(provinceQuery,
-				SpringHelper.getUserDetails(authentication, ANONYMOUS).getCRUDAuthority(),
+				SpringHelper.getUserDetails(authentication, anonymousToken.getPrincipal()).getCRUDAuthority(),
 				sessionFactory.getCurrentSession()));
 	}
 

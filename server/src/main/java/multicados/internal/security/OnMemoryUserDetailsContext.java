@@ -11,8 +11,12 @@ import org.springframework.security.core.userdetails.UserDetails;
  */
 public interface OnMemoryUserDetailsContext {
 
+	boolean contains(String username);
+	
 	void put(UserDetails userDetails);
 
 	UserDetails get(String username);
 
+	void remove(String username);
+	
 }

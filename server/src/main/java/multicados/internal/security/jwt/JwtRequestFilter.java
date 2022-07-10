@@ -7,7 +7,6 @@ import static multicados.internal.helper.Utils.declare;
 import static multicados.internal.helper.Utils.HandledFunction.identity;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -21,7 +20,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,7 +27,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.WebUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,35 +38,41 @@ import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.helper.Utils.TriDeclaration;
 import multicados.internal.security.DomainUserDetails;
 import multicados.internal.security.OnMemoryUserDetailsContext;
+import multicados.internal.security.jwt.JwtAdvisor.JwtAdvice;
 
 /**
  * @author Ngoc Huy
  *
  */
-public class JWTRequestFilter extends OncePerRequestFilter {
+public class JwtRequestFilter extends OncePerRequestFilter {
 
-	private static final Logger logger = LoggerFactory.getLogger(JWTRequestFilter.class);
-
-	private static final String NO_HEADERS = "JWT header not found";
-	private static final String NO_COOKIES = "Unable to locate JWT cookie";
+	private static final Logger logger = LoggerFactory.getLogger(JwtRequestFilter.class);
 
 	private static final String TOKEN_IS_EXPIRED = "TOKEN EXPIRED";
 	private static final String TOKEN_IS_STALE = "STALE TOKEN";
 
 	private final UserDetailsService userDetailsService;
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
-	private final JWTSecurityContext jwtSecurityContext;
-	private final JWTStrategy jwtStrategy;
+	private final JwtSecurityContext jwtSecurityContext;
+	private final JwtStrategy jwtStrategy;
 
+	private final JwtAdvisor jwtAdvisor;
 	private final ObjectMapper objectMapper;
 
-	public JWTRequestFilter(Environment env, UserDetailsService userDetailsService,
-			OnMemoryUserDetailsContext onMemoryUserDetailsContext, JWTSecurityContext jwtSecurityContext,
+	public JwtRequestFilter(
+	// @formatter:off
+			Environment env,
+			JwtSecurityContext jwtSecurityContext,
+			JwtAdvisor jwtAdvisor,
+			UserDetailsService userDetailsService,
+			OnMemoryUserDetailsContext onMemoryUserDetailsContext,
 			ObjectMapper objectMapper) throws Exception {
+		// @formatter:on
 		this.userDetailsService = userDetailsService;
 		this.onMemoryUserDetailsContext = onMemoryUserDetailsContext;
 		this.jwtSecurityContext = jwtSecurityContext;
 		jwtStrategy = jwtSecurityContext.getStrategy();
+		this.jwtAdvisor = jwtAdvisor;
 		this.objectMapper = objectMapper;
 	}
 
@@ -77,27 +80,14 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 		try {
-			final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+			final JwtAdvice advice = jwtAdvisor.getAdvice(request);
 
-			if (authHeader == null || !authHeader.startsWith(jwtSecurityContext.getHeaderPrefix())) {
-				if (logger.isTraceEnabled()) {
-					logger.trace(NO_HEADERS);
-				}
-
+			if (!advice.isRequestingJwt()) {
 				filterChain.doFilter(request, response);
 				return;
 			}
 
-			Cookie cookie = WebUtils.getCookie(request, jwtSecurityContext.getCookieName());
-
-			if (cookie == null) {
-				if (logger.isTraceEnabled()) {
-					logger.trace(NO_COOKIES);
-				}
-
-				filterChain.doFilter(request, response);
-				return;
-			}
+			final Cookie cookie = advice.getCookie();
 			// @formatter:off
 			declare(new Candidate(cookie, request, response))
 				.flat(identity(), this::locateUserDetails)
@@ -123,19 +113,14 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 
 			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
-			final PrintWriter writer = response.getWriter();
-
-			try {
-				if (HttpHelper.isJsonAccepted(request)) {
-					writer.write(objectMapper.writeValueAsString(Common.error(Common.UNABLE_TO_COMPLETE)));
-					return;
-				}
-
-				writer.write(Common.UNABLE_TO_COMPLETE);
-			} finally {
-				writer.flush();
+			if (HttpHelper.tryJson(request, response, objectMapper, Common.error(Common.UNABLE_TO_COMPLETE), true)) {
+				return;
 			}
 			
+			if (HttpHelper.tryText(request, response, Common.UNABLE_TO_COMPLETE, true)) {
+				return;
+			}
+
 			return;
 		}
 	}

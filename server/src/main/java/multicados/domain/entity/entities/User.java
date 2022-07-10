@@ -56,7 +56,7 @@ public class User extends PermanentEntity<String> {
 	@Column(length = 20, nullable = false)
 	private Role role;
 
-	@Column(nullable = false)
+	@Column(nullable = false, columnDefinition = MYSQL_BCRYPT_COLUMN_DEFINITION)
 	private String password;
 
 	@Column(nullable = false)

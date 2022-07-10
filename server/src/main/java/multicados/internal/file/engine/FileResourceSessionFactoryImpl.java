@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
+import multicados.internal.config.Settings;
 import multicados.internal.file.engine.image.IdentifierGeneratingSaveEventListener;
 import multicados.internal.file.engine.image.ManipulationContext;
 import multicados.internal.locale.ZoneContext;
@@ -55,7 +56,7 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 
 			@Override
 			public Session openSession() throws HibernateException {
-				FileResourceSession newSession = new FileResourceSession(FileResourceSessionFactoryImpl.this);
+				final FileResourceSession newSession = new FileResourceSession(FileResourceSessionFactoryImpl.this);
 
 				if (logger.isDebugEnabled()) {
 					logger.debug("Created an {} with tenant {}", FileResourceSession.class.getName(),
@@ -75,6 +76,9 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 
 		};
 		registerEventListeners();
+		getServiceRegistry().requireService(DirectoryInitializer.class)
+				.createDirectory(getServiceRegistry().requireService(ConfigurationService.class)
+						.getSetting(Settings.FILE_RESOURCE_PUBLIC_DIRECTORY, String::valueOf));
 	}
 
 	private void registerEventListeners() {
@@ -82,8 +86,8 @@ public class FileResourceSessionFactoryImpl extends SessionFactoryImpl implement
 			logger.trace("Registering {}", EventListenerGroup.class.getName());
 		}
 
-		ServiceRegistryImplementor serviceRegistry = getServiceRegistry();
-		EventListenerRegistry listenerRegistry = serviceRegistry.requireService(EventListenerRegistry.class);
+		final ServiceRegistryImplementor serviceRegistry = getServiceRegistry();
+		final EventListenerRegistry listenerRegistry = serviceRegistry.requireService(EventListenerRegistry.class);
 		// @formatter:off
 		listenerRegistry.prependListeners(EventType.SAVE,
 				new IdentifierGeneratingSaveEventListener(

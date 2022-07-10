@@ -13,5 +13,5 @@ import org.hibernate.internal.SessionCreationOptions;
 public interface FileResourceSessionFactory extends SessionFactoryImplementor {
 
 	SessionCreationOptions getSessionCreationOptions();
-
+	
 }

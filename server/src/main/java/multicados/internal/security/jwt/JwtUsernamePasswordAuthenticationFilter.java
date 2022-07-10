@@ -36,11 +36,11 @@ import multicados.internal.security.OnMemoryUserDetailsContext;
  * @author Ngoc Huy
  *
  */
-public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
+public class JwtUsernamePasswordAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
 
 	private final OnMemoryUserDetailsContext onMemoryUserDetailsContext;
-	final JWTSecurityContext jwtSecurityContext;
-	final JWTStrategy jwtStrategy;
+	private final JwtSecurityContext jwtSecurityContext;
+	private final JwtStrategy jwtStrategy;
 	private final ObjectMapper objectMapper;
 
 	private final BadCredentialsException usernameNotFoundException;
@@ -48,8 +48,8 @@ public class JWTUsernamePasswordAuthenticationFilter extends AbstractAuthenticat
 
 	private static final String SUCCESSFULLY_LOGGED_IN = "SUCCESSFULLY LOGGED IN";
 
-	public JWTUsernamePasswordAuthenticationFilter(OnMemoryUserDetailsContext onMemoryUserDetailsContext,
-			JWTSecurityContext jwtSecurityContext, AuthenticationFailureHandler authenticationFailureHandler,
+	public JwtUsernamePasswordAuthenticationFilter(OnMemoryUserDetailsContext onMemoryUserDetailsContext,
+			JwtSecurityContext jwtSecurityContext, AuthenticationFailureHandler authenticationFailureHandler,
 			AuthenticationManager authenticationManager, ObjectMapper objectMapper) {
 		super(new AntPathRequestMatcher(jwtSecurityContext.getTokenEndpoint(), HttpMethod.POST.name()),
 				authenticationManager);

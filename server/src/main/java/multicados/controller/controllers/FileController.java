@@ -15,6 +15,7 @@ import javax.persistence.Tuple;
 import javax.servlet.http.HttpServletRequest;
 
 import org.hibernate.SessionFactory;
+import org.hibernate.engine.config.spi.ConfigurationService;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import multicados.domain.entity.entities.User;
 import multicados.domain.entity.entities.User_;
 import multicados.domain.entity.file.UserPhoto;
+import multicados.internal.config.Settings;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileResourcePersister;
@@ -52,6 +54,7 @@ public class FileController extends AbstractController {
 	private final SessionFactoryImplementor mainSessionFactory;
 
 	private final String userPhotoDirectory;
+	private final String publicDirectory;
 	private final ManipulationContext manipulationContext;
 
 	@Autowired
@@ -63,7 +66,7 @@ public class FileController extends AbstractController {
 		// @formatter:on
 		mainSessionFactory = SessionFactoryImplementor.class.cast(sessionFactory);
 
-		FileResourceSessionFactory fileResourceSessionFactory = fileManagement.getSessionFactory();
+		final FileResourceSessionFactory fileResourceSessionFactory = fileManagement.getSessionFactory();
 
 		this.genericRepository = genericRepository;
 		// @formatter:off
@@ -74,10 +77,18 @@ public class FileController extends AbstractController {
 				.then(FileResourcePersister::getDirectoryPath)
 				.get();
 		manipulationContext = fileResourceSessionFactory.getServiceRegistry().requireService(ManipulationContext.class);
+		publicDirectory = (String) fileResourceSessionFactory.getServiceRegistry().requireService(ConfigurationService.class).getSettings().get(Settings.FILE_RESOURCE_PUBLIC_DIRECTORY);
 		// @formatter:on
 	}
 
-	@GetMapping("/user/{username}")
+	@GetMapping("/public/{filename}")
+	@Transactional(readOnly = true)
+	public byte[] getPublicResource(@PathVariable("filename") String filename, HttpServletRequest request)
+			throws IOException {
+		return Files.readAllBytes(new File(publicDirectory + filename).toPath());
+	}
+
+	@GetMapping("/public/user/{username}")
 	@Transactional(readOnly = true)
 	public ResponseEntity<?> getUserPhotoBytesDirectly(
 	// @formatter:off
@@ -85,12 +96,12 @@ public class FileController extends AbstractController {
 			@RequestParam(name = "size", required = false, defaultValue = StringHelper.EMPTY_STRING) String size,
 			HttpServletRequest request) throws Exception {
 		// @formatter:on
-		Optional<Tuple> optionalTuple = genericRepository.findById(User.class, username,
+		final Optional<Tuple> optionalTuple = genericRepository.findById(User.class, username,
 				(root, query, builder) -> List.of(root.get(User_.photo).alias(User_.PHOTO)),
 				mainSessionFactory.getCurrentSession());
 
 		if (optionalTuple.isEmpty()) {
-			return sendNotFound(request, List.of(Common.user(username)));
+			return sendNotFound(List.of(Common.user(username)), request);
 		}
 		// @formatter:off
 		return declare(optionalTuple.get())
@@ -111,10 +122,10 @@ public class FileController extends AbstractController {
 				logger.debug("Directly reading file {}", path);
 			}
 
-			return sendOk(request, Files.readAllBytes(file.toPath()));
+			return sendOk(Files.readAllBytes(file.toPath()), request);
 		}
 
-		return sendNotFound(request, List.of(Common.file(path)));
+		return sendNotFound(List.of(Common.file(path)), request);
 	}
 
 }

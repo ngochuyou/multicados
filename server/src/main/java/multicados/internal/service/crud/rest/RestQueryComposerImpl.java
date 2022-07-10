@@ -185,7 +185,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 				continue;
 			}
 
-			final DomainResourceAttributesMetadata<? extends DomainResource> metadata = resourceContext.getMetadata(resourceType).unwrap(DomainResourceAttributesMetadata.class);
+			final DomainResourceAttributesMetadata<? extends DomainResource> metadata = resourceContext
+					.getMetadata(resourceType).unwrap(DomainResourceAttributesMetadata.class);
 			final List<Entry<String, Accessor>> nonBatchingQueriesAccessors = new ArrayList<>();
 			final List<Entry<String, Accessor>> batchingQueriesAccessors = new ArrayList<>();
 			final Queue<?> classQueue = TypeHelper.getClassQueue(resourceType);
@@ -309,8 +310,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		// @formatter:on
 	}
 
-	private boolean determineBatching(DomainResourceAttributesMetadata<?> associationOwnerMetadata, String associationName,
-			boolean isQueryBatched) {
+	private boolean determineBatching(DomainResourceAttributesMetadata<?> associationOwnerMetadata,
+			String associationName, boolean isQueryBatched) {
 		return isQueryBatched
 				&& associationOwnerMetadata.getAssociationType(associationName) == AssociationType.COLLECTION;
 	}
@@ -327,7 +328,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 		final List<ComposedNonBatchingRestQuery<?>> composedNonBatchingQueries = new ArrayList<>(
 				rawNonBatchingQueries.size());
 		int index = owningQuery.getAttributes().size();
-		final DomainResourceAttributesMetadata<?> resourceMetadata = resourceContext.getMetadata(owningQuery.getResourceType()).unwrap(DomainResourceAttributesMetadata.class);
+		final DomainResourceAttributesMetadata<?> resourceMetadata = resourceContext
+				.getMetadata(owningQuery.getResourceType()).unwrap(DomainResourceAttributesMetadata.class);
 
 		for (RestQuery<?> rawNonBatchingQuery : rawNonBatchingQueries) {
 			// @formatter:off
@@ -397,7 +399,8 @@ public class RestQueryComposerImpl implements RestQueryComposer {
 	private <D extends DomainResource> TriDeclaration<List<String>, List<RestQuery<?>>, List<RestQuery<?>>> filterAssociationsFromBasicAttributes(
 			RestQuery<?> owningQuery, Set<String> basicAttributes, List<List<RestQuery<?>>> associationQueries)
 			throws Exception {
-		final DomainResourceAttributesMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType()).unwrap(DomainResourceAttributesMetadata.class);
+		final DomainResourceAttributesMetadata<?> metadata = resourceContext.getMetadata(owningQuery.getResourceType())
+				.unwrap(DomainResourceAttributesMetadata.class);
 		final List<String> filteredBasicAttributes = new ArrayList<>(basicAttributes.size());
 
 		for (final String attribute : basicAttributes) {

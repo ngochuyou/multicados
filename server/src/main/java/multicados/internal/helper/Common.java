@@ -50,6 +50,10 @@ public abstract class Common {
 		return Map.of(ERROR, StringUtils.hasLength(error) ? error : UNKNOWN_ERROR);
 	}
 
+	public static <T> Map<String, Object> error(T body) {
+		return Map.of(ERROR, body);
+	}
+
 	public static <T> Map<String, Object> payload(T payload) {
 		return Map.of(PAYLOAD, payload, MESSAGE, GENERAL_OK_MESSAGE);
 	}
@@ -77,7 +81,7 @@ public abstract class Common {
 
 		return String.format(NOT_FOUND_TEMPLATE, join(SPACE, preficies));
 	}
-	
+
 	public static String existed() {
 		return existed(null);
 	}

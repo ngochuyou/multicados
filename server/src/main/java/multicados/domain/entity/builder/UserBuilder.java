@@ -67,7 +67,7 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 	@Override
 	public User buildInsertion(User resource, EntityManager entityManager) throws Exception {
 		mandatoryBuild(resource, resource);
-
+		
 		resource.setCredentialVersion(LocalDateTime.now());
 		resource.setLocked(Boolean.TRUE);
 		resource.setPassword(resource.getPassword() == null && true/*

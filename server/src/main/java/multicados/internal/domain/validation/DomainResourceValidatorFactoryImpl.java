@@ -34,7 +34,6 @@ import multicados.internal.domain.DomainResource;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceGraphCollectors;
 import multicados.internal.domain.GraphLogic;
-import multicados.internal.domain.IdentifiableResource;
 import multicados.internal.domain.NamedResource;
 import multicados.internal.domain.annotation.Name;
 import multicados.internal.domain.metadata.NamedResourceMetadata;
@@ -93,8 +92,6 @@ public class DomainResourceValidatorFactoryImpl extends AbstractGraphLogicsFacto
 
 		fixedLogics.addAll((Collection) constructNamedResourceValidators(applicationContext.getBean(Environment.class),
 				resourceContext, genericRepository));
-		fixedLogics.add(Map.entry(IdentifiableResource.class, Map.entry(IdentifiableResource.class,
-				new IdentifiableResourceValidator(resourceContext, genericRepository))));
 
 		if (logger.isTraceEnabled()) {
 			logger.trace(Utils.Access.getClosingMessage(new Loggable() {}));
