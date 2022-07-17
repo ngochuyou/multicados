@@ -24,16 +24,16 @@ import multicados.internal.service.ServiceResult;
  */
 public interface GenericCRUDService<TUPLE, EM extends EntityManager> extends DomainService, ContextBuilder {
 
-	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Serializable id, E model,
-			Class<E> type, EM entityManager) {
+	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Class<E> type,
+			Serializable id, E model, EM entityManager) {
 		return create(type, id, model, entityManager, false);
 	}
 
 	<S extends Serializable, E extends IdentifiableResource<S>> ServiceResult create(Class<E> type, Serializable id,
 			E model, EM entityManager, boolean flushOnFinish);
 
-	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult update(Serializable id, E model,
-			Class<E> type, EM entityManager) {
+	default <S extends Serializable, E extends IdentifiableResource<S>> ServiceResult update(Class<E> type,
+			Serializable id, E model, EM entityManager) {
 		return update(type, id, model, entityManager, false);
 	}
 

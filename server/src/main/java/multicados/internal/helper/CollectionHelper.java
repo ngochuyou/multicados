@@ -5,6 +5,7 @@ package multicados.internal.helper;
 
 import java.lang.reflect.Type;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -71,6 +72,10 @@ public class CollectionHelper {
 		}
 
 		return null;
+	}
+	
+	public static <K, V> Map<K, V> getOrEmpty(Map<K, V> map) {
+		return map == null || map.isEmpty() ? Collections.emptyMap() : map;
 	}
 
 }

@@ -68,7 +68,6 @@ public class DomainResourceTuplizerImpl<D extends DomainResource> extends Abstra
 		for (final String attributeName : metadata.getDeclaredAttributeNames()) {
 			// @formatter:off
 			final Accessor accessor = locateOnGoingAccessor(
-					resourceType,
 					attributeName,
 					() -> AccessorFactory.standard(resourceType, attributeName),
 					cachedAccessorProvider,
@@ -98,7 +97,7 @@ public class DomainResourceTuplizerImpl<D extends DomainResource> extends Abstra
 				final Accessor currentOwnerAccessor = accessors.get(currentOwnerName);
 				final String currentMemberName = pathQueue.poll();
 				final Accessor memberAccessor = AccessorFactory.standard(currentOwnerType, currentMemberName);
-				final Accessor componentAccessor = locateOnGoingAccessor(resourceType, componentAttributeName,
+				final Accessor componentAccessor = locateOnGoingAccessor(componentAttributeName,
 						() -> AccessorFactory.delegate(
 								new ComponentGetter(currentOwnerAccessor.getGetter(), memberAccessor.getGetter()),
 								new ComponentSetter(currentOwnerAccessor,

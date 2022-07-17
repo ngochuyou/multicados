@@ -9,6 +9,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -133,25 +134,33 @@ public class RestCustomerController extends AbstractController {
 			return ResponseEntity.ok(null);
 		}
 		// invalidate the existing request
-		credentialResetService.handleExistingCredentialResetRequest(username, session);
+		final ServicePayload<Integer> existingCredentialResetRequestHandling = credentialResetService
+				.handleExistingCredentialResetRequest(username, session);
+
+		if (existingCredentialResetRequestHandling != null) {
+			if (!existingCredentialResetRequestHandling.isOk()) {
+				return sendResult(existingCredentialResetRequestHandling, null, request);
+			}
+		}
 		// create a new one
 		final ServicePayload<BiDeclaration<CredentialReset, String>> payload = credentialResetService
 				.createCredentialResetRequest(username, session, false);
 
 		if (!payload.isOk()) {
-			if (logger.isErrorEnabled()) {
-				logger.error("Unexpected error occured while trying to create a password reset request, exception: {}",
-						payload.getException() != null ? payload.getException().getMessage() : "unprovided");
-			}
-
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("Unable to process password reset request");
+			return sendResult(payload, null, request);
 		}
 
 		final CredentialReset credentialReset = payload.getBody().getFirst();
 		// asynchronously send password reset email
-		credentialResetService.sendCredentialResetEmail(customerEmail.get(),
-				Integer.valueOf(payload.getBody().getSecond()));
+		try {
+			credentialResetService.sendCredentialResetEmail(customerEmail.get(),
+					Integer.valueOf(payload.getBody().getSecond()));
+		} catch (Exception any) {
+			if (logger.isErrorEnabled()) {
+				logger.error("Error while trying to send credential reset email: {}", any.getMessage());
+				any.printStackTrace();
+			}
+		}
 
 		final Cookie cookie = credentialResetService.createRequestIdCookie(credentialReset,
 				CREDENTIAL_RESET_COOKIE_PATH);
@@ -196,8 +205,8 @@ public class RestCustomerController extends AbstractController {
 
 		try {
 			// validate the request and extract the Customer's id from it
-			final String username = credentialResetService.validatePasswordResetRequest(passwordResetCookie, code,
-					session);
+			final UUID requestId = credentialResetService.extractRequestIdFromCookie(passwordResetCookie);
+			final String username = credentialResetService.validatePasswordResetRequest(requestId, code, session);
 
 			if (username == null) {
 				return sendBad("Invalid code", request);
@@ -213,6 +222,8 @@ public class RestCustomerController extends AbstractController {
 			if (logger.isDebugEnabled()) {
 				logger.debug("Updated {}'s credential. Purging user's tokens", username);
 			}
+
+			credentialResetService.disableExistingRequest(requestId, session);
 
 			HttpHelper.attachCookie(response, createInvalidateCookie(
 					credentialResetService.getPasswordResetRequestIdCookieName(), CREDENTIAL_RESET_COOKIE_PATH));

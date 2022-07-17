@@ -66,13 +66,12 @@ public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> i
 
 	protected Accessor locateOnGoingAccessor(
 	// @formatter:off
-			Class<?> ownerType,
-			String attributeName,
+			String attributeIdentifier,
 			HandledSupplier<Accessor, Exception> accessorSupplier,
 			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer) throws Exception {
 		// @formatter:on
-		final Accessor accessor = cachedAccessorProvider.apply(ownerType, attributeName);
+		final Accessor accessor = cachedAccessorProvider.apply(resourceType, attributeIdentifier);
 
 		if (accessor != null) {
 			return accessor;
@@ -80,7 +79,7 @@ public abstract class AbstractDomainResourceTuplizer<D extends DomainResource> i
 
 		final Accessor newCachedAccessorEntry = accessorSupplier.get();
 
-		accessorEntryConsumer.accept(ownerType, attributeName, newCachedAccessorEntry);
+		accessorEntryConsumer.accept(resourceType, attributeIdentifier, newCachedAccessorEntry);
 
 		return newCachedAccessorEntry;
 	}

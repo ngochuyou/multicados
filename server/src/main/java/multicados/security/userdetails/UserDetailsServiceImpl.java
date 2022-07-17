@@ -59,15 +59,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		try {
-			StatelessSession session = sessionFactory.openStatelessSession();
-			Optional<Tuple> optionalUser = repository.findById(User.class, username, SELECTOR,
+			final StatelessSession session = sessionFactory.openStatelessSession();
+			final Optional<Tuple> optionalUser = repository.findById(User.class, username, SELECTOR,
 					LockModeType.PESSIMISTIC_WRITE, session);
 
 			if (optionalUser.isEmpty()) {
 				throw new UsernameNotFoundException(String.format(USER_NOT_FOUND_TEMPLATE, username));
 			}
 
-			Tuple tuple = optionalUser.get();
+			final Tuple tuple = optionalUser.get();
 			// @formatter:off
 			return new DomainUser(
 					username,

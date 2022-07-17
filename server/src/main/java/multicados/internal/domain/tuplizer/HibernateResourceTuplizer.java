@@ -3,11 +3,12 @@
  */
 package multicados.internal.domain.tuplizer;
 
+import static multicados.internal.helper.Utils.declare;
+
 import java.io.Serializable;
 import java.lang.reflect.Member;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -25,6 +26,7 @@ import multicados.internal.domain.metadata.ComponentPath;
 import multicados.internal.domain.metadata.DomainResourceAttributesMetadata;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.tuplizer.AccessorFactory.Accessor;
+import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.Utils;
 import multicados.internal.helper.Utils.TriConsummer;
 
@@ -48,12 +50,13 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			Utils.TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer)
 			throws Exception {
-		// @formatter:on
 		super(metadata.getResourceType());
-		this.accessors = Collections
-				.unmodifiableMap(resolveAccessors(metadata.unwrap(DomainResourceAttributesMetadata.class),
-						sfi.getMetamodel().entityPersister(metadata.getResourceType()), cachedAccessorProvider,
-						accessorEntryConsumer));
+		this.accessors = declare(resolveRootAccessors(sfi.getMetamodel().entityPersister(metadata.getResourceType()),
+				metadata.unwrap(DomainResourceAttributesMetadata.class).getComponentPaths(), cachedAccessorProvider,
+				accessorEntryConsumer))
+			.<Map<String, Accessor>>then(Collections::unmodifiableMap)
+			.get();
+		// @formatter:on
 	}
 
 	@Override
@@ -61,17 +64,21 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 		return accessors;
 	}
 
-	private Map<String, Accessor> resolveAccessors(DomainResourceAttributesMetadata<E> metadata,
-			EntityPersister persister, BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
+	private Map<String, Accessor> resolveRootAccessors(
+	// @formatter:off
+			EntityPersister persister,
+			Map<String, ComponentPath> componentPaths,
+			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer) throws Exception {
-		final Class<E> resourceType = metadata.getResourceType();
-		final List<String> wrappedAttributeNames = metadata.getWrappedAttributeNames();
+		// @formatter:on
 		final Map<String, Accessor> accessors = new HashMap<>();
 
-		for (final String attributeName : wrappedAttributeNames) {
+		declare(resolveIdentifierAccessors(persister, componentPaths, cachedAccessorProvider, accessorEntryConsumer))
+				.consume(accessors::putAll);
+
+		for (final String attributeName : persister.getPropertyNames()) {
 			// @formatter:off
 			final Accessor ownerAccessor = locateOnGoingAccessor(
-					resourceType,
 					attributeName,
 					() -> buildBasicTypeAccessor(attributeName, persister),
 					cachedAccessorProvider,
@@ -87,58 +94,79 @@ public class HibernateResourceTuplizer<I extends Serializable, E extends Entity<
 
 			final ComponentType componentType = (ComponentType) attributeType;
 
-			for (final String componentAttributeName : componentType.getPropertyNames()) {
-				// @formatter:off
-				accessors.putAll(
-						resolveComponentAccessors(
-								resourceType,
-								componentAttributeName,
-								componentType,
-								metadata.getComponentPaths(),
-								ownerAccessor,
-								cachedAccessorProvider,
-								accessorEntryConsumer));
-				// @formatter:on
-			}
+			// @formatter:off
+			accessors.putAll(
+					resolveComponentAccessors(
+							ownerAccessor,
+							componentType,
+							componentPaths,
+							cachedAccessorProvider,
+							accessorEntryConsumer));
+			// @formatter:on
 		}
 
-		return accessors.isEmpty() ? Collections.emptyMap() : accessors;
+		return CollectionHelper.getOrEmpty(accessors);
+	}
+
+	private Map<String, Accessor> resolveIdentifierAccessors(
+	// @formatter:off
+			EntityPersister persister,
+			Map<String, ComponentPath> componentPaths,
+			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
+			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer) throws Exception {
+		// @formatter:on
+		final HashMap<String, Accessor> accessors = new HashMap<>();
+		final String identifierPropertyName = persister.getIdentifierPropertyName();
+		// @formatter:off
+		final Accessor identifierAccessor = locateOnGoingAccessor(
+				persister.getIdentifierPropertyName(),
+				() -> buildBasicTypeAccessor(identifierPropertyName, persister),
+				cachedAccessorProvider,
+				accessorEntryConsumer);
+		// @formatter:on
+		if (!persister.getIdentifierType().isComponentType()) {
+			return accessors;
+		}
+
+		final ComponentType identifierType = (ComponentType) persister.getIdentifierType();
+		// @formatter:off
+		accessors.putAll(resolveComponentAccessors(
+				identifierAccessor,
+				identifierType,
+				componentPaths,
+				cachedAccessorProvider,
+				accessorEntryConsumer));
+		// @formatter:on
+		return accessors;
 	}
 
 	private Map<String, Accessor> resolveComponentAccessors(
 	// @formatter:off
-			Class<?> ownerType,
-			String attributeName,
-			ComponentType componentType,
-			Map<String, ComponentPath> componentPaths,
 			Accessor ownerAccessor,
+			ComponentType type,
+			Map<String, ComponentPath> componentPaths,
 			BiFunction<Class<?>, String, Accessor> cachedAccessorProvider,
 			TriConsummer<Class<?>, String, Accessor> accessorEntryConsumer)
 			throws Exception {
 		final Map<String, Accessor> accessors = new HashMap<>();
-		final Accessor nextOwnerAccessor = locateOnGoingAccessor(
-				ownerType,
-				componentPaths.get(attributeName).toString(),
-				() -> AccessorFactory.delegate(new ComponentGetter(ownerAccessor.getGetter(), componentType, attributeName), new ComponentSetter(ownerAccessor, componentType, attributeName)),
-				cachedAccessorProvider,
-				accessorEntryConsumer);
-		// @formatter:on
-		accessors.put(attributeName, nextOwnerAccessor);
 
-		for (final String componentAttributeName : componentType.getPropertyNames()) {
-			final Type componentAttributeType = componentType.getSubtypes()[componentType
-					.getPropertyIndex(componentAttributeName)];
+		for (final String componentAttributeName : type.getPropertyNames()) {
+			final Type componentAttributeType = type.getSubtypes()[type.getPropertyIndex(componentAttributeName)];
+			// @formatter:off
+			final Accessor nextOwnerAccessor = locateOnGoingAccessor(
+					componentPaths.get(componentAttributeName).toString(),
+					() -> AccessorFactory.delegate(new ComponentGetter(ownerAccessor.getGetter(), type, componentAttributeName), new ComponentSetter(ownerAccessor, type, componentAttributeName)),
+					cachedAccessorProvider,
+					accessorEntryConsumer);
 
 			if (!componentAttributeType.isComponentType()) {
 				continue;
 			}
-			// @formatter:off
+
 			accessors.putAll(resolveComponentAccessors(
-					ownerType,
-					componentAttributeName,
+					nextOwnerAccessor,
 					(ComponentType) componentAttributeType,
 					componentPaths,
-					nextOwnerAccessor,
 					cachedAccessorProvider,
 					accessorEntryConsumer));
 			// @formatter:on

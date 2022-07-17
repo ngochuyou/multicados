@@ -3,8 +3,11 @@
  */
 package multicados.internal.domain.builder;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.persistence.EntityManager;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
@@ -18,12 +21,18 @@ import multicados.internal.helper.Utils.Access;
  */
 public abstract class AbstractDomainResourceBuilder<D extends DomainResource> implements DomainResourceBuilder<D> {
 
-	private volatile Access access = new Access() {};
+	private static final Logger logger = LoggerFactory.getLogger(AbstractDomainResourceBuilder.class);
+
+	private final AtomicBoolean isSealed = new AtomicBoolean(false);
 
 	@Override
 	public <E extends D> DomainResourceBuilder<E> and(DomainResourceBuilder<E> next) {
-		Assert.notNull(access, Access.getClosingMessage(this));
+		assertOpen(this);
 		return new CompositeDomainResourceBuilder<>(this, next);
+	}
+
+	private static void assertOpen(AbstractDomainResourceBuilder<?> builder) {
+		Assert.isTrue(!builder.isSealed.get(), Access.getClosingMessage(builder));
 	}
 
 	private static class CompositeDomainResourceBuilder<D extends DomainResource, T extends D>
@@ -67,12 +76,13 @@ public abstract class AbstractDomainResourceBuilder<D extends DomainResource> im
 
 	@Override
 	public synchronized void doAfterContextBuild() throws IllegalAccessException {
-		if (access == null) {
-			throw new IllegalAccessException(Access.getClosedMessage(this));
+		assertOpen(this);
+
+		if (logger.isTraceEnabled()) {
+			logger.trace(Access.getClosingMessage(this));
 		}
 
-		LoggerFactory.getLogger(this.getClass()).trace(Access.getClosingMessage(this));
-		access = null;
+		isSealed.set(true);
 	}
 
 }

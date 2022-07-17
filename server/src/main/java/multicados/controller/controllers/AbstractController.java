@@ -13,6 +13,8 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,12 @@ import multicados.internal.service.ServiceResult;
  *
  */
 public abstract class AbstractController {
+
+	private static final Logger logger = LoggerFactory.getLogger(AbstractController.class);
+
+	protected static final String HEAD = "HEAD";
+
+	/* ========================================================== */
 
 	/**
 	 * Construct a {@link ResponseEntity} body based on the
@@ -53,7 +61,7 @@ public abstract class AbstractController {
 	 * @return
 	 */
 	protected <T> ResponseEntity<?> sendOk(T body, HttpServletRequest request) {
-		return doSendWithPayload(ResponseEntity.ok(), Common.payload(body), request);
+		return doSendWithPayload(ResponseEntity.ok(), body, request);
 	}
 
 	/**
@@ -91,6 +99,10 @@ public abstract class AbstractController {
 		}
 
 		if (result.getException() != null) {
+			if (logger.isErrorEnabled()) {
+				logger.error("Exception encountered: {}", result.getException().getMessage());
+			}
+
 			throw result.getException();
 		}
 		// @formatter:off

@@ -100,7 +100,7 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 	@Override
 	public void summary() {
 		logger.info("\n{}", visualizeGraph(resourceGraph, 1));
-//		logger.info("\n{}", metadatasMap.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
+		logger.info("\n{}", metadatasMap.values().stream().map(Object::toString).collect(Collectors.joining("\n")));
 	}
 
 	private String visualizeGraph(DomainResourceGraph<? extends DomainResource> node, int indentation) {
@@ -158,6 +158,11 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 			for (final Class<? extends DomainResource> resourceType : resourceGraph
 					.collect(DomainResourceGraphCollectors.toTypesSet())) {
 				final DomainResourceMetadata<? extends DomainResource> metadata = getMetadata(resourceType);
+
+				if (logger.isTraceEnabled()) {
+					logger.trace("Resolving {} for resource type {}", DomainResourceTuplizer.class.getName(),
+							resourceType.getName());
+				}
 
 				if (isSupportedByHBM(resourceType)) {
 					if (Entity.class.isAssignableFrom(resourceType)) {
@@ -264,8 +269,8 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 				int result = 1;
 
 				result = prime * result + getEnclosingInstance().hashCode();
-				result = prime * result + ((path == null) ? 0 : path.hashCode());
 				result = prime * result + ((resourceType == null) ? 0 : resourceType.hashCode());
+				result = prime * result + ((path == null) ? 0 : path.hashCode());
 
 				return result;
 			}
@@ -277,7 +282,7 @@ public class DomainResourceContextImpl extends ContextBuilder.AbstractContextBui
 				if ((obj == null) || (getClass() != obj.getClass()))
 					return false;
 
-				AccessorKey other = (AccessorKey) obj;
+				final AccessorKey other = (AccessorKey) obj;
 
 				if (!getEnclosingInstance().equals(other.getEnclosingInstance()))
 					return false;

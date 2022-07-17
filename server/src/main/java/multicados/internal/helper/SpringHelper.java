@@ -5,6 +5,9 @@ package multicados.internal.helper;
 
 import java.util.function.Supplier;
 
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -64,6 +67,12 @@ public abstract class SpringHelper {
 		}
 
 		return DomainUserDetails.class.cast(authentication.getPrincipal());
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T> T tryInit(BeanDefinition beanDef, ApplicationContext context)
+			throws BeansException, IllegalStateException, ClassNotFoundException {
+		return (T) context.getAutowireCapableBeanFactory().createBean(Class.forName(beanDef.getBeanClassName()));
 	}
 
 }

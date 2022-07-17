@@ -49,6 +49,7 @@ import multicados.internal.helper.CollectionHelper;
 import multicados.internal.helper.HibernateHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils;
+import multicados.internal.helper.Utils.BiDeclaration;
 import multicados.internal.helper.Utils.Entry;
 import multicados.internal.helper.Utils.HandledFunction;
 import multicados.internal.helper.Utils.LazySupplier;
@@ -384,9 +385,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				From<?, ?> from,
 				String joinRole,
 				ComposedRestQuery<?> composedQuery) throws Exception {
-			return declare(composedQuery.getResourceType())
-						.second(from)
-						.third(composedQuery.getFilters())
+			return declare(composedQuery.getResourceType(), from, composedQuery.getFilters())
 					.then(this::resolveBasicPredicates)
 						.second(composedQuery)
 						.third(Entry.<From<?, ?>, String>entry(from, joinRole))
@@ -507,7 +506,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			final Map<String, Object> record = transformRow(optionalTuple.get());
 			final Map<String, String> translatedAttributes = translatedAttributesLoader.get();
 
-			for (ComposedRestQuery<?> batchingQuery : batchingQueries) {
+			for (final ComposedRestQuery<?> batchingQuery : batchingQueries) {
 				record.put(translatedAttributes.get(batchingQuery.getAssociationName()),
 						readAll(batchingQuery, credential, session));
 			}
@@ -531,16 +530,13 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				Map<String, String> translatedAttributes,
 				Tuple tuple) {
 			// @formatter:on
-			final Map<String, Object> record = new HashMap<>(translatedAttributes.size(), 1f);
-			final int basicAttributesSpan = attributes.size();
-
-			for (int i = 0; i < basicAttributesSpan; i++) {
-				record.put(translatedAttributes.get(attributes.get(i)), tuple.get(i));
-			}
-
+			// @formatter:off
+			final Map<String, Object> record = IntStream.range(0, attributes.size())
+					.mapToObj(index -> declare(translatedAttributes.get(attributes.get(index)), tuple.get(index)))
+					.collect(Collectors.toMap(BiDeclaration::getFirst, BiDeclaration::getSecond));
+			
 			for (final ComposedNonBatchingRestQuery<?> composedNonBatchingRestQuery : composedQuery
 					.getNonBatchingAssociationQueries()) {
-				// @formatter:off
 				record.put(translatedAttributes.get(composedNonBatchingRestQuery.getAssociationName()),
 						transformRow(
 								composedNonBatchingRestQuery,
@@ -548,9 +544,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 								composedNonBatchingRestQuery.getAttributes(),
 								translateAttributes(composedNonBatchingRestQuery, credential),
 								new AssociationTuple(composedNonBatchingRestQuery, tuple)));
-				// @formatter:on
 			}
-
+			// @formatter:on
 			return record;
 		}
 
@@ -626,7 +621,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 
 		@Override
 		public List<TupleElement<?>> getElements() {
-			List<TupleElement<?>> elements = owningTuple.getElements();
+			final List<TupleElement<?>> elements = owningTuple.getElements();
 
 			return IntStream.range(composedQuery.getAssociatedPosition(), composedQuery.getPropertySpan())
 					.mapToObj(index -> elements.get(index)).collect(Collectors.toList());

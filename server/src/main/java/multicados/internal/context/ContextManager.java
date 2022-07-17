@@ -3,6 +3,8 @@
  */
 package multicados.internal.context;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -22,19 +24,10 @@ public class ContextManager implements ApplicationContextAware {
 	private static final Logger logger = LoggerFactory.getLogger(ContextManager.class);
 
 	private static ApplicationContext applicationContext;
-	private static ApplicationExitContextAccess exitAcess = new ApplicationExitContextAccess();
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		ContextManager.applicationContext = applicationContext;
-	}
-
-	public static ApplicationExitContextAccess getExitAcess() {
-		return exitAcess;
-	}
-
-	public static <T> T getBean(Class<T> beanType) {
-		return applicationContext.getBean(beanType);
 	}
 
 	public static <T> void registerBean(Class<T> beanType, BeanDefinition beanDef) {
@@ -55,18 +48,27 @@ public class ContextManager implements ApplicationContextAware {
 		logger.debug("Registering a new bean of type [{}] with id [{}]", beanDef.getBeanClassName(), beanId);
 	}
 
-	public static class ApplicationExitContextAccess {
+	public class Access {
 
-		private volatile boolean hasExited = false;
+		private static final AtomicBoolean HAS_EXITED = new AtomicBoolean(false);
 
-		public synchronized ApplicationContext getContext() {
-			if (hasExited) {
-				throw new UnsupportedOperationException("Application has already exited");
-			}
+		public static ApplicationContext getExitContext() {
+			assertOpen();
 
-			hasExited = true;
+			HAS_EXITED.set(true);
 
 			return ContextManager.applicationContext;
+		}
+
+		private static void assertOpen() {
+			if (HAS_EXITED.get()) {
+				throw new UnsupportedOperationException("Application has already exited");
+			}
+		}
+
+		public static ApplicationContext getContext() {
+			assertOpen();
+			return applicationContext;
 		}
 
 	}

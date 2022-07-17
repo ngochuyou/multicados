@@ -13,6 +13,10 @@ public interface SpannedResource<T extends TemporalAccessor> extends DomainResou
 
 	T getStartTimestamp();
 
+	void setStartTimestamp(T temporal);
+
 	T getEndTimestamp();
+
+	void setEndTimestamp(T temporal);
 
 }

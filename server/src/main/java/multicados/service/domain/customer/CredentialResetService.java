@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -79,8 +79,8 @@ public class CredentialResetService {
 
 	private final int hotpMovingLowerFactor;
 	private final int hotpMovingFactorRange;
+	private final AtomicLong hotpMovingFactor;
 	private final int hotpLength;
-	private final AtomicInteger movingFactor;
 
 	private final JavaMailSender mailSender;
 	private final MailProvider mailProvider;
@@ -108,7 +108,7 @@ public class CredentialResetService {
 				env.getRequiredProperty(Settings.CUSTOMER_CREDENTIAL_RESET_REQUEST_COOKIE_EXPIRATION, Integer.class));
 		hotpMovingLowerFactor = env.getRequiredProperty(Settings.CUSTOMER_CREDENTIAL_RESET_HOTP_LOWER_FACTOR,
 				Integer.class);
-		movingFactor = new AtomicInteger(hotpMovingLowerFactor);
+		hotpMovingFactor = new AtomicLong(hotpMovingLowerFactor);
 		hotpMovingFactorRange = env.getRequiredProperty(Settings.CUSTOMER_CREDENTIAL_RESET_HOTP_UPPER_FACTOR,
 				Integer.class) - hotpMovingLowerFactor;
 		hotpLength = env.getRequiredProperty(Settings.CUSTOMER_CREDENTIAL_RESET_HOTP_LENGTH, Integer.class);
@@ -138,7 +138,15 @@ public class CredentialResetService {
 		return new CompletableFuture<>();
 	}
 
-	public void handleExistingCredentialResetRequest(String username, SharedSessionContract session) throws Exception {
+	/**
+	 * @param username
+	 * @param session
+	 * @return {@link ServicePayload} describes the result or null if there's no
+	 *         existing request
+	 * @throws Exception
+	 */
+	public ServicePayload<Integer> handleExistingCredentialResetRequest(String username, SharedSessionContract session)
+			throws Exception {
 		final Optional<Tuple> optionalExistingRequest = locateExisitingRequestId(username, session);
 
 		if (!optionalExistingRequest.isEmpty()) {
@@ -148,14 +156,28 @@ public class CredentialResetService {
 				logger.debug("Invalidating an existing request {}", credentialResetId);
 			}
 
-			disableExistingRequest(credentialResetId, session);
+			return disableExistingRequest(credentialResetId, session);
 		}
+
+		return null;
 	}
 
-	public void disableExistingRequest(UUID credentialResetId, SharedSessionContract session) throws Exception {
-		genericRepository.update(CredentialReset.class,
-				(root, cu, builder) -> cu.set(root.get(CredentialReset_.active), Boolean.FALSE),
-				(root, cu, builder) -> builder.equal(root.get(CredentialReset_.id), credentialResetId), session);
+	public ServicePayload<Integer> disableExistingRequest(UUID credentialResetId, SharedSessionContract session)
+			throws Exception {
+		try {
+			final int rowMod = genericRepository.update(CredentialReset.class,
+					(root, cu, builder) -> cu.set(root.get(CredentialReset_.active), Boolean.FALSE),
+					(root, cu, builder) -> builder.equal(root.get(CredentialReset_.id), credentialResetId), session);
+
+			if (rowMod != 1) {
+				return new ServicePayload<>(ServiceResult
+						.failed(new IllegalStateException(String.format("Exptecing 1 row but got %d", rowMod))));
+			}
+
+			return new ServicePayload<>(ServiceResult.success());
+		} catch (Exception any) {
+			return new ServicePayload<>(ServiceResult.failed(any));
+		}
 	}
 
 	public Optional<Tuple> locateExisitingRequestId(String username, SharedSessionContract session) throws Exception {
@@ -199,7 +221,7 @@ public class CredentialResetService {
 		// @formatter:off
 		final String plainOTP = HOTP.generateOTP(
 				rsaContext.getPrivateKey().getEncoded(),
-				movingFactor.getAndUpdate(this::increaseMovingFactor),
+				hotpMovingFactor.getAndUpdate(this::increaseMovingFactor),
 				hotpLength,
 				false,
 				-1);
@@ -209,7 +231,7 @@ public class CredentialResetService {
 				session, flushOnFinish), Utils.declare(credentialReset, plainOTP));
 	}
 
-	private int increaseMovingFactor(int current) {
+	private long increaseMovingFactor(long current) {
 		return ((current + 1) % hotpMovingFactorRange) + hotpMovingLowerFactor;
 	}
 
@@ -220,10 +242,11 @@ public class CredentialResetService {
 	private static final String JOINED_CUSTOMER_ID_PATH = CredentialReset_.CUSTOMER.concat(Customer_.ID);
 
 	/**
-	 * @param cookie
+	 * @param requestId
 	 * @param code
 	 * @param session
-	 * @return
+	 * @return username if codes match, otherwise {@code null} indicates given code
+	 *         differ from the hased one
 	 * @throws EntityNotFoundException                  if we can not find a
 	 *                                                  {@link CredentialReset}
 	 *                                                  regarding the request id
@@ -232,10 +255,9 @@ public class CredentialResetService {
 	 * @throws InvalidCredentialResetRequestIdException if the extracted request id
 	 *                                                  does not meet the guideline
 	 */
-	public String validatePasswordResetRequest(Cookie cookie, String code, SharedSessionContract session)
+	public String validatePasswordResetRequest(UUID requestId, String code, SharedSessionContract session)
 			throws Exception, StaleRequestException, InvalidCredentialResetRequestIdException {
 		final LocalDateTime now = LocalDateTime.now();
-		final UUID requestId = extractRequestIdFromCookie(cookie);
 		// @formatter:off
 		// fetch version, code and username of the Customer, additionally lock the row
 		final Optional<Tuple> optionalTuple = genericRepository.findOne(
@@ -270,7 +292,19 @@ public class CredentialResetService {
 		return tuple.get(JOINED_CUSTOMER_ID_PATH, String.class);
 	}
 
-	private UUID extractRequestIdFromCookie(Cookie cookie)
+	/**
+	 * Decrypt and extract the {@link CredentialReset} id from cookie
+	 * 
+	 * @param cookie
+	 * @return
+	 * @throws NoSuchAlgorithmException
+	 * @throws NoSuchPaddingException
+	 * @throws InvalidKeyException
+	 * @throws IllegalBlockSizeException
+	 * @throws BadPaddingException
+	 * @throws InvalidCredentialResetRequestIdException
+	 */
+	public UUID extractRequestIdFromCookie(Cookie cookie)
 			throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException,
 			BadPaddingException, InvalidCredentialResetRequestIdException {
 		// decrypt the cookie content
@@ -291,6 +325,7 @@ public class CredentialResetService {
 	public ServicePayload<Integer> updateCredential(String username, String newPassword,
 			SharedSessionContract session) {
 		final String encodedNewPassword = passwordEncoder.encode(newPassword);
+
 		try {
 			// @formatter:off
 			final int rowMod = genericRepository.update(
@@ -303,7 +338,6 @@ public class CredentialResetService {
 					LockModeType.PESSIMISTIC_WRITE,
 					session);
 			// @formatter:on
-
 			if (rowMod != 1) {
 				return new ServicePayload<>(
 						ServiceResult.failed(new IllegalStateException("Unable to update credential, unknown error")),

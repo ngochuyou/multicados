@@ -118,8 +118,8 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 	 * @throws Exception
 	 */
 	@SuppressWarnings("unchecked")
-	private <T extends DomainResource> void checkIdentity(Class<T> type, Serializable id, T model, SharedSessionContract session)
-			throws Exception {
+	private <T extends DomainResource> void checkIdentity(Class<T> type, Serializable id, T model,
+			SharedSessionContract session) throws Exception {
 		final Class<IdentifiableResource<?>> resourceType = (Class<IdentifiableResource<?>>) model.getClass();
 		// if this resource'id is auto-generated, we skip
 		if (resourceContext.getMetadata(resourceType).unwrap(IdentifiableResourceMetadata.class)
@@ -130,11 +130,6 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 		if (genericRepository.count(resourceType, HibernateHelper.hasId(resourceType, id, session), session) != 0) {
 			throw new PersistenceException(new EntityExistsException(Common.existed(List.of(id.toString()))));
 		}
-	}
-
-	private void throwNotFound(Serializable id) {
-		throw new PersistenceException(
-				new EntityNotFoundException(id == null ? Common.notFound() : Common.notFound(List.of(id.toString()))));
 	}
 
 	@Override
@@ -149,7 +144,8 @@ public abstract class AbstractGenericHibernateCUDService<TUPLE> extends ContextB
 			final T persistence = session.find(type, actualId);
 
 			if (persistence == null) {
-				throwNotFound(actualId);
+				throw new PersistenceException(new EntityNotFoundException(
+						actualId == null ? Common.notFound() : Common.notFound(List.of(actualId.toString()))));
 			}
 
 			final DomainResourceBuilder<T> resourceBuilder = builderFactory.getBuilder(type);

@@ -18,6 +18,8 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.core.type.AnnotationMetadata;
 
 import multicados.internal.context.ContextBuilder;
+import multicados.internal.context.hook.HookExecutor;
+import multicados.internal.context.hook.HookExecutorImpl;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.DomainResourceContextImpl;
 import multicados.internal.domain.builder.DomainResourceBuilderFactory;
@@ -51,7 +53,8 @@ public class DomainLogicContextConfiguration implements ImportBeanDefinitionRegi
 			entry(DomainResourceBuilderFactory.class, DomainResourceBuilderFactoryImpl.class),
 			entry(ReadSecurityManager.class, ReadSecurityManagerImpl.class),
 			entry(GenericCRUDService.class, GenericCRUDServiceImpl.class),
-			entry(DatabaseInitializer.class, DatabaseInitializerImpl.class));
+			entry(DatabaseInitializer.class, DatabaseInitializerImpl.class),
+			entry(HookExecutor.class, HookExecutorImpl.class));
 	// @formatter:on
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
