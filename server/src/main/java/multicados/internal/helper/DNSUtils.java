@@ -1,13 +1,12 @@
 /**
  * 
  */
-package multicados.internal.config;
+package multicados.internal.helper;
 
 import static multicados.internal.helper.Utils.declare;
 
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
 
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -22,7 +21,7 @@ public class DNSUtils {
 	private final String hostAddress;
 	private final int port;
 
-	public DNSUtils(Environment env) throws SocketException, Exception {
+	public DNSUtils(Environment env) throws Exception {
 		final DatagramSocket socket = declare(new DatagramSocket())
 				.consume(self -> self.connect(InetAddress.getByName("8.8.8.8"), 10002)).get();
 

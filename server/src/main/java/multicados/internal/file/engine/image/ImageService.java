@@ -8,7 +8,6 @@ import static multicados.internal.helper.Utils.declare;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import javax.imageio.ImageIO;
@@ -19,9 +18,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.ApplicationContext;
-import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Async;
 
+import multicados.internal.config.ExecutorNames;
 import multicados.internal.file.domain.Image;
 import multicados.internal.helper.AwtImageUtils;
 import multicados.internal.helper.Utils.BiDeclaration;
@@ -36,11 +35,9 @@ public class ImageService implements Service {
 
 	private static final Logger logger = LoggerFactory.getLogger(ImageService.class);
 
-	public static final String EXECUTOR_NAME = "img-manipulation-";
+	private final transient PropagationWorker worker;
 
-	private final PropagationWorker worker;
-
-	public ImageService(ApplicationContext applicationContext, Environment env) throws Exception {
+	public ImageService(ApplicationContext applicationContext) throws Exception {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Instantiating {}", ImageService.class.getName());
 		}
@@ -74,7 +71,7 @@ public class ImageService implements Service {
 
 		private final byte[][] products;
 
-		public AdjustmentAndPropagation(Image image) throws IOException {
+		public AdjustmentAndPropagation(Image image) {
 			this.image = image;
 			standard = image.getStandard();
 			products = new byte[standard.getBatchSize()][];
@@ -138,7 +135,7 @@ public class ImageService implements Service {
 	// has to be static
 	public static class PropagationWorker {
 
-		@Async(EXECUTOR_NAME)
+		@Async(ExecutorNames.IMAGE_SERVICE_EXECUTOR)
 		public CompletableFuture<byte[]> propagate(BufferedImage originalImage, String extension, int nextWidth,
 				int nextHeight, float qualityFactor) throws Exception {
 			if (logger.isDebugEnabled()) {

@@ -71,7 +71,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 			logger.trace("Instantiating {}", GenericRepositoryImpl.class.getName());
 		}
 
-		final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecifications = new HashMap<>(
+		final Map<Class<? extends DomainResource>, Specification<? extends DomainResource>> fixedSpecificationCandidates = new HashMap<>(
 				0);
 
 		for (final DomainResourceGraph<? extends DomainResource> node : resourceContext.getResourceGraph()
@@ -88,11 +88,11 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 				.then(this::chainFixedSpecifications)
 					.second(entityType)
 				.biInverse()
-				.consume(fixedSpecifications::put);
+				.consume(fixedSpecificationCandidates::put);
 			// @formatter:on
 		}
 
-		this.fixedSpecifications = Collections.unmodifiableMap(fixedSpecifications);
+		this.fixedSpecifications = Collections.unmodifiableMap(fixedSpecificationCandidates);
 		criteriaBuilder = sfi.getCriteriaBuilder();
 	}
 
@@ -124,7 +124,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 		}
 		// shouldn't be null here
 		if (interfaces.isEmpty()) {
-			return HibernateHelper.none();
+			return HibernateHelper.any();
 		}
 		// @formatter:off
 		return IntStream.range(1, interfaces.size())
@@ -267,7 +267,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	@SuppressWarnings("unchecked")
 	private <D extends DomainResource, E> CriteriaQuery<E> doFilter(CriteriaQuery<E> cq, Root<D> root,
 			Specification<D> requestedSpecication) {
-		Specification<D> mandatorySpecification = (Specification<D>) fixedSpecifications
+		final Specification<D> mandatorySpecification = (Specification<D>) fixedSpecifications
 				.get(root.getModel().getBindableJavaType());
 
 		return cq.where(mandatorySpecification.and(requestedSpecication).toPredicate(root, cq, criteriaBuilder));
@@ -432,7 +432,7 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 
 	@Override
 	public <D extends DomainResource> long count(Class<D> type, SharedSessionContract session) throws Exception {
-		return count(type, HibernateHelper.none(), session);
+		return count(type, HibernateHelper.any(), session);
 	}
 
 	@Override
@@ -454,15 +454,47 @@ public class GenericRepositoryImpl extends ContextBuilder.AbstractContextBuilder
 	}
 
 	@Override
-	public <D extends DomainResource> int update(Class<D> type, SetStatementBuilder<D> setStatementBuilder,
-			WhereStatementBuilder<D> specification, SharedSessionContract session) throws Exception {
+	public <D extends DomainResource> boolean doesExist(
+	// @formatter:off	
+			Class<D> type,
+			SharedSessionContract session) throws Exception {
+		// @formatter:on
+		return doesExist(type, HibernateHelper.any(), session);
+	}
+
+	@Override
+	public <D extends DomainResource> boolean doesExist(
+	// @formatter:off
+			Class<D> type,
+			Specification<D> specification,
+			SharedSessionContract session) throws Exception {
+		// @formatter:on
+		return findOne(type,
+				(root, cq, builder) -> List.of(root.get(HibernateHelper.locateIdPropertyName(type, session))),
+				specification, session).isPresent();
+	}
+
+	@Override
+	public <D extends DomainResource> int update(
+	// @formatter:off
+			Class<D> type,
+			SetStatementBuilder<D> setStatementBuilder,
+			WhereStatementBuilder<D> specification,
+			SharedSessionContract session) throws Exception {
+		// @formatter:on
 		return update(type, type, setStatementBuilder, specification, DEFAULT_UPDATE_LOCK_MODE, session);
 	}
 
 	@Override
-	public <D extends DomainResource> int update(Class<D> type, Serializable id,
-			SetStatementBuilder<D> setStatementBuilder, WhereStatementBuilder<D> specification, LockModeType lockMode,
+	public <D extends DomainResource> int update(
+	// @formatter:off
+			Class<D> type,
+			Serializable id,
+			SetStatementBuilder<D> setStatementBuilder,
+			WhereStatementBuilder<D> specification,
+			LockModeType lockMode,
 			SharedSessionContract sessionContract) throws Exception {
+		// @formatter:on
 		if (!(sessionContract instanceof Session)) {
 			throw new IllegalArgumentException(String.format("Unable to perform locking with session type %s",
 					sessionContract.getClass().getName()));

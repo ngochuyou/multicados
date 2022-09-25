@@ -14,7 +14,6 @@ import java.util.Map;
 
 import javax.persistence.SharedCacheMode;
 
-import org.hibernate.EntityMode;
 import org.hibernate.MultiTenancyStrategy;
 import org.hibernate.annotations.common.reflection.ReflectionManager;
 import org.hibernate.annotations.common.reflection.java.JavaReflectionManager;
@@ -64,8 +63,8 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
 import org.hibernate.persister.spi.PersisterFactory;
 import org.hibernate.property.access.internal.PropertyAccessStrategyFieldImpl;
-import org.hibernate.property.access.spi.PropertyAccessStrategy;
 import org.hibernate.property.access.spi.PropertyAccessStrategyResolver;
+import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.internal.ProvidedService;
 import org.hibernate.service.internal.SessionFactoryServiceRegistryImpl;
 import org.hibernate.service.spi.ServiceRegistryImplementor;
@@ -106,14 +105,15 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 	public FileManagementImpl(ApplicationContext applicationContext, Environment env, SessionFactoryImplementor sfi)
 			throws Exception {
 		// @formatter:off
-		logger.info("\n\n"
-				+ "\t\t\t\t\t\t========================================================\n"
-				+ "\t\t\t\t\t\t=          BUILDING FILE RESOURCE MANAGEMENT           =\n"
-				+ "\t\t\t\t\t\t========================================================\n");
+		logger.info("""
+				
+				\t\t\t\t\t\t========================================================
+				\t\t\t\t\t\t=          BUILDING FILE RESOURCE MANAGEMENT           =
+				\t\t\t\t\t\t========================================================""");
 		// @formatter:on
 		final BootstrapServiceRegistry bootstrapServiceRegistry = createBootstrapServiceRegistry(sfi);
-		final StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(sfi,
-				bootstrapServiceRegistry, new ProvidedServicesLocator(applicationContext, sfi, env));
+		final StandardServiceRegistry standardServiceRegistry = createStandardServiceRegistry(bootstrapServiceRegistry,
+				new ProvidedServicesLocator(applicationContext, sfi, env));
 		final MetadataBuildingOptions metadataBuildingOptions = new MetadataBuildingOptionsImpl(
 				standardServiceRegistry);
 		final BootstrapContext bootstrapContext = new BootstrapContextImpl(standardServiceRegistry,
@@ -124,6 +124,7 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 
 		sessionFactory = build(env, sfi, standardServiceRegistry, bootstrapContext, metadataBuildingOptions);
 	}
+
 	// @formatter:off
 	private FileResourceSessionFactory build(
 			Environment env,
@@ -186,11 +187,14 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 		return metadataSources;
 	}
 
-	private StandardServiceRegistry createStandardServiceRegistry(SessionFactoryImplementor sfi,
-			BootstrapServiceRegistry bootstrapServiceRegistry, ProvidedServicesLocator providedServicesLocator)
-			throws Exception {
+	private void trace(Class<? extends ServiceRegistry> serviceRegistry) {
+		logger.trace("Creating {} ", serviceRegistry.getClass().getName());
+	}
+
+	private StandardServiceRegistry createStandardServiceRegistry(BootstrapServiceRegistry bootstrapServiceRegistry,
+			ProvidedServicesLocator providedServicesLocator) {
 		if (logger.isTraceEnabled()) {
-			logger.trace("Creating {} ", StandardServiceRegistry.class.getName());
+			trace(StandardServiceRegistry.class);
 		}
 		// @formatter:off
 		return new StandardServiceRegistryImpl(
@@ -198,12 +202,12 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 				Collections.emptyList(),
 				providedServicesLocator.providedServices,
 				Collections.emptyMap());
-		// @formatter:on;
+		// @formatter:on
 	}
 
 	private BootstrapServiceRegistry createBootstrapServiceRegistry(SessionFactoryImplementor sfi) {
 		if (logger.isTraceEnabled()) {
-			logger.trace("Creating {} ", BootstrapServiceRegistry.class.getName());
+			trace(BootstrapServiceRegistry.class);
 		}
 		// @formatter:off
 		return new BootstrapServiceRegistryBuilder()
@@ -224,21 +228,20 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 
 		@SuppressWarnings({ "rawtypes", "unchecked", "serial" })
 		public ProvidedServicesLocator(ApplicationContext applicationContext, SessionFactoryImplementor sfi, Environment env) throws Exception {
-			final List<ProvidedService> providedServices = new ArrayList<>();
+			final List<ProvidedService> providedServiceCandidates = new ArrayList<>();
 			final ServiceRegistryImplementor serviceRegistry = sfi.getServiceRegistry();
 
-			providedServices.add(new ProvidedService<>(JdbcServices.class, sfi.getJdbcServices()));
-			providedServices.add(new ProvidedService<>(JdbcEnvironment.class, sfi.getJdbcServices().getJdbcEnvironment()));
-			providedServices.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
+			providedServiceCandidates.add(new ProvidedService<>(JdbcServices.class, sfi.getJdbcServices()));
+			providedServiceCandidates.add(new ProvidedService<>(JdbcEnvironment.class, sfi.getJdbcServices().getJdbcEnvironment()));
+			providedServiceCandidates.add(new ProvidedService<>(RegionFactory.class, serviceRegistry.requireService(RegionFactory.class)));
 
 			final String rootDirectory = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_ROOT_DIRECTORY, HandledFunction.identity(), DEAULT_FILE_RESOURCE_ROOT_DIRECTORY);
 			final String identifierDelimiter = SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, HandledFunction.identity(), StringHelper.UNDERSCORE);
 
-			providedServices.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
+			providedServiceCandidates.add(new ProvidedService<>(ConfigurationService.class, new ConfigurationServiceImpl(
 					declare(new HashMap())
 						.consume(self -> self.putAll(serviceRegistry.requireService(ConfigurationService.class).getSettings()))
-						.consume(self -> {
-							self.putAll(Map.of(
+						.consume(self -> self.putAll(Map.of(
 								AvailableSettings.HBM2DDL_AUTO, CONFIGURATION_FRIENDLY_NONE_VALUE,
 								AvailableSettings.HBM2DDL_SCRIPTS_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
 								AvailableSettings.HBM2DDL_DATABASE_ACTION, CONFIGURATION_FRIENDLY_NONE_VALUE,
@@ -247,26 +250,19 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 								Settings.FILE_RESOURCE_ROOT_DIRECTORY, rootDirectory,
 								Settings.FILE_RESOURCE_PUBLIC_DIRECTORY, rootDirectory + SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_PUBLIC_DIRECTORY, HandledFunction.identity(), "public\\"),
 								Settings.FILE_RESOURCE_IDENTIFIER_DELIMITER, identifierDelimiter,
-								Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, Integer::valueOf, 30)));
-						})
+								Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, SpringHelper.getOrDefault(env, Settings.FILE_RESOURCE_IDENTIFIER_LENGTH, Integer::valueOf, 30))))
 						.get())));
-			providedServices.add(new ProvidedService<>(ProxyFactoryFactory.class, serviceRegistry.requireService(ProxyFactoryFactory.class)));
-			providedServices.add(new ProvidedService<>(CfgXmlAccessService.class, serviceRegistry.requireService(CfgXmlAccessService.class)));
-			providedServices.add(new ProvidedService<>(CacheImplementor.class, serviceRegistry.requireService(CacheImplementor.class)));
-			providedServices.add(new ProvidedService<>(PersisterFactory.class, serviceRegistry.requireService(PersisterFactory.class)));
-			providedServices.add(new ProvidedService<>(PropertyAccessStrategyResolver.class, new PropertyAccessStrategyResolver() {
-				@Override
-				public PropertyAccessStrategy resolvePropertyAccessStrategy(Class containerClass, String explicitAccessStrategyName,
-						EntityMode entityMode) {
-					return PropertyAccessStrategyFieldImpl.INSTANCE;
-				}
-			}));
-			providedServices.add(new ProvidedService<>(SessionFactoryServiceRegistryFactory.class, new SessionFactoryServiceRegistryFactory() {
+			providedServiceCandidates.add(new ProvidedService<>(ProxyFactoryFactory.class, serviceRegistry.requireService(ProxyFactoryFactory.class)));
+			providedServiceCandidates.add(new ProvidedService<>(CfgXmlAccessService.class, serviceRegistry.requireService(CfgXmlAccessService.class)));
+			providedServiceCandidates.add(new ProvidedService<>(CacheImplementor.class, serviceRegistry.requireService(CacheImplementor.class)));
+			providedServiceCandidates.add(new ProvidedService<>(PersisterFactory.class, serviceRegistry.requireService(PersisterFactory.class)));
+			providedServiceCandidates.add(new ProvidedService<>(PropertyAccessStrategyResolver.class, (containerClass, explicitAccessStrategyName, entityMode) -> PropertyAccessStrategyFieldImpl.INSTANCE));
+			providedServiceCandidates.add(new ProvidedService<>(SessionFactoryServiceRegistryFactory.class, new SessionFactoryServiceRegistryFactory() {
 				@Override
 				public SessionFactoryServiceRegistry buildServiceRegistry(SessionFactoryImplementor theSfiThatBeingBuilt,
 						SessionFactoryOptions sfiOptions) {
 					if (logger.isTraceEnabled()) {
-						logger.trace("Creating {} ", SessionFactoryServiceRegistry.class.getName());
+						trace(SessionFactoryServiceRegistry.class);
 					}
 
 					try {
@@ -284,16 +280,16 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 			}));
 
 			final ManipulationContextImpl manipulationContext = new ManipulationContextImpl(env, identifierDelimiter);
-			final ImageService imageService = new ImageService(applicationContext, env);
+			final ImageService imageService = new ImageService(applicationContext);
 
-			providedServices.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
-			providedServices.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
-			providedServices.add(new ProvidedService<>(ImageService.class, imageService));
-			providedServices.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
-			providedServices.add(new ProvidedService<>(MutableIdentifierGeneratorFactory.class, serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class)));
-			providedServices.add(new ProvidedService<>(DirectoryInitializer.class, new DirectoryInitializerImpl()));
+			providedServiceCandidates.add(new ProvidedService<>(SaveStrategyResolver.class, new SaveStrategyResolver(imageService, manipulationContext)));
+			providedServiceCandidates.add(new ProvidedService<>(ManipulationContextImpl.class, manipulationContext));
+			providedServiceCandidates.add(new ProvidedService<>(ImageService.class, imageService));
+			providedServiceCandidates.add(new ProvidedService<>(ZoneContext.class, applicationContext.getBean(ZoneContext.class)));
+			providedServiceCandidates.add(new ProvidedService<>(MutableIdentifierGeneratorFactory.class, serviceRegistry.requireService(MutableIdentifierGeneratorFactory.class)));
+			providedServiceCandidates.add(new ProvidedService<>(DirectoryInitializer.class, new DirectoryInitializerImpl()));
 			
-			this.providedServices = Collections.unmodifiableList(providedServices);
+			this.providedServices = Collections.unmodifiableList(providedServiceCandidates);
 		}
 		// @formatter:on
 	}
@@ -402,7 +398,7 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 
 		@Override
 		public List<CacheRegionDefinition> getCacheRegionDefinitions() {
-			return null;
+			return Collections.emptyList();
 		}
 
 		@Override
@@ -462,7 +458,9 @@ public class FileManagementImpl extends ContextBuilder.AbstractContextBuilder im
 		}
 
 		@Override
-		public void apply(JpaOrmXmlPersistenceUnitDefaults jpaOrmXmlPersistenceUnitDefaults) {}
+		public void apply(JpaOrmXmlPersistenceUnitDefaults jpaOrmXmlPersistenceUnitDefaults) {
+			logger.debug("Skipping");
+		}
 
 	}
 

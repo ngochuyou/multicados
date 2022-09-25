@@ -15,9 +15,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.Transactional;
 
-import multicados.application.Settings;
 import multicados.domain.entity.entities.Department;
-import multicados.internal.context.hook.DomainHook;
+import multicados.internal.context.hook.DomainContextHook;
 import multicados.internal.domain.DomainResourceContext;
 import multicados.internal.domain.metadata.DomainResourceMetadata;
 import multicados.internal.domain.metadata.NamedResourceMetadata;
@@ -31,7 +30,7 @@ import multicados.internal.service.crud.GenericCRUDServiceImpl;
  * @author Ngoc Huy
  *
  */
-public class DepartmentScopeHook implements DomainHook {
+public class DepartmentScopeHook implements DomainContextHook {
 
 	private static final Logger logger = LoggerFactory.getLogger(DepartmentScopeHook.class);
 
@@ -61,14 +60,13 @@ public class DepartmentScopeHook implements DomainHook {
 	@SuppressWarnings("unchecked")
 	private List<String> locateToBeCreatedDepartmentNames(List<String> configuredDepartmentNames, Session session,
 			DomainResourceMetadata<Department> metadata) throws Exception {
-		final NamedResourceMetadata<Department> namedResourceMetadata = (NamedResourceMetadata<Department>) metadata
-				.unwrap(NamedResourceMetadata.class);
+		final NamedResourceMetadata<Department> namedResourceMetadata = metadata.unwrap(NamedResourceMetadata.class);
 		final List<String> toBeCreatedDepartmentNames = new ArrayList<>();
 		final String scopedFieldName = namedResourceMetadata.getScopedAttributeNames().get(0).getName();
 
 		for (final String departmentName : configuredDepartmentNames) {
-			if (genericRepository.count(Department.class,
-					(root, cq, builder) -> builder.equal(root.get(scopedFieldName), departmentName), session) != 0) {
+			if (genericRepository.doesExist(Department.class,
+					(root, cq, builder) -> builder.equal(root.get(scopedFieldName), departmentName), session)) {
 				continue;
 			}
 
@@ -82,7 +80,7 @@ public class DepartmentScopeHook implements DomainHook {
 	 * @return
 	 */
 	private List<String> getConfiguredDepartmentNames(Environment env) {
-		return List.of(env.getRequiredProperty(Settings.SCOPED_DEPARTMENT_NAMES).split(StringHelper.COMMA));
+		return List.of(env.getRequiredProperty("multicados.department.scoped").split(StringHelper.COMMA));
 	}
 
 	@Override

@@ -33,8 +33,8 @@ import org.springframework.web.filter.CorsFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import multicados.internal.config.DNSUtils;
 import multicados.internal.config.Settings;
+import multicados.internal.helper.DNSUtils;
 import multicados.internal.helper.SpringHelper;
 import multicados.internal.helper.StringHelper;
 import multicados.internal.helper.Utils.HandledFunction;

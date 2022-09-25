@@ -28,6 +28,7 @@ import org.hibernate.Session;
 import org.hibernate.SharedSessionContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -35,11 +36,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import multicados.domain.entity.PermanentEntity_;
 import multicados.domain.entity.entities.Customer;
-import multicados.domain.entity.entities.Customer_;
 import multicados.domain.entity.entities.User;
+import multicados.domain.entity.entities.User_;
 import multicados.domain.entity.entities.customer.CredentialReset;
 import multicados.domain.entity.entities.customer.CredentialReset_;
+import multicados.internal.config.ExecutorNames;
 import multicados.internal.config.Settings;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.helper.HibernateHelper;
@@ -64,9 +67,7 @@ public class CredentialResetService {
 
 	private static final Logger logger = LoggerFactory.getLogger(CredentialResetService.class);
 
-	private static final String RSA_CIPHER_INSTANCE_NAME = "RSA";
-	public static final String EXECUTOR_NAME = "credential_reset_mailer";
-
+	private static final String RSA_CIPHER_INSTANCE_NAME = "RSA/None/OAEPWITHSHA-256ANDMGF1PADDING";
 	private final GenericCRUDServiceImpl crudService;
 	private final GenericRepository genericRepository;
 	private final OnMemoryUserDetailsContext onMemUserDetailsContext;
@@ -85,6 +86,7 @@ public class CredentialResetService {
 	private final JavaMailSender mailSender;
 	private final MailProvider mailProvider;
 
+	@Autowired
 	public CredentialResetService(
 	// @formatter:off
 			Environment env,
@@ -94,7 +96,7 @@ public class CredentialResetService {
 			GenericRepository genericRepository,
 			MailProvider mailProvider,
 			JavaMailSender mailSender, 
-			PasswordEncoder passwordEncoder) throws IllegalAccessException {
+			PasswordEncoder passwordEncoder) {
 		// @formatter:on
 		this.crudService = crudService;
 		this.genericRepository = genericRepository;
@@ -117,7 +119,7 @@ public class CredentialResetService {
 		this.mailProvider = mailProvider;
 	}
 
-	@Async(CredentialResetService.EXECUTOR_NAME)
+	@Async(ExecutorNames.CREDENTIAL_RESET_EXECUTOR)
 	public CompletableFuture<Void> sendCredentialResetEmail(String customerEmail, int resetCode) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Sending credential reset email to customer {}, code {}", customerEmail, resetCode);
@@ -166,7 +168,7 @@ public class CredentialResetService {
 			throws Exception {
 		try {
 			final int rowMod = genericRepository.update(CredentialReset.class,
-					(root, cu, builder) -> cu.set(root.get(CredentialReset_.active), Boolean.FALSE),
+					(root, cu, builder) -> cu.set(root.get(PermanentEntity_.active), Boolean.FALSE),
 					(root, cu, builder) -> builder.equal(root.get(CredentialReset_.id), credentialResetId), session);
 
 			if (rowMod != 1) {
@@ -183,7 +185,7 @@ public class CredentialResetService {
 	public Optional<Tuple> locateExisitingRequestId(String username, SharedSessionContract session) throws Exception {
 		return genericRepository.findOne(CredentialReset.class,
 				(root, cq, builder) -> List.of(root.get(CredentialReset_.id).alias(CredentialReset_.ID)),
-				(root, cq, builder) -> builder.equal(root.join(CredentialReset_.customer).get(Customer_.id), username),
+				(root, cq, builder) -> builder.equal(root.join(CredentialReset_.customer).get(User_.id), username),
 				LockModeType.PESSIMISTIC_WRITE, session);
 	}
 
@@ -193,7 +195,7 @@ public class CredentialResetService {
 		final Cookie cookie = HttpHelper.createHttpOnlyCookie(requestIdCookieName, encryptedRequestId);
 
 		cookie.setPath(path);
-		cookie.setMaxAge(Long.valueOf(publicKeyExpiration.toSeconds()).intValue());
+		cookie.setMaxAge(Math.toIntExact(publicKeyExpiration.toSeconds()));
 
 		return cookie;
 	}
@@ -239,7 +241,7 @@ public class CredentialResetService {
 		return requestIdCookieName;
 	}
 
-	private static final String JOINED_CUSTOMER_ID_PATH = CredentialReset_.CUSTOMER.concat(Customer_.ID);
+	private static final String JOINED_CUSTOMER_ID_PATH = CredentialReset_.CUSTOMER.concat(User_.ID);
 
 	/**
 	 * @param requestId
@@ -265,7 +267,7 @@ public class CredentialResetService {
 				(root, cq, builder) -> List.of(
 						root.get(CredentialReset_.version).alias(CredentialReset_.VERSION),
 						root.get(CredentialReset_.code).alias(CredentialReset_.CODE),
-						root.join(CredentialReset_.customer).get(Customer_.id).alias(JOINED_CUSTOMER_ID_PATH)),
+						root.join(CredentialReset_.customer).get(User_.id).alias(JOINED_CUSTOMER_ID_PATH)),
 				(root, cq, builder) -> builder.equal(root.get(CredentialReset_.id), requestId),
 				LockModeType.PESSIMISTIC_WRITE,
 				session);
@@ -332,9 +334,9 @@ public class CredentialResetService {
 					User.class,
 					username,
 					(root, cq, builder) -> cq
-						.set(root.get(Customer_.password), encodedNewPassword)
-						.set(root.get(Customer_.credentialVersion), LocalDateTime.now()),
-					(root, cq, builder) -> builder.equal(root.get(Customer_.id), username),
+						.set(root.get(User_.password), encodedNewPassword)
+						.set(root.get(User_.credentialVersion), LocalDateTime.now()),
+					(root, cq, builder) -> builder.equal(root.get(User_.id), username),
 					LockModeType.PESSIMISTIC_WRITE,
 					session);
 			// @formatter:on

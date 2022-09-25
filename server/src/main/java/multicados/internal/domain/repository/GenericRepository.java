@@ -104,6 +104,12 @@ public interface GenericRepository extends ContextBuilder {
 
 	<D extends DomainResource> long count(Class<D> type, Specification<D> specification, SharedSessionContract session)
 			throws Exception;
+	
+	/* ==================== */
+	<D extends DomainResource> boolean doesExist(Class<D> type, SharedSessionContract session) throws Exception;
+
+	<D extends DomainResource> boolean doesExist(Class<D> type, Specification<D> specification, SharedSessionContract session)
+			throws Exception;
 
 	/* ==================== */
 	<D extends DomainResource> int update(Class<D> type, SetStatementBuilder<D> setStatementBuilder,

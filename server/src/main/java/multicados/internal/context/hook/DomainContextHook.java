@@ -12,7 +12,7 @@ import org.springframework.context.ApplicationContext;
  * @author Ngoc Huy
  *
  */
-public interface DomainHook {
+public interface DomainContextHook {
 
 	void hook(ApplicationContext context) throws Exception;
 

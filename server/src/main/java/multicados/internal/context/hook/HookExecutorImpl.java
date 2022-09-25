@@ -35,7 +35,7 @@ public class HookExecutorImpl implements HookExecutor {
 		final Set<BeanDefinition> hookDefinitions = scanForDomainHookDefinitions();
 
 		for (final BeanDefinition beanDefinition : hookDefinitions) {
-			final DomainHook hook = SpringHelper.tryInit(beanDefinition, applicationContext);
+			final DomainContextHook hook = SpringHelper.tryInit(beanDefinition, applicationContext);
 
 			if (logger.isDebugEnabled()) {
 				logger.debug("Executing hook {}", hook.getClass().getName());
@@ -46,13 +46,13 @@ public class HookExecutorImpl implements HookExecutor {
 	}
 
 	/**
-	 * @return Qualified {@link DomainHook}s found under Settings.BASE_PACKAGE
+	 * @return Qualified {@link DomainContextHook}s found under Settings.BASE_PACKAGE
 	 */
 	private Set<BeanDefinition> scanForDomainHookDefinitions() {
 		final ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(
 				false);
 
-		scanner.addIncludeFilter(new AssignableTypeFilter(DomainHook.class));
+		scanner.addIncludeFilter(new AssignableTypeFilter(DomainContextHook.class));
 
 		return scanner.findCandidateComponents(Settings.BASE_PACKAGE);
 	}

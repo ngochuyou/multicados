@@ -11,7 +11,7 @@ import javax.mail.internet.MimeMessage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -29,8 +29,8 @@ public class MailProvider {
 
 	private final String mailUsername;
 
-	public MailProvider(Environment env) {
-		mailUsername = env.getRequiredProperty("spring.mail.username");
+	public MailProvider(@Value("${spring.mail.username}") String mailUsername) {
+		this.mailUsername = mailUsername;
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Mail username {}", mailUsername);
@@ -50,7 +50,7 @@ public class MailProvider {
 
 		return mimeMessage;
 	}
-	
+
 	public MimeMessage createCustomerPasswordResetEmail(String customerEmail, int resetCode,
 			Supplier<MimeMessage> initializer) throws MessagingException {
 		final MimeMessage mimeMessage = initializer.get();

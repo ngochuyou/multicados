@@ -42,9 +42,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
 
-import multicados.internal.file.engine.image.ImageService;
 import multicados.internal.helper.SpringHelper;
-import multicados.service.domain.customer.CredentialResetService;
 
 /**
  * @author Ngoc Huy
@@ -70,7 +68,7 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 		final LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
 
 		sessionFactory.setDataSource(dataSource);
-		sessionFactory.setPackagesToScan(new String[] { env.getProperty(Settings.SCANNED_ENTITY_PACKAGES) });
+		sessionFactory.setPackagesToScan(env.getProperty(Settings.SCANNED_ENTITY_PACKAGES));
 		// snake_case for columns
 		sessionFactory.setPhysicalNamingStrategy(new CamelCaseToUnderscoresNamingStrategy());
 
@@ -106,26 +104,26 @@ public class InternalWebConfiguration implements WebMvcConfigurer {
 		return jsonConverter;
 	}
 
-	@Bean(name = ImageService.EXECUTOR_NAME)
+	@Bean(name = ExecutorNames.IMAGE_SERVICE_EXECUTOR)
 	public Executor imageServiceExecutor() {
 		final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
 		executor.setCorePoolSize(5);
 		executor.setMaxPoolSize(10);
 		executor.setQueueCapacity(50);
-		executor.setThreadNamePrefix(ImageService.EXECUTOR_NAME);
+		executor.setThreadNamePrefix(ExecutorNames.IMAGE_SERVICE_EXECUTOR);
 
 		return executor;
 	}
 
-	@Bean(name = CredentialResetService.EXECUTOR_NAME)
+	@Bean(name = ExecutorNames.CREDENTIAL_RESET_EXECUTOR)
 	public Executor credentialResetMailer() {
 		final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
 		executor.setCorePoolSize(10);
 		executor.setMaxPoolSize(20);
 		executor.setQueueCapacity(100);
-		executor.setThreadNamePrefix(CredentialResetService.EXECUTOR_NAME);
+		executor.setThreadNamePrefix(ExecutorNames.CREDENTIAL_RESET_EXECUTOR);
 
 		return executor;
 	}

@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -31,8 +32,8 @@ public class ManipulationContextImpl implements ManipulationContext {
 	private static final long serialVersionUID = 1L;
 	private static final Logger logger = LoggerFactory.getLogger(ManipulationContextImpl.class);
 
-	private final Map<String, Standard> standardsMap;
-	private final Standard[] standardsArray;
+	private final transient Map<String, Standard> standardsMap;
+	private final transient Standard[] standardsArray;
 	private final String identifierDelimiter;
 
 	private final int maximumIdentifierOccupancy;
@@ -42,7 +43,8 @@ public class ManipulationContextImpl implements ManipulationContext {
 		standardsArray = standardsMap.values().stream().sorted((one, two) -> one.compareRatio(two.getRatio()))
 				.toArray(Standard[]::new);
 		maximumIdentifierOccupancy = standardsMap.values().stream().map(Standard::getName).map(String::length)
-				.max(Integer::compare).get();
+				.max(Integer::compare)
+				.orElseThrow(() -> new NoSuchElementException("Identifier occupancy was not provided"));
 		this.identifierDelimiter = identifierDelimiter;
 
 		if (logger.isDebugEnabled()) {

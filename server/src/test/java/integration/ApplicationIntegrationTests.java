@@ -21,12 +21,12 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import multicados.domain.entity.file.UserPhoto;
-import multicados.internal.config.DNSUtils;
 import multicados.internal.config.InternalWebConfiguration;
 import multicados.internal.file.engine.FileManagement;
 import multicados.internal.file.engine.FileResourcePersister;
 import multicados.internal.file.engine.image.ManipulationContext;
 import multicados.internal.file.engine.image.Standard;
+import multicados.internal.helper.DNSUtils;
 
 /**
  * @author Ngoc Huy

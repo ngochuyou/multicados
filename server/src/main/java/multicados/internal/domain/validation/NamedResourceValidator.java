@@ -30,12 +30,12 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 
 	private final GenericRepository genericRepository;
 
-	NamedResourceValidator(Class<? extends NamedResource> resourceType, GenericRepository genericRepository,
-			String fieldName, Pattern pattern, String errorMessage) throws Exception {
+	NamedResourceValidator(GenericRepository genericRepository, String fieldName, Pattern pattern,
+			String errorMessage) {
 		this.nameFieldName = fieldName;
 		this.errorMessage = errorMessage;
 		this.pattern = pattern;
-		
+
 		if (logger.isDebugEnabled()) {
 			logger.debug("Compliant pattern is {} for field [{}]", pattern, fieldName);
 		}
@@ -55,20 +55,20 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 		final Class<? extends NamedResource> resourceType = resource.getClass();
 		final SharedSessionContractImplementor session = (SharedSessionContractImplementor) entityManager;
 
-		if (count(resource, resourceType, session) != 0) {
+		if (doessExist(resource, resourceType, session)) {
 			result.bad(nameFieldName, String.format("Duplicate name '%s'", resource.getName()));
 		}
 
 		return result;
 	}
 
-	private long count(NamedResource resource, final Class<? extends NamedResource> resourceType,
+	private boolean doessExist(NamedResource resource, final Class<? extends NamedResource> resourceType,
 			final SharedSessionContractImplementor session) throws Exception {
 		final EntityPersister persister = session.getFactory().unwrap(SessionFactoryImplementor.class).getMetamodel()
 				.entityPersister(resourceType);
 		final Serializable identifier = persister.getIdentifier(resource, session);
 		// @formatter:off
-		return genericRepository.count(resourceType,
+		return genericRepository.doesExist(resourceType,
 				(root, cq, builder) -> {
 					final Path<Object> identifierPath = root.get(persister.getIdentifierPropertyName());
 					return builder.and(

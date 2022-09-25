@@ -5,8 +5,6 @@ package nh.multicados;
 
 import static nh.multicados.UnitTest.Bob.publicKey;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
@@ -16,9 +14,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
-import java.util.UUID;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -31,9 +27,12 @@ import javax.crypto.NoSuchPaddingException;
  */
 public class UnitTest {
 
-	public static void main(String[] args) throws InvalidKeyException, NoSuchAlgorithmException, URISyntaxException,
-			IOException, InvalidKeySpecException {
-		System.out.println(UUID.randomUUID().toString().matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"));
+	private static final Bob BOB = new Bob();
+	private static final Alice ALICE = new Alice();
+
+	public static void main(String[] args)
+			throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, SignatureException {
+		BOB.send(ALICE, "Hello Alice");
 	}
 
 	public static final Signature signature;
@@ -50,7 +49,6 @@ public class UnitTest {
 
 		public static final PrivateKey privateKey;
 		public static final PublicKey publicKey;
-		private static final Cipher cipher;
 
 		static {
 			final KeyPairGenerator generator;
@@ -63,30 +61,21 @@ public class UnitTest {
 
 				privateKey = keyPair.getPrivate();
 				publicKey = keyPair.getPublic();
-
-				cipher = Cipher.getInstance("RSA");
-
-				cipher.init(Cipher.DECRYPT_MODE, privateKey);
-			} catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException any) {
+			} catch (NoSuchAlgorithmException any) {
 				throw new IllegalArgumentException();
 			}
 		}
 
-		@SuppressWarnings("unused")
 		private void send(Alice alice, String message)
 				throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, SignatureException {
-//			final byte[] cipherBytes = cipher.doFinal(message.getBytes());
-
 			signature.initSign(privateKey);
 			signature.update(message.getBytes());
 
-			alice.receive(Base64.getEncoder().encodeToString(signature.sign()));
+			alice.receive(new String(signature.sign()));
 		}
 
 		private void receive(String base64Message) throws IllegalBlockSizeException, BadPaddingException {
-			final byte[] messageBytes = cipher.doFinal(Base64.getDecoder().decode(base64Message));
-
-			System.out.println(new String(messageBytes, StandardCharsets.UTF_8));
+			System.out.println(new String(Base64.getDecoder().decode(base64Message), StandardCharsets.UTF_8));
 		}
 
 	}
@@ -111,14 +100,11 @@ public class UnitTest {
 			bob.receive(Base64.getEncoder().encodeToString(cipher.doFinal(messageBytes)));
 		}
 
-		private void receive(String base64Message)
+		private void receive(String message)
 				throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, SignatureException {
-			final byte[] encryptedBytes = Base64.getDecoder().decode(base64Message);
-
 			signature.initVerify(publicKey);
-			signature.update("can you catch me".getBytes());
-
-			System.out.println(signature.verify(encryptedBytes));
+			
+			System.out.println(String.format("%s\n%s", message, signature.verify(message.getBytes())));
 		}
 
 	}
