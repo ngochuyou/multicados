@@ -46,7 +46,7 @@ public abstract class AbstractController {
 	 *
 	 * @return the {@link ResponseEntity}
 	 */
-	protected ResponseEntity<?> sendNotFound(Collection<String> preficies, HttpServletRequest request) {
+	protected ResponseEntity<Object> sendNotFound(Collection<String> preficies, HttpServletRequest request) {
 		return doSendWithError((BodyBuilder) ResponseEntity.notFound(), Common.notFound(preficies), request);
 	}
 
@@ -60,7 +60,7 @@ public abstract class AbstractController {
 	 * @param <T>     body type
 	 * @return
 	 */
-	protected <T> ResponseEntity<?> sendOk(T body, HttpServletRequest request) {
+	protected <T> ResponseEntity<Object> sendOk(T body, HttpServletRequest request) {
 		return doSendWithPayload(ResponseEntity.ok(), body, request);
 	}
 
@@ -70,11 +70,10 @@ public abstract class AbstractController {
 	 * 
 	 * @param request
 	 * @param message the data to be included in the response body
-	 *
-	 * @param <T>     body type
+	 * 
 	 * @return
 	 */
-	protected <T> ResponseEntity<?> sendBad(String message, HttpServletRequest request) {
+	protected ResponseEntity<Object> sendBad(String message, HttpServletRequest request) {
 		return doSendWithError(ResponseEntity.badRequest(), message, request);
 	}
 
@@ -88,11 +87,11 @@ public abstract class AbstractController {
 	 * @param <T>     body type
 	 * @return
 	 */
-	protected <T> ResponseEntity<?> sendForbidden(String message, HttpServletRequest request) {
+	protected ResponseEntity<Object> sendForbidden(String message, HttpServletRequest request) {
 		return doSendWithError(ResponseEntity.status(HttpStatus.FORBIDDEN), message, request);
 	}
 
-	protected <T> ResponseEntity<?> sendResult(ServiceResult result, T body, HttpServletRequest request)
+	protected <T> ResponseEntity<Object> sendResult(ServiceResult result, T body, HttpServletRequest request)
 			throws Exception {
 		if (result.isOk()) {
 			return sendOk(body, request);
@@ -113,16 +112,16 @@ public abstract class AbstractController {
 		// @formatter:on
 	}
 
-	protected ResponseEntity<?> doSendWithError(BodyBuilder responseBuilder, Object body, HttpServletRequest request) {
+	protected ResponseEntity<Object> doSendWithError(BodyBuilder responseBuilder, Object body, HttpServletRequest request) {
 		return doSend(responseBuilder, () -> Common.error(body), request);
 	}
 
-	protected ResponseEntity<?> doSendWithPayload(BodyBuilder responseBuilder, Object body,
+	protected ResponseEntity<Object> doSendWithPayload(BodyBuilder responseBuilder, Object body,
 			HttpServletRequest request) {
 		return doSend(responseBuilder, () -> Common.payload(body), request);
 	}
 
-	private ResponseEntity<?> doSend(BodyBuilder responseBuilder, Supplier<Object> bodySupplier,
+	private ResponseEntity<Object> doSend(BodyBuilder responseBuilder, Supplier<Object> bodySupplier,
 			HttpServletRequest request) {
 		if (HttpHelper.isJsonAccepted(request)) {
 			return responseBuilder.body(bodySupplier.get());
