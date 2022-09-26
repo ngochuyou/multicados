@@ -20,9 +20,11 @@ import multicados.internal.security.DomainUserDetails;
  * @author Ngoc Huy
  *
  */
-public abstract class SpringHelper {
+public class SpringHelper {
 
-	private SpringHelper() {}
+	private SpringHelper() {
+		throw new UnsupportedOperationException();
+	}
 
 	public static <T> T getOrDefault(Environment env, String propName, HandledFunction<String, T, Exception> producer,
 			T defaultValue) throws Exception {
