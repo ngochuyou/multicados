@@ -18,10 +18,15 @@ import javax.imageio.stream.MemoryCacheImageOutputStream;
 
 import multicados.internal.helper.Utils.HandledBiFunction;
 
-public interface AwtImageUtils {
+public class AwtImageUtils {
 
+	private AwtImageUtils() {
+		throw new UnsupportedOperationException();
+	}
+	
 	public static byte[] getBytes(BufferedImage bufferedImage, String extension) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		
 		ImageIO.write(bufferedImage, extension, baos);
 		baos.close();
 
@@ -36,8 +41,8 @@ public interface AwtImageUtils {
 			int nextHeight,
 			HandledBiFunction<BufferedImage, String, T, Exception> producer) throws Exception {
 		// @formatter:on
-		BufferedImage resized = new BufferedImage(nextWidth, nextHeight, original.getType());
-		Graphics2D graphics = resized.createGraphics();
+		final BufferedImage resized = new BufferedImage(nextWidth, nextHeight, original.getType());
+		final Graphics2D graphics = resized.createGraphics();
 
 		graphics.drawImage(original, 0, 0, nextWidth, nextHeight, null);
 		graphics.dispose();
@@ -47,10 +52,10 @@ public interface AwtImageUtils {
 
 	public static <T> T downGradeQuality(BufferedImage toBeDownGraded, String extension, float factor,
 			HandledBiFunction<byte[], String, T, Exception> producer) throws Exception {
-		ImageWriter writer = ImageWriter.class.cast(ImageIO.getImageWritersByFormatName(extension).next());
-		ImageWriteParam param = writer.getDefaultWriteParam();
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ImageOutputStream ios = new MemoryCacheImageOutputStream(baos);
+		final ImageWriter writer = ImageWriter.class.cast(ImageIO.getImageWritersByFormatName(extension).next());
+		final ImageWriteParam param = writer.getDefaultWriteParam();
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final ImageOutputStream ios = new MemoryCacheImageOutputStream(baos);
 
 		try {
 			writer.setOutput(ios);
