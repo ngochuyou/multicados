@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.persistence.criteria.CriteriaBuilder;
@@ -57,7 +56,7 @@ public interface Filters {
 						plural.expressionProducers.stream(),
 						expressionProducers.stream())
 					.flatMap(Function.identity())
-					.collect(Collectors.toList());
+					.toList();
 			// @formatter:on
 		}
 

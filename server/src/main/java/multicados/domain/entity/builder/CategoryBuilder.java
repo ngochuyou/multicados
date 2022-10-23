@@ -19,6 +19,7 @@ public class CategoryBuilder extends AbstractDomainResourceBuilder<Category> {
 
 	private Category mandatoryBuild(Category model, Category persistence) {
 		persistence.setDescription(StringHelper.normalizeString(model.getDescription()));
+		
 		return persistence;
 	}
 

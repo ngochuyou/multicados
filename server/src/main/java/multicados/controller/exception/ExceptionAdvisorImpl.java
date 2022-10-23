@@ -66,27 +66,27 @@ public class ExceptionAdvisorImpl extends ResponseEntityExceptionHandler impleme
 	}
 
 	@ExceptionHandler(PersistenceException.class)
-	public ResponseEntity<?> handlePersistenceException(PersistenceException ex, WebRequest request) {
+	public ResponseEntity<Object> handlePersistenceException(PersistenceException ex, WebRequest request) {
 		return PersistenceExceptionAdvisor.INSTANCE.handle(ex, request);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)
-	public ResponseEntity<?> handledAccessDeniedException(AccessDeniedException ex, WebRequest request) {
+	public ResponseEntity<Object> handledAccessDeniedException(AccessDeniedException ex, WebRequest request) {
 		return checkForJsonOrText(ex, request, HttpStatus.UNAUTHORIZED);
 	}
 
 	@ExceptionHandler(UnauthorizedCredentialException.class)
-	public ResponseEntity<?> handledUnauthorizedCredentialException(UnauthorizedCredentialException ex,
+	public ResponseEntity<Object> handledUnauthorizedCredentialException(UnauthorizedCredentialException ex,
 			WebRequest request) {
 		return checkForJsonOrText(ex, request, HttpStatus.UNAUTHORIZED);
 	}
 
 	@ExceptionHandler(UnknownAttributesException.class)
-	public ResponseEntity<?> handledUnknownAttributesException(UnknownAttributesException ex, WebRequest request) {
+	public ResponseEntity<Object> handledUnknownAttributesException(UnknownAttributesException ex, WebRequest request) {
 		return checkForJsonOrText(ex, request, BAD_REQUEST);
 	}
 
-	private ResponseEntity<?> checkForJsonOrText(Exception ex, WebRequest request, HttpStatus status) {
+	private ResponseEntity<Object> checkForJsonOrText(Exception ex, WebRequest request, HttpStatus status) {
 		return handleExceptionInternal(ex,
 				HttpHelper.isJsonAccepted(request) ? Common.error(ex.getMessage()) : ex.getMessage(), HttpHeaders.EMPTY,
 				status, request);
@@ -97,8 +97,7 @@ public class ExceptionAdvisorImpl extends ResponseEntityExceptionHandler impleme
 			WebRequest request) {
 		final BindingResult bindingResult = ex.getBindingResult();
 
-		if (bindingResult instanceof BeanPropertyBindingResult) {
-			final BeanPropertyBindingResult beanBindingResult = ((BeanPropertyBindingResult) bindingResult);
+		if (bindingResult instanceof BeanPropertyBindingResult beanBindingResult) {
 			final String message = String.format("Following parameters are invalid: %s",
 					beanBindingResult.getFieldErrors().stream().map(FieldError::getField)
 							.collect(Collectors.joining(StringHelper.COMMON_JOINER)));
@@ -111,10 +110,9 @@ public class ExceptionAdvisorImpl extends ResponseEntityExceptionHandler impleme
 	}
 
 	@ExceptionHandler(AdvisedException.class)
-	public ResponseEntity<?> handledScopedException(AdvisedException se, WebRequest request) {
+	public ResponseEntity<Object> handledScopedException(AdvisedException se, WebRequest request) {
 		final HandlerKey handlerKey = new HandlerKey(se);
-		final BiDeclaration<HttpStatus, Object> advice = handlersMap.get(handlerKey).apply((Throwable) se.getCause(),
-				request);
+		final BiDeclaration<HttpStatus, Object> advice = handlersMap.get(handlerKey).apply(se.getCause(), request);
 
 		return ResponseEntity.status(advice.getFirst()).body(Common.error(advice.getSecond()));
 	}
@@ -134,7 +132,7 @@ public class ExceptionAdvisorImpl extends ResponseEntityExceptionHandler impleme
 		}
 
 		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("Registering one new handler %s with key %s", handler, key));
+			logger.debug(String.format("Registering a new handler %s with key %s", handler, key));
 		}
 
 		handlersMap.put(key, (BiFunction<Throwable, WebRequest, BiDeclaration<HttpStatus, Object>>) handler);

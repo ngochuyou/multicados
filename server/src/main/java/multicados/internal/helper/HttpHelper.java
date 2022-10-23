@@ -8,6 +8,8 @@ import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -19,44 +21,59 @@ import org.springframework.web.context.request.WebRequest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import multicados.internal.helper.Utils.HandledSupplier;
+
 /**
  * @author Ngoc Huy
  *
  */
 public interface HttpHelper {
-	
+
 	public static boolean tryJson(HttpServletRequest request, HttpServletResponse response, ObjectMapper mapper,
 			Object body, boolean doCloseWriter) throws IOException {
-		if (!isJsonAccepted(request)) {
-			return false;
-		}
-
-		final PrintWriter writer = response.getWriter();
-
-		try {
-			writer.write(mapper.writeValueAsString(body));
-			json(response);
-			return true;
-		} finally {
-			writer.flush();
-
-			if (doCloseWriter) {
-				writer.close();
-			}
-		}
+		// @formatter:off
+		return doTry(
+				request,
+				response,
+				HttpHelper::isJsonAccepted,
+				() -> mapper.writeValueAsString(body),
+				HttpHelper::json,
+				doCloseWriter);
+		// @formatter:on
 	}
 
 	public static boolean tryText(HttpServletRequest request, HttpServletResponse response, String body,
 			boolean doCloseWriter) throws IOException {
-		if (!isJsonAccepted(request)) {
+		// @formatter:off
+		return doTry(
+				request,
+				response,
+				HttpHelper::isTextAccepted,
+				() -> body,
+				HttpHelper::text,
+				doCloseWriter);
+		// @formatter:on
+	}
+
+	private static boolean doTry(
+	// @formatter:off
+			HttpServletRequest request,
+			HttpServletResponse response,
+			Predicate<HttpServletRequest> supportAssertor,
+			HandledSupplier<String, IOException> bodySupplier,
+			Consumer<HttpServletResponse> responseConsumer,
+			boolean doCloseWriter) throws IOException {
+		// @formatter:on
+		if (!supportAssertor.test(request)) {
 			return false;
 		}
 
 		final PrintWriter writer = response.getWriter();
 
 		try {
-			writer.write(body);
-			text(response);
+			writer.write(bodySupplier.get());
+			responseConsumer.accept(response);
+
 			return true;
 		} finally {
 			writer.flush();
@@ -126,6 +143,7 @@ public interface HttpHelper {
 
 	public static HttpServletResponse content(HttpServletResponse response, Collection<String> mediaTypes) {
 		response.setHeader(HttpHeaders.CONTENT_TYPE, StringHelper.join(StringHelper.COMMA, mediaTypes));
+
 		return response;
 	}
 

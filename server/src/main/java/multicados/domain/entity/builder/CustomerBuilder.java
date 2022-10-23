@@ -27,12 +27,14 @@ public class CustomerBuilder extends AbstractDomainResourceBuilder<Customer> {
 	@Override
 	public Customer buildInsertion(Customer persistence, EntityManager entityManager) throws Exception {
 		persistence.setLocked(Boolean.FALSE);
+		
 		return doMandatory(persistence, persistence);
 	}
 
 	@Override
 	public Customer buildUpdate(Customer model, Customer persistence, EntityManager entityManger) {
 		persistence.setLocked(Optional.ofNullable(model.isActive()).orElse(persistence.isActive()));
+		
 		return doMandatory(model, persistence);
 	}
 

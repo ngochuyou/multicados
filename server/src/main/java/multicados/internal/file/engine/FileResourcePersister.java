@@ -18,6 +18,8 @@ import org.hibernate.persister.entity.EntityPersister;
  */
 public interface FileResourcePersister extends EntityPersister, SessionFactoryObserver {
 
+	static final LockOptions LOCK_OPTIONS = new LockOptions().setLockMode(LockMode.NONE);
+
 	String getDirectoryPath();
 
 	String resolvePath(String id);
@@ -25,7 +27,7 @@ public interface FileResourcePersister extends EntityPersister, SessionFactoryOb
 	@Override
 	default Object load(Serializable id, Object optionalObject, LockMode lockMode,
 			SharedSessionContractImplementor session) throws HibernateException {
-		return load(id, optionalObject, new LockOptions().setLockMode(LockMode.NONE), session);
+		return load(id, optionalObject, LOCK_OPTIONS, session);
 	}
 
 	@Override

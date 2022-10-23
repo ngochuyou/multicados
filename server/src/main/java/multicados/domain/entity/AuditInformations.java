@@ -27,11 +27,11 @@ public class AuditInformations implements DomainComponent, Serializable {
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "creator", referencedColumnName = User_.ID, updatable = false)
-	private Operator creator;
+	private transient Operator creator;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "updater", referencedColumnName = User_.ID)
-	private Operator updater;
+	private transient Operator updater;
 
 	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdTimestamp;

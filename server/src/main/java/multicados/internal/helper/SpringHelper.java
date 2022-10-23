@@ -28,7 +28,7 @@ public class SpringHelper {
 
 	public static <T> T getOrDefault(Environment env, String propName, HandledFunction<String, T, Exception> producer,
 			T defaultValue) throws Exception {
-		String configuredValue = env.getProperty(propName);
+		final String configuredValue = env.getProperty(propName);
 
 		if (!StringUtils.hasLength(configuredValue)) {
 			return defaultValue;
@@ -39,7 +39,7 @@ public class SpringHelper {
 
 	public static <T> T[] getArrayOrDefault(Environment env, String propName,
 			HandledFunction<String[], T[], Exception> producer, T[] defaultValue) throws Exception {
-		String[] configuredValue = env.getProperty(propName, String[].class);
+		final String[] configuredValue = env.getProperty(propName, String[].class);
 
 		if (configuredValue == null || configuredValue.length == 0) {
 			return defaultValue;
@@ -50,7 +50,7 @@ public class SpringHelper {
 
 	public static <T> T getOrThrow(Environment env, String propName, HandledFunction<String, T, Exception> producer,
 			Supplier<Exception> thrower) throws Exception {
-		String configuredValue = env.getProperty(propName);
+		final String configuredValue = env.getProperty(propName);
 
 		if (!StringUtils.hasLength(configuredValue)) {
 			throw thrower.get();
@@ -67,8 +67,14 @@ public class SpringHelper {
 		if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
 			return anonymousProfile;
 		}
+		
+		final Object principal = authentication.getPrincipal();
 
-		return DomainUserDetails.class.cast(authentication.getPrincipal());
+		if (!(principal instanceof DomainUserDetails)) {
+			throw new IllegalArgumentException(String.format("The required principal instance is not of the expected type %s", DomainUserDetails.class));
+		}
+		
+		return DomainUserDetails.class.cast(principal);
 	}
 
 	@SuppressWarnings("unchecked")

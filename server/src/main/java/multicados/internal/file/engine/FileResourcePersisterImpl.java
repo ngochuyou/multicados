@@ -50,6 +50,7 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 			throws Exception {
 		// @formatter:on
 		super(persistentClass, cacheAccessStrategy, naturalIdRegionAccessStrategy, creationContext);
+		
 		final FileResourceSessionFactory sfi = FileResourceSessionFactory.class
 				.cast(creationContext.getSessionFactory());
 
@@ -111,7 +112,7 @@ public class FileResourcePersisterImpl extends SingleTableEntityPersister implem
 				Hibernate.initialize(object);
 			}
 
-			String manipulatedIdentifier = saveStrategy.save(this, id.toString(), FileResource.class.cast(object), FileResourceSession.class.cast(session));
+			final String manipulatedIdentifier = saveStrategy.save(this, id.toString(), FileResource.class.cast(object), FileResourceSession.class.cast(session));
 
 			setIdentifier(object, manipulatedIdentifier, session);
 		} catch (Exception any) {
