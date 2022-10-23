@@ -48,7 +48,7 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 			return;
 		}
 
-		logger.debug(String.format("Using %s as default User photo", defaultUserPhotoFilename));
+		logger.debug("Using {} as default User photo", defaultUserPhotoFilename);
 	}
 
 	private User mandatoryBuild(User model, User persistence) {
@@ -67,15 +67,13 @@ public class UserBuilder extends AbstractDomainResourceBuilder<User> {
 	@Override
 	public User buildInsertion(User resource, EntityManager entityManager) throws Exception {
 		mandatoryBuild(resource, resource);
-		
+
 		resource.setCredentialVersion(LocalDateTime.now());
 		resource.setLocked(Boolean.TRUE);
-		resource.setPassword(resource.getPassword() == null && true/*
-																	 * || model.getPassword().length() <
-																	 * _User.MINIMUM_PASSWORD_LENGTH
-																	 */
-				? null
-				: passwordEncoder.encode(resource.getPassword()));
+		/*
+		 * || model.getPassword().length() < _User.MINIMUM_PASSWORD_LENGTH
+		 */
+		resource.setPassword(resource.getPassword() == null ? null : passwordEncoder.encode(resource.getPassword()));
 
 		return resource;
 	}

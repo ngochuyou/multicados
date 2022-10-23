@@ -118,9 +118,7 @@ public class FileController extends AbstractController {
 		final File file = new File(path);
 
 		if (file.exists() && file.isFile()) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Directly reading file {}", path);
-			}
+			logger.debug("Directly reading file {}", path);
 
 			return sendOk(Files.readAllBytes(file.toPath()), request);
 		}

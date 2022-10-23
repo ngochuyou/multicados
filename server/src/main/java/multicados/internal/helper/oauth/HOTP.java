@@ -84,9 +84,7 @@ public abstract class HOTP {
 	 *                                  HMAC-SHA-1 key.
 	 *
 	 */
-
-	public static byte[] hmac_sha1(byte[] keyBytes, byte[] text) throws NoSuchAlgorithmException, InvalidKeyException {
-		// try {
+	public static byte[] hmacSha1(byte[] keyBytes, byte[] text) throws NoSuchAlgorithmException, InvalidKeyException {
 		Mac hmacSha1;
 		try {
 			hmacSha1 = Mac.getInstance("HmacSHA1");
@@ -96,9 +94,6 @@ public abstract class HOTP {
 		SecretKeySpec macKey = new SecretKeySpec(keyBytes, "RAW");
 		hmacSha1.init(macKey);
 		return hmacSha1.doFinal(text);
-		// } catch (GeneralSecurityException gse) {
-		// throw new UndeclaredThrowableException(gse);
-		// }
 	}
 
 	private static final int[] DIGITS_POWER
@@ -128,10 +123,9 @@ public abstract class HOTP {
 	 * @return A numeric String in base 10 that includes {@link codeDigits} digits
 	 *         plus the optional checksum digit if requested.
 	 */
-	static public String generateOTP(byte[] secret, long movingFactor, int codeDigits, boolean addChecksum,
+	public static String generateOTP(byte[] secret, long movingFactor, int codeDigits, boolean addChecksum,
 			int truncationOffset) throws NoSuchAlgorithmException, InvalidKeyException {
 		// put movingFactor value into text byte array
-		String result = null;
 		int digits = addChecksum ? (codeDigits + 1) : codeDigits;
 		byte[] text = new byte[8];
 		for (int i = text.length - 1; i >= 0; i--) {
@@ -140,7 +134,7 @@ public abstract class HOTP {
 		}
 
 		// compute hmac hash
-		byte[] hash = hmac_sha1(secret, text);
+		byte[] hash = hmacSha1(secret, text);
 
 		// put selected bytes into result int
 		int offset = hash[hash.length - 1] & 0xf;
@@ -154,10 +148,13 @@ public abstract class HOTP {
 		if (addChecksum) {
 			otp = (otp * 10) + calcChecksum(otp, codeDigits);
 		}
-		result = Integer.toString(otp);
-		while (result.length() < digits) {
-			result = "0" + result;
+		
+		final StringBuilder resultBuilder = new StringBuilder(Integer.toString(otp));
+		
+		while (resultBuilder.length() < digits) {
+			resultBuilder.append("0" + resultBuilder);
 		}
-		return result;
+		
+		return resultBuilder.toString();
 	}
 }

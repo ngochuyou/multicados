@@ -67,7 +67,7 @@ public class CredentialResetService {
 
 	private static final Logger logger = LoggerFactory.getLogger(CredentialResetService.class);
 
-	private static final String RSA_CIPHER_INSTANCE_NAME = "RSA/None/OAEPWITHSHA-256ANDMGF1PADDING";
+	private static final String RSA_CIPHER_INSTANCE_NAME = "RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING";
 	private final GenericCRUDServiceImpl crudService;
 	private final GenericRepository genericRepository;
 	private final OnMemoryUserDetailsContext onMemUserDetailsContext;

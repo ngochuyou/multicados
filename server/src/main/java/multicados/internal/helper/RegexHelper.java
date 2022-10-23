@@ -132,11 +132,11 @@ public class RegexHelper extends RegExUtils {
 			// @formatter:off
 			String regex = super
 					.build()
-					.replaceAll("\\[", "\\\\[")
-					.replaceAll("\\]", "\\\\]")
-					.replaceAll("\\.", "\\\\.")
-					.replaceAll("\\-", "\\\\-")
-					.replaceAll("\\^", "\\\\^");
+					.replace("\\[", "\\\\[")
+					.replace("\\]", "\\\\]")
+					.replace("\\.", "\\\\.")
+					.replace("\\-", "\\\\-")
+					.replace("\\^", "\\\\^");
 			// @formatter:on
 			return String.format("[%s]", regex);
 		}

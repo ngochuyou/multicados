@@ -37,67 +37,58 @@ class PersistenceExceptionAdvisor {
 
 	static final PersistenceExceptionAdvisor INSTANCE = new PersistenceExceptionAdvisor();
 
-	private final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<?>>> handlers;
+	private final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<Object>>> handlers;
 
 	private PersistenceExceptionAdvisor() {
-		final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<?>>> handlers = new HashMap<>();
+		final Map<Class<? extends Throwable>, BiFunction<Throwable, WebRequest, ResponseEntity<Object>>> handlerCandidates = new HashMap<>();
 
-		handlers.put(ConstraintViolationException.class, this::handleConstraintViolation);
+		handlerCandidates.put(ConstraintViolationException.class, this::handleConstraintViolation);
 
-		handlers.put(EntityNotFoundException.class, (enfe, request) -> resolveBody(enfe, request,
+		handlerCandidates.put(EntityNotFoundException.class, (enfe, request) -> resolveBody(request,
 				ResponseEntity.status(HttpStatus.NOT_FOUND), enfe.getMessage()));
 
-		handlers.put(EntityExistsException.class,
-				(eee, request) -> handlers.get(EntityNotFoundException.class).apply(eee, request));
+		handlerCandidates.put(EntityExistsException.class,
+				(eee, request) -> handlerCandidates.get(EntityNotFoundException.class).apply(eee, request));
 
-		handlers.put(HibernateException.class,
-				(he, request) -> resolveBody(he, request, badRequest(), "Invalid resource"));
+		handlerCandidates.put(HibernateException.class,
+				(he, request) -> resolveBody(request, badRequest(), "Invalid resource"));
 
-		handlers.put(IdentifierGenerationException.class,
-				(ide, request) -> resolveBody(ide, request, badRequest(), "Unable to identify resource"));
+		handlerCandidates.put(IdentifierGenerationException.class,
+				(ide, request) -> resolveBody(request, badRequest(), "Unable to identify resource"));
 
-		handlers.put(PropertyValueException.class, (pve, request) -> resolveBody(pve, request, badRequest(),
+		handlerCandidates.put(PropertyValueException.class, (pve, request) -> resolveBody(request, badRequest(),
 				String.format("Attribute '%s' is missing", PropertyValueException.class.cast(pve).getPropertyName())));
 
-		this.handlers = Collections.unmodifiableMap(handlers);
+		this.handlers = Collections.unmodifiableMap(handlerCandidates);
 	}
 
-	ResponseEntity<?> handle(PersistenceException ex, WebRequest request) {
+	ResponseEntity<Object> handle(PersistenceException ex, WebRequest request) {
 		final Throwable cause = ex.getCause();
-		final BiFunction<Throwable, WebRequest, ResponseEntity<?>> handler = handlers
+		final BiFunction<Throwable, WebRequest, ResponseEntity<Object>> handler = handlers
 				.get(Optional.ofNullable(cause).map(Object::getClass).orElse(null));
 
 		if (handler == null) {
-			return resolveBody(cause, request, ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR),
-					"Unknown error");
+			return resolveBody(request, ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR), "Unknown error");
 		}
 
 		return handler.apply(cause, request);
 	}
 
-	private ResponseEntity<?> handleConstraintViolation(Throwable throwable, WebRequest request) {
+	private ResponseEntity<Object> handleConstraintViolation(Throwable throwable, WebRequest request) {
 		// TODO: turn this into handlers map or switch
 		final ConstraintViolationException cve = (ConstraintViolationException) throwable;
-
-		if (cve.getSQLException() instanceof BatchUpdateException) {
-			final BatchUpdateException batchUpdateException = (BatchUpdateException) cve.getSQLException();
-
-			if (batchUpdateException.getCause() instanceof SQLIntegrityConstraintViolationException) {
-				final SQLIntegrityConstraintViolationException sqlException = (SQLIntegrityConstraintViolationException) batchUpdateException
-						.getCause();
-				// bellow criteria relies on database vendors
-				// MySQL - InnoDB
-				if (sqlException.getErrorCode() == 1062 && sqlException.getSQLState().equals("23000")) {
-					return resolveBody(cve, request, ResponseEntity.status(HttpStatus.CONFLICT), Common.existed());
-				}
-			}
+		// bellow criteria relies on database vendors
+		// MySQL - InnoDB
+		if (cve.getSQLException() instanceof BatchUpdateException batchUpdateException
+				&& batchUpdateException.getCause() instanceof SQLIntegrityConstraintViolationException sqlException
+				&& sqlException.getErrorCode() == 1062 && sqlException.getSQLState().equals("23000")) {
+			return resolveBody(request, ResponseEntity.status(HttpStatus.CONFLICT), Common.existed());
 		}
 
-		return resolveBody(cve, request, badRequest(),
-				"Some of the provided information did not meet the requirements");
+		return resolveBody(request, badRequest(), "Some of the provided information did not meet the requirements");
 	}
 
-	private ResponseEntity<?> resolveBody(Throwable cause, WebRequest request, BodyBuilder response, String message) {
+	private ResponseEntity<Object> resolveBody(WebRequest request, BodyBuilder response, String message) {
 		if (HttpHelper.isJsonAccepted(request)) {
 			return response.body(Common.error(message));
 		}
@@ -105,7 +96,7 @@ class PersistenceExceptionAdvisor {
 		if (HttpHelper.isTextAccepted(request)) {
 			return response.body(message);
 		}
-		
+
 		return response.body(null);
 	}
 

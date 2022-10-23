@@ -24,6 +24,7 @@ import org.hibernate.SessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +41,7 @@ import org.springframework.web.util.WebUtils;
 import multicados.controller.exception.AdvisedException;
 import multicados.controller.exception.ExceptionAdvisor;
 import multicados.domain.entity.entities.Customer;
-import multicados.domain.entity.entities.Customer_;
+import multicados.domain.entity.entities.User_;
 import multicados.domain.entity.entities.customer.CredentialReset;
 import multicados.internal.domain.repository.GenericRepository;
 import multicados.internal.helper.Common;
@@ -72,7 +73,7 @@ public class RestCustomerController extends AbstractController {
 	private final JwtSecurityContext jwtSecurityContext;
 	private final CredentialResetService credentialResetService;
 
-	private static final String CREDENTIAL_RESET_COOKIE_PATH = "/rest/customer/reset";
+	private final String credentialResetCookiePath;
 
 	@Autowired
 	public RestCustomerController(
@@ -82,13 +83,15 @@ public class RestCustomerController extends AbstractController {
 			GenericRepository genericRepository,
 			CredentialResetService credentialResetService,
 			ExceptionAdvisor exceptionAdvisor,
-			JwtSecurityContext jwtSecurityContext) throws IllegalAccessException {
+			JwtSecurityContext jwtSecurityContext,
+			@Value("${multicados.customer.password.reset.request.cookie.path}") String credentialResetCookiePath) throws IllegalAccessException {
 		// @formatter:on
 		this.crudService = crudService;
 		this.genericRepository = genericRepository;
 		this.sessionFactory = sessionFactory;
 		this.jwtSecurityContext = jwtSecurityContext;
 		this.credentialResetService = credentialResetService;
+		this.credentialResetCookiePath = credentialResetCookiePath;
 
 		contributeExceptionHandlers(exceptionAdvisor);
 	}
@@ -102,7 +105,7 @@ public class RestCustomerController extends AbstractController {
 
 	@PostMapping
 	@Transactional(readOnly = true)
-	public ResponseEntity<?> createCustomer(@RequestBody Customer newCustomer, HttpServletRequest request)
+	public ResponseEntity<Object> createCustomer(@RequestBody Customer newCustomer, HttpServletRequest request)
 			throws HibernateException, Exception {
 		// @formatter:off
 		return sendResult(
@@ -119,8 +122,8 @@ public class RestCustomerController extends AbstractController {
 
 	@GetMapping("/reset/{username}")
 	@Transactional
-	public ResponseEntity<?> requestPasswordReset(@PathVariable("username") String username, HttpServletRequest request,
-			HttpServletResponse response) throws Exception {
+	public ResponseEntity<Object> requestPasswordReset(@PathVariable("username") String username,
+			HttpServletRequest request, HttpServletResponse response) throws Exception {
 		final Session session = useAutoSession(sessionFactory.getCurrentSession());
 		final Optional<String> customerEmail = fetchCustomerEmail(username, session);
 		// check if the user exists and find out whether they have provided an email
@@ -137,10 +140,8 @@ public class RestCustomerController extends AbstractController {
 		final ServicePayload<Integer> existingCredentialResetRequestHandling = credentialResetService
 				.handleExistingCredentialResetRequest(username, session);
 
-		if (existingCredentialResetRequestHandling != null) {
-			if (!existingCredentialResetRequestHandling.isOk()) {
-				return sendResult(existingCredentialResetRequestHandling, null, request);
-			}
+		if (existingCredentialResetRequestHandling != null && !existingCredentialResetRequestHandling.isOk()) {
+			return sendResult(existingCredentialResetRequestHandling, null, request);
 		}
 		// create a new one
 		final ServicePayload<BiDeclaration<CredentialReset, String>> payload = credentialResetService
@@ -162,8 +163,7 @@ public class RestCustomerController extends AbstractController {
 			}
 		}
 
-		final Cookie cookie = credentialResetService.createRequestIdCookie(credentialReset,
-				CREDENTIAL_RESET_COOKIE_PATH);
+		final Cookie cookie = credentialResetService.createRequestIdCookie(credentialReset, credentialResetCookiePath);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Attaching request id cookie");
@@ -176,10 +176,9 @@ public class RestCustomerController extends AbstractController {
 
 	private Optional<String> fetchCustomerEmail(String username, Session session) throws Exception {
 		return genericRepository
-				.findOne(Customer.class,
-						(root, cq, builder) -> List.of(root.get(Customer_.email).alias(Customer_.EMAIL)),
+				.findOne(Customer.class, (root, cq, builder) -> List.of(root.get(User_.email).alias(User_.EMAIL)),
 						HibernateHelper.hasId(Customer.class, username, session), session)
-				.map(tuple -> tuple.get(Customer_.EMAIL, String.class));
+				.map(tuple -> tuple.get(User_.EMAIL, String.class));
 	}
 
 	/**
@@ -193,8 +192,8 @@ public class RestCustomerController extends AbstractController {
 	 */
 	@PatchMapping(value = "/reset", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_PROBLEM_JSON_VALUE)
 	@Transactional
-	public ResponseEntity<?> resetCustomerEmail(String code, String newPassword, HttpServletRequest request,
-			HttpServletResponse response) throws AdvisedException, Exception {
+	public ResponseEntity<Object> resetCustomerEmail(String code, String newPassword, HttpServletRequest request,
+			HttpServletResponse response) throws Exception {
 		final Session session = useAutoSession(sessionFactory.getCurrentSession());
 		final Cookie passwordResetCookie = WebUtils.getCookie(request,
 				credentialResetService.getPasswordResetRequestIdCookieName());
@@ -226,7 +225,7 @@ public class RestCustomerController extends AbstractController {
 			credentialResetService.disableExistingRequest(requestId, session);
 
 			HttpHelper.attachCookie(response, createInvalidateCookie(
-					credentialResetService.getPasswordResetRequestIdCookieName(), CREDENTIAL_RESET_COOKIE_PATH));
+					credentialResetService.getPasswordResetRequestIdCookieName(), credentialResetCookiePath));
 			HttpHelper.attachCookie(response, createInvalidateCookie(jwtSecurityContext.getCookieName(),
 					jwtSecurityContext.getWholeDomainPath()));
 

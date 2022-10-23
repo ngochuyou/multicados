@@ -36,7 +36,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 	private static final Pattern DESCRIPTION_PATTERN;
 
 	static {
-		final List<Character> ACCEPTED_DESCRIPTION_CHARACTERS = List.of(
+		final List<Character> acceptedDescriptionCharacters = List.of(
 				'\s', '.', ',', '(', ')',
 				'[', ']', '_', '-', '+',
 				'=', '/', '!', '@',
@@ -49,7 +49,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 						.literal(VIETNAMESE_CHARACTERS)
 						.naturalAlphabet()
 						.naturalNumeric()
-						.literal(ACCEPTED_DESCRIPTION_CHARACTERS)
+						.literal(acceptedDescriptionCharacters)
 					.end()
 					.withLength().atLeastOne().max(MAX_DESCRIPTION_LENGTH)
 				.end()
@@ -59,7 +59,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 				StringHelper.join(StringHelper.SPACE, List.of(
 						Common.invalidPattern(CollectionHelper.join(
 								Collectors.toList(),
-								ACCEPTED_DESCRIPTION_CHARACTERS,
+								acceptedDescriptionCharacters,
 								List.of('N', 'L'))),
 						Common.invalidLength(1, MAX_DESCRIPTION_LENGTH)));
 	}
@@ -71,7 +71,7 @@ public class CategoryValidator extends AbstractDomainResourceValidator<Category>
 
 	@Override
 	public Validation isSatisfiedBy(EntityManager entityManager, Serializable id, Category resource) {
-		Validation result = Validation.success();
+		final Validation result = Validation.success();
 
 		if (resource.getDescription() == null || !DESCRIPTION_PATTERN.matcher(resource.getDescription()).matches()) {
 			result.bad(Category_.DESCRIPTION, DESCRIPTION_ERROR_MESSAGE);

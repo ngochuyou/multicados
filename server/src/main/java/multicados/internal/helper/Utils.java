@@ -19,9 +19,11 @@ import multicados.internal.context.Loggable;
  * @author Ngoc Huy
  *
  */
-public abstract class Utils {
+public class Utils {
 
-	private Utils() {}
+	private Utils() {
+		throw new UnsupportedOperationException();
+	}
 
 	// we use FIRST, SECOND, THIRD,... to avoid FunctionalInterface types conflict
 	public static <FIRST> Declaration<FIRST> declare(FIRST val) {
@@ -505,7 +507,7 @@ public abstract class Utils {
 
 	}
 
-	private static abstract class LazyLoader<V, L> {
+	private abstract static class LazyLoader<V, L> {
 
 		protected static final Logger logger = LoggerFactory.getLogger(Utils.LazyLoader.class);
 		private static final String LOG_MESSAGE = "Invoking lazy loader first time ever";
@@ -523,14 +525,11 @@ public abstract class Utils {
 	public static class LazySupplier<V> extends LazyLoader<V, Supplier<V>> {
 
 		public LazySupplier(Supplier<V> supplier) {
-			this.loader = new Supplier<>() {
-				@Override
-				public V get() {
-					log();
-					LazySupplier.this.value = supplier.get();
-					LazySupplier.this.loader = () -> LazySupplier.this.value;
-					return LazySupplier.this.value;
-				}
+			this.loader = () -> {
+				log();
+				LazySupplier.this.value = supplier.get();
+				LazySupplier.this.loader = () -> LazySupplier.this.value;
+				return LazySupplier.this.value;
 			};
 		}
 
@@ -578,14 +577,11 @@ public abstract class Utils {
 	public static class LazyFunction<T, V> extends LazyLoader<V, Function<T, V>> {
 
 		public LazyFunction(Function<T, V> producer) {
-			this.loader = new Function<>() {
-				@Override
-				public V apply(T arg) {
-					log();
-					LazyFunction.this.value = producer.apply(arg);
-					LazyFunction.this.loader = (nextArg) -> LazyFunction.this.value;
-					return LazyFunction.this.value;
-				}
+			this.loader = arg -> {
+				log();
+				LazyFunction.this.value = producer.apply(arg);
+				LazyFunction.this.loader = nextArg -> LazyFunction.this.value;
+				return LazyFunction.this.value;
 			};
 		}
 
@@ -684,7 +680,7 @@ public abstract class Utils {
 		return new SupplyWhenImpl<>(predicate);
 	}
 
-	private static abstract class AbstractWhen {
+	private abstract static class AbstractWhen {
 
 		protected final boolean predicate;
 
