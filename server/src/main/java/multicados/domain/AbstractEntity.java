@@ -20,4 +20,6 @@ public abstract class AbstractEntity<T extends Serializable> implements Entity<T
 	public static final String MYSQL_BCRYPT_COLUMN_DEFINITION = "VARCHAR(60)";
 	public static final String MYSQL_BIGINT_COLUMN_DEFINITION = "BIGINT";
 
+	public static final String ID_C = "id";
+
 }

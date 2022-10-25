@@ -9,6 +9,6 @@ import java.io.Serializable;
  * @author Ngoc Huy
  *
  */
-public interface ResourceAuditor<S extends Serializable> {
+public interface ResourceAuditor<S extends Serializable> extends IdentifiableResource<S> {
 
 }

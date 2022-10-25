@@ -52,7 +52,7 @@ public class IdentifierGeneratingSaveEventListener implements SaveOrUpdateEventL
 
 		try {
 			if (Image.class.isAssignableFrom(resource.getClass())) {
-				Image image = (Image) resource;
+				final Image image = (Image) resource;
 				// @formatter:off
 				declare(image.getContent())
 					.then(ByteArrayInputStream::new)
@@ -74,7 +74,7 @@ public class IdentifierGeneratingSaveEventListener implements SaveOrUpdateEventL
 	}
 
 	private String generateForImageResource(FileResource resource) {
-		Image image = (Image) resource;
+		final Image image = (Image) resource;
 
 		return String.format(IDENTIFIER_TEMPLATE, image.getStandard().getName(), delimiter,
 				generateForGenericResource(image));

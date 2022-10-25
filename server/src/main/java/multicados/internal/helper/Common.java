@@ -38,7 +38,7 @@ public abstract class Common {
 	private static final String MESSAGE = "message";
 	private static final String PAYLOAD = "payload";
 
-	private static final String GENERAL_OK_MESSAGE = "Successfully done";
+	private static final String GENERAL_OK_MESSAGE = "Successfully completed";
 	private static final String UNKNOWN_ERROR = "Unknown error";
 	public static final String UNABLE_TO_COMPLETE = "Unable to complete request";
 

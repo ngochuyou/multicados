@@ -108,7 +108,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 				.map(tuple -> IntStream.range(offset, span + offset)
 					.mapToObj(j -> Utils.Entry.entry(translatedAttributes.get(checkedProperties.get(j)), tuple.get(j)))
 					.collect(CollectionHelper.toMap()))
-				.collect(Collectors.toList());
+				.toList();
 		// @formatter:on
 	}
 
@@ -262,7 +262,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			basicAttributes = query.getAttributes();
 			nonBatchingQueries = query.getNonBatchingAssociationQueries();
 			batchingQueries = query.getBatchingAssociationQueries();
-			translatedAttributesLoader = new LazySupplier<>(() -> translateAttributes(query, credential));
+			translatedAttributesLoader = new LazySupplier<>(() -> translateAttributes(query));
 
 			pageable = Optional.<Pageable>ofNullable(query.getPage()).orElse(DEFAULT_PAGEABLE);
 		}
@@ -396,7 +396,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 		}
 		// @formatter:on
 		// @formatter:off
-		private <E extends DomainResource> List<Predicate> addAssociationPredicates(
+		private List<Predicate> addAssociationPredicates(
 				Utils.Entry<From<?, ?>, String> fromEntry,
 				ComposedRestQuery<?> composedAssocationQuery,
 				List<Predicate> basicPredicates) throws Exception {
@@ -514,8 +514,8 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			return record;
 		}
 
-		private List<Map<String, Object>> transformRows(List<Tuple> tuples) throws Exception {
-			return tuples.stream().map(this::transformRow).collect(Collectors.toList());
+		private List<Map<String, Object>> transformRows(List<Tuple> tuples) {
+			return tuples.stream().map(this::transformRow).toList();
 		}
 
 		private Map<String, Object> transformRow(Tuple tuple) {
@@ -542,15 +542,14 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 								composedNonBatchingRestQuery,
 								credential,
 								composedNonBatchingRestQuery.getAttributes(),
-								translateAttributes(composedNonBatchingRestQuery, credential),
+								translateAttributes(composedNonBatchingRestQuery),
 								new AssociationTuple(composedNonBatchingRestQuery, tuple)));
 			}
 			// @formatter:on
 			return record;
 		}
 
-		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery,
-				GrantedAuthority credential) {
+		private Map<String, String> translateAttributes(ComposedRestQuery<?> composedQuery) {
 			// should never be throwing exceptions
 			// @formatter:off
 			try {
@@ -562,12 +561,12 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 										composedQuery.getBatchingAssociationQueries().stream()
 												.map(ComposedRestQuery::getAssociationName))
 								.flatMap(Function.identity())
-								.collect(Collectors.toList()))
+								.toList())
 						.then(readSecurityManager::translate)
 						.get();
 			} catch (Exception any) {
 				any.printStackTrace();
-				return null;
+				return Collections.emptyMap();
 			}
 			// @formatter:on
 		}
@@ -616,7 +615,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 		@Override
 		public Object[] toArray() {
 			return IntStream.range(composedQuery.getAssociatedPosition(), composedQuery.getPropertySpan())
-					.mapToObj(index -> owningTuple.get(index)).toArray();
+					.mapToObj(owningTuple::get).toArray();
 		}
 
 		@Override
@@ -624,7 +623,7 @@ public class GenericCRUDServiceImpl extends AbstractGenericHibernateCUDService<M
 			final List<TupleElement<?>> elements = owningTuple.getElements();
 
 			return IntStream.range(composedQuery.getAssociatedPosition(), composedQuery.getPropertySpan())
-					.mapToObj(index -> elements.get(index)).collect(Collectors.toList());
+					.mapToObj(elements::get).collect(Collectors.toList());
 		}
 
 	}

@@ -13,17 +13,14 @@ public class StaleRequestException extends Throwable {
 
 	public StaleRequestException() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	public StaleRequestException(String message) {
 		super(message);
-		// TODO Auto-generated constructor stub
 	}
 
 	public StaleRequestException(Throwable cause) {
 		super(cause);
-		// TODO Auto-generated constructor stub
 	}
 
 }

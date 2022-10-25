@@ -9,9 +9,9 @@ package multicados.internal.domain;
  */
 public interface PermanentResource extends DomainResource {
 
-	Boolean isActive();
+	boolean isActive();
 
-	void setActive(Boolean activeState);
+	void setActive(boolean activeState);
 
 	static final String ACTIVE = "active";
 

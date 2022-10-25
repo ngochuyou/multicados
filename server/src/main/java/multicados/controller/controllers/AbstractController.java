@@ -106,13 +106,16 @@ public abstract class AbstractController {
 		}
 		// @formatter:off
 		return status(HttpStatus.BAD_REQUEST)
-				.body(result.getValidation().getErrors().entrySet().stream()
-					.map(entry -> Map.entry(entry.getKey(), entry.getValue().getMessage()))
-					.collect(CollectionHelper.toMap()));
+				.body(result.getValidation()
+						.getErrors()
+						.entrySet().stream()
+						.map(entry -> Map.entry(entry.getKey(), entry.getValue().getMessage()))
+						.collect(CollectionHelper.toMap()));
 		// @formatter:on
 	}
 
-	protected ResponseEntity<Object> doSendWithError(BodyBuilder responseBuilder, Object body, HttpServletRequest request) {
+	protected ResponseEntity<Object> doSendWithError(BodyBuilder responseBuilder, Object body,
+			HttpServletRequest request) {
 		return doSend(responseBuilder, () -> Common.error(body), request);
 	}
 
@@ -138,11 +141,13 @@ public abstract class AbstractController {
 
 	protected Session useManualSession(Session session) {
 		session.setHibernateFlushMode(FlushMode.MANUAL);
+
 		return session;
 	}
 
 	protected Session useAutoSession(Session session) {
 		session.setHibernateFlushMode(FlushMode.AUTO);
+
 		return session;
 	}
 

@@ -24,7 +24,7 @@ public class RestProductController extends AbstractController {
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Secured({ HEAD })
-	public ResponseEntity<?> createProduct(@RequestPart("model") Product model,
+	public ResponseEntity<Object> createProduct(@RequestPart("model") Product model,
 			@RequestPart(name = "images", required = false) MultipartFile[] images) {
 		return null;
 	}

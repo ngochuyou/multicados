@@ -55,14 +55,14 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 		final Class<? extends NamedResource> resourceType = resource.getClass();
 		final SharedSessionContractImplementor session = (SharedSessionContractImplementor) entityManager;
 
-		if (doessExist(resource, resourceType, session)) {
+		if (doesExist(resource, resourceType, session)) {
 			result.bad(nameFieldName, String.format("Duplicate name '%s'", resource.getName()));
 		}
 
 		return result;
 	}
 
-	private boolean doessExist(NamedResource resource, final Class<? extends NamedResource> resourceType,
+	private boolean doesExist(NamedResource resource, final Class<? extends NamedResource> resourceType,
 			final SharedSessionContractImplementor session) throws Exception {
 		final EntityPersister persister = session.getFactory().unwrap(SessionFactoryImplementor.class).getMetamodel()
 				.entityPersister(resourceType);
@@ -71,6 +71,7 @@ class NamedResourceValidator extends AbstractDomainResourceValidator<NamedResour
 		return genericRepository.doesExist(resourceType,
 				(root, cq, builder) -> {
 					final Path<Object> identifierPath = root.get(persister.getIdentifierPropertyName());
+					
 					return builder.and(
 							// has this name
 							builder.equal(root.get(nameFieldName), resource.getName()),

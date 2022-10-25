@@ -43,7 +43,7 @@ public class RegexHelper extends RegExUtils {
 	}
 
 	public interface RegexGroupBuilder extends RegexBuilder {
-		
+
 		@Override
 		RegexGroupBuilder literal(String fragment);
 
@@ -130,13 +130,13 @@ public class RegexHelper extends RegExUtils {
 		@Override
 		public String build() {
 			// @formatter:off
-			String regex = super
+			final String regex = super
 					.build()
-					.replace("\\[", "\\\\[")
-					.replace("\\]", "\\\\]")
-					.replace("\\.", "\\\\.")
-					.replace("\\-", "\\\\-")
-					.replace("\\^", "\\\\^");
+					.replace("[", "\\[")
+					.replace("]", "\\]")
+					.replace(".", "\\.")
+					.replace("-", "\\-")
+					.replace("^", "\\^");
 			// @formatter:on
 			return String.format("[%s]", regex);
 		}

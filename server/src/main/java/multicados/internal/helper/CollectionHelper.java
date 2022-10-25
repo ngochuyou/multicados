@@ -45,27 +45,17 @@ public class CollectionHelper {
 
 	public static <K, V, C extends Collection<V>> Map<K, C> group(Collection<V> collection, Function<V, K> keyProducer,
 			Supplier<C> collectionSupplier) {
-		Map<K, C> result = new HashMap<>();
+		final Map<K, C> result = new HashMap<>();
 
-		for (V value : collection) {
-			K key = keyProducer.apply(value);
-
-			if (!result.containsKey(key)) {
-				C group = collectionSupplier.get();
-
-				group.add(value);
-				result.put(key, group);
-				continue;
-			}
-
-			result.get(key).add(value);
+		for (final V value : collection) {
+			result.computeIfAbsent(keyProducer.apply(value), key -> collectionSupplier.get()).add(value);
 		}
 
 		return result;
 	}
 
 	public static Type getGenericType(Collection<?> collection) {
-		for (Object o : collection) {
+		for (final Object o : collection) {
 			if (o != null) {
 				return o.getClass();
 			}
@@ -73,7 +63,7 @@ public class CollectionHelper {
 
 		return null;
 	}
-	
+
 	public static <K, V> Map<K, V> getOrEmpty(Map<K, V> map) {
 		return map == null || map.isEmpty() ? Collections.emptyMap() : map;
 	}
